@@ -40,3 +40,6 @@ override.tf.json
 # 부하 시험 회차 데이터. 지표 JSON 이라 커밋하지 않는다.
 # 보관할 회차만 골라 문서에 붙인다.
 loadtest-runs/
+
+### Claude Code 개인 설정 ###
+.claude/settings.local.json

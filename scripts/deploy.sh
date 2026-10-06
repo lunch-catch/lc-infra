@@ -37,7 +37,8 @@ HEALTHY_TIMEOUT=360
 
 # 스모크로 찌를 경로다. 6번은 인스턴스 안에서, 7번은 ALB 를 거쳐 같은 경로를 본다.
 # 호스트는 정하지 않는다. ALB 주소는 재구축마다 바뀌므로 7번에서 그때 조회한다.
-SMOKE_PATH="${SMOKE_PATH:-/v1/products}"
+# 기본값이 API 문서인 것은 lunchcatch 에서 인증 없이 열린 GET 이 그것뿐이기 때문이다.
+SMOKE_PATH="${SMOKE_PATH:-/v3/api-docs}"
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }

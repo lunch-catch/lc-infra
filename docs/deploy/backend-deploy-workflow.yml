@@ -1,11 +1,11 @@
-# lc-backend 의 .github/workflows/deploy.yml 로 넣을 파일이다.
+# 원본은 lc-infra 의 docs/deploy/backend-deploy-workflow.yml 이다. 고칠 때는 둘을 함께 고친다.
 #
-# 이 저장소가 원본을 갖는 이유는 배포 절차가 인프라 결정에서 나오기 때문이다.
+# 배포 절차가 인프라 결정에서 나오기 때문에 원본을 인프라가 갖는다.
 # ASG 이름, 대상 그룹 이름, SSM 경로가 전부 Terraform 이 정한 값이다.
 #
-# 적용하려면 lc-backend 에 이 파일을 복사하고 아래를 설정한다.
-#   변수   AWS_DEPLOY_ROLE_ARN   bootstrap 에서 terraform output github_role_arns 의 deploy 값
-#   시크릿 SLACK_WEBHOOK_DEPLOY  #alerts-deploy 채널 웹훅
+# 필요한 설정
+#   변수   AWS_DEPLOY_ROLE_ARN   lc-infra bootstrap 의 terraform output github_role_arns 의 deploy 값
+#   시크릿 SLACK_WEBHOOK_DEPLOY  배포 알림 채널 웹훅. 없으면 알림만 건너뛴다
 
 name: 배포
 
@@ -20,6 +20,8 @@ name: 배포
 on:
   push:
     branches: [main]
+  # 인프라를 다시 세운 뒤 lc-infra 의 apply.sh 가 main 배포를 다시 건다. 다른 브랜치로 돌리면 STS 가 거부한다.
+  workflow_dispatch:
 
 # 배포는 중간에 끊으면 안 된다. 구 인스턴스를 지우는 도중에 취소되면 용량이 반이 된다.
 concurrency:
@@ -79,8 +81,8 @@ jobs:
         env:
           PROJECT: lunchcatch
           # 스모크 대상의 호스트는 deploy.sh 가 ALB 에서 직접 조회한다.
-          # 여기서 정하는 것은 경로뿐이고, 비우면 /v1/products 를 쓴다.
-          SMOKE_PATH: ${{ vars.SMOKE_PATH }}
+          # 여기서 정하는 것은 경로뿐이다. 인증 없이 열린 GET 이 API 문서뿐이라 그것을 찌른다.
+          SMOKE_PATH: ${{ vars.SMOKE_PATH || '/v3/api-docs' }}
         run: infra/scripts/deploy.sh ${{ github.sha }}
 
       # 배포 알림만 Alertmanager 를 거치지 않는다.
