@@ -37,21 +37,27 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # 액션은 태그가 아니라 커밋으로 고정한다. GitHub 공식 액션도 같다.
+      # 태그는 옮겨질 수 있어, 배포 권한을 가진 이 잡에서 바뀐 코드가 그대로 돈다.
+      #
+      # 체크아웃은 토큰을 .git/config 에 남기지 않는다. 저장소 전체가 docker 빌드 컨텍스트로 넘어간다.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       # 배포 스크립트는 lc-infra 가 소유한다. llm-verify 가 형제 저장소를 받아 쓰는 것과 같은 방식이다.
       - name: 인프라 스크립트
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: lunch-catch/lc-infra
           path: infra
+          persist-credentials: false
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
         with:
           distribution: temurin
           java-version: "21"
 
-      # 외부 액션은 태그가 아니라 커밋으로 고정한다. 태그는 옮겨질 수 있어 배포 권한을 가진 잡에서 남의 코드가 바뀐 채 돈다
       - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
 
       - name: 빌드
@@ -71,9 +77,14 @@ jobs:
       #
       # 저장소가 IMMUTABLE 이라 같은 SHA 로 다시 밀면 push 가 거부된다.
       # 재실행으로 이미지가 바뀌는 일이 없어야 태그가 버전의 근거가 된다.
+      #
+      # 식 값은 run 에 직접 끼우지 않고 env 로 넘긴다. 셸이 값을 코드로 읽지 않게 한다.
       - name: 이미지 push
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          SHA: ${{ github.sha }}
         run: |
-          IMAGE=${{ steps.ecr.outputs.registry }}/lunchcatch:${{ github.sha }}
+          IMAGE="$REGISTRY/lunchcatch:$SHA"
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
 
@@ -84,17 +95,24 @@ jobs:
           # 스모크 대상의 호스트는 deploy.sh 가 ALB 에서 직접 조회한다.
           # 여기서 정하는 것은 경로뿐이다. 인증 없이 열린 GET 이 API 문서뿐이라 그것을 찌른다.
           SMOKE_PATH: ${{ vars.SMOKE_PATH || '/v3/api-docs' }}
-        run: infra/scripts/deploy.sh ${{ github.sha }}
+          SHA: ${{ github.sha }}
+        run: infra/scripts/deploy.sh "$SHA"
 
       # 배포 알림만 Alertmanager 를 거치지 않는다.
       # AWS 자격증명을 얻기 전에도 실패를 알려야 해서 웹훅을 저장소 시크릿에 둔다.
+      #
+      # 알림은 결과를 판정하지 않는다(BLD-2-05). Slack 이 실패해도 배포 결과를 바꾸지 않게 둔다.
+      # 바꾸면 성공한 배포가 실패로 보이고, 재실행은 IMMUTABLE 저장소에 같은 태그를 밀다 막힌다.
       - name: 결과 알림
         if: always()
+        continue-on-error: true
         env:
           WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEPLOY }}
+          STATUS: ${{ job.status }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
         run: |
           [ -z "$WEBHOOK" ] && exit 0
-          STATUS="${{ job.status }}"
           curl -fsS -X POST "$WEBHOOK" \
             -H 'Content-Type: application/json' \
-            -d "{\"text\":\"[$STATUS] 배포 ${{ github.sha }} by ${{ github.actor }}\"}"
+            -d "{\"text\":\"[$STATUS] 배포 $SHA by $ACTOR\"}"
