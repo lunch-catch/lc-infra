@@ -19,6 +19,20 @@ set -euo pipefail
 
 PROJECT="${PROJECT:-lunchcatch}"
 REGION="${AWS_REGION:-ap-northeast-2}"
+
+# 프로필을 빠뜨려도 default 자격증명(다른 계정)으로 가지 않게 한다.
+# CI 는 OIDC 자격증명을 환경변수로 받으므로 프로필을 건드리지 않는다. 없는 프로필을 걸면 CLI 가 죽는다.
+if [ -z "${AWS_PROFILE:-}" ] && [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
+  export AWS_PROFILE=lunchcatch
+fi
+# 그래도 다른 계정을 가리키면 아무것도 하기 전에 멈춘다. terraform/versions.tf 의 allowed_account_ids 와 같은 장치다.
+ACCOUNT_ID="${ACCOUNT_ID:-762794225116}"
+current_account=$(aws sts get-caller-identity --query Account --output text)
+if [ "$current_account" != "$ACCOUNT_ID" ]; then
+  printf 'ERROR: 계정 %s 를 가리킨다. %s 여야 한다. AWS_PROFILE 을 확인한다\n' "$current_account" "$ACCOUNT_ID" >&2
+  exit 1
+fi
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # m7i-flex.large 온디맨드 (ap-northeast-2, 2026-08-30 조회).

@@ -59,6 +59,8 @@ Terraform 쪽에 `ignore_changes` 를 걸어 두었다. 자세한 것은 [`docs/
 Error: AWS account ID not allowed: <다른 계정>
 ```
 
+`scripts/` 의 스크립트는 `AWS_PROFILE` 이 비어 있으면 `lunchcatch` 프로필을 쓰고, 가리키는 계정이 `762794225116` 이 아니면 시작 전에 멈춘다. CI 처럼 자격증명이 환경변수로 오면 프로필을 건드리지 않는다.
+
 `destroy.sh` 는 한 겹 더 두어, 대상 계정 ID 를 사람이 직접 입력해야 진행한다.
 
 ## 검증
