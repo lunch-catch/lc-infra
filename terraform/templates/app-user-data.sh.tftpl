@@ -1,6 +1,20 @@
 #!/bin/bash
 ${common_bootstrap}
 
+# 시계를 Amazon Time Sync 에 맞춘다. 링크 로컬 주소라 NAT 를 거치지 않는다.
+# 배치 두 대가 같은 시각에 00:00 묶음을 시도하고 updated_at 2분으로 서로의 생존을 판정한다.
+# 시계가 어긋나면 살아 있는 서버의 작업을 빼앗거나 영업일 경계를 다르게 본다.
+# Ubuntu 이미지에 따라 chrony 이거나 systemd-timesyncd 라 둘 다 받는다.
+if command -v chronyc > /dev/null; then
+  install -d /etc/chrony/sources.d
+  echo 'server 169.254.169.123 prefer iburst minpoll 4 maxpoll 4' > /etc/chrony/sources.d/aws-time-sync.sources
+  systemctl restart chrony
+else
+  install -d /etc/systemd/timesyncd.conf.d
+  printf '[Time]\nNTP=169.254.169.123\n' > /etc/systemd/timesyncd.conf.d/aws-time-sync.conf
+  systemctl restart systemd-timesyncd
+fi
+
 # SSM 조회와 .env 생성을 스크립트로 빼 둔다.
 # 재배포 때 같은 것을 다시 돌려야 하므로 여기 인라인으로 두지 않는다.
 cat > /usr/local/bin/${project}-refresh-env <<'REFRESH'

@@ -30,6 +30,22 @@ groups:
         annotations:
           description: "5xx 비율이 한 시간 전 대비 2배를 넘었다. 롤백을 판단하라"
 
+      # 배치가 한 대도 살아 있지 않다. 00:00 묶음과 쿠폰 만료가 돌지 않는다.
+      #
+      # BatchNotRun 으로는 못 잡는다. 그것은 성공 시각이 낡는 것을 보는데, 서버가 죽으면
+      # 지표 자체가 사라져 비교할 값이 없다. 그래서 수집 대상이 살아 있는지를 따로 본다.
+      # absent 는 대상이 모두 사라져 up 시계열마저 없을 때(인스턴스 종료)를 잡는다.
+      #
+      # 배포는 한 대씩 교체하므로 정상 배포로는 0대가 되지 않는다.
+      - alert: BatchAllDown
+        expr: |
+          absent(up{job="batch"} == 1)
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          description: "살아 있는 배치 서버가 없다. 영업일 경계 작업이 돌지 않는다"
+
   - name: warning
     rules:
       # 최대 누적량의 30%. t3.small 은 576 이 최대라 173 이다.
@@ -106,21 +122,41 @@ groups:
         annotations:
           description: "readiness 가 90초 넘게 실패했다. 배포를 중단하라"
 
+      # 배치 두 대 중 한 대가 죽었다. 남은 한 대가 작업을 이어받아 지금은 돌지만,
+      # 그것마저 죽으면 끝이라 알아야 한다. 이것이 없으면 두 번째 장애 때 처음 알게 된다.
+      #
+      # 5분을 기다리는 것은 배포 때문이다. deploy.sh 가 한 대씩 재시작하고 기동에 1분 남짓 걸린다.
+      - alert: BatchDegraded
+        expr: |
+          count(up{job="batch"} == 1) < 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          description: "배치 서버가 {{ $value }} 대만 살아 있다. 나머지 한 대를 확인하라"
+
       # 배치가 조용히 멈추는 것을 잡는다.
       #
       # 배치 인스턴스는 ALB 대상이 아니라 HealthyHostCount 에 안 걸린다.
       # 에러 알람은 작업이 돌아야 울리므로 프로세스가 아예 안 뜨면 아무 신호도 없다.
       # 그래서 실패가 아니라 마지막 성공 시각이 낡는 것으로 감시한다.
       #
-      # 작업 주기가 fixedDelay 10분이라 30분이면 세 번을 연달아 놓친 것이다.
+      # 주기가 작업마다 달라 임계값을 나눈다.
+      #   생존 신호 30초, 이어받기 1분: 30분이면 수십 번을 연달아 놓친 것이다
+      #   00:00 묶음은 하루 한 번이라 30분으로 두면 매일 00:30 에 울린다. 25시간으로 둔다
+      #
+      # 서버마다 따로 본다. 점유하지 못한 서버의 묶음도 "다른 서버가 잡았다" 로 정상 종료해
+      # 성공 시각이 갱신되므로, 한 대만 낡으면 그 서버의 스케줄러가 멈춘 것이다.
       - alert: BatchNotRun
         expr: |
-          time() - batch_job_last_success_timestamp_seconds > 1800
+          (time() - batch_job_last_success_timestamp_seconds{scheduler!~".*runDailyBundle.*"} > 1800)
+          or
+          (time() - batch_job_last_success_timestamp_seconds{scheduler=~".*runDailyBundle.*"} > 90000)
         for: 5m
         labels:
           severity: warning
         annotations:
-          description: "배치 {{ $labels.scheduler }} 가 30분 넘게 성공하지 못했다"
+          description: "배치 {{ $labels.instance }} 의 {{ $labels.scheduler }} 가 주기를 넘겨 성공하지 못했다"
 
   # 임계값이 정해지지 않은 알람들. 부하 시험 후 채운다.
   #

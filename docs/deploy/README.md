@@ -40,13 +40,13 @@ assume 은 되고 정책이 없으니 호출만 거절된다. **로그만 보면
 2026-09-21 에 26초 차이로 이렇게 겹쳤다. 인프라가 다 올라온 뒤 `deploy.sh <SHA>` 로 다시
 배포하면 된다.
 
-## 배치는 앱 뒤에 교체한다
+## 배치는 앱 뒤에 한 대씩 교체한다
 
-`deploy.sh` 10번 단계다. 배치는 ASG 밖이라 `desired` 로 다룰 수 없어 SSM 으로 서비스를 재시작한다.
+`deploy.sh` 10번 단계다. 배치는 ASG 에 있지만 대수가 2 로 고정이라 앱처럼 `desired` 를 늘려 새 인스턴스를 띄우지 않는다. 떠 있는 인스턴스에서 SSM 으로 서비스를 재시작한다.
 
 ```
 9.  앱 구 인스턴스 종료
-10. 배치 교체              SSM SendCommand -> refresh-env -> systemctl stop/start
+10. 배치 교체              서버마다 차례로 SSM SendCommand -> refresh-env -> systemctl stop/start
 11. 최종 확인
 ```
 
@@ -56,9 +56,27 @@ assume 은 되고 정책이 없으니 호출만 거절된다. **로그만 보면
 
 `refresh-env` 는 `terraform/templates/refresh-env.sh.tftpl` 에서 나오고 user-data 가 부팅 때 인스턴스에 심는다. **부팅과 재배포가 같은 코드를 쓴다**(`MNT-3-01`).
 
-**롤링으로 하지 않는다.** 구버전과 신버전 배치가 겹치면 "프로세스는 항상 하나" 라는 전제가 깨지고, 분산 락이 없어 아무것도 막지 못한다. 그래서 중지 후 시작이다.
+**한 대씩 한다.** 두 배치는 액티브-액티브라 한 대가 내려가 있는 동안 다른 한 대가 작업을 맡는다. 둘을 한꺼번에 내리면 그 사이 00:00 묶음이 비고 실행 중이던 작업을 이어받을 서버도 없다. 잠시 구버전과 신버전 배치가 함께 돌지만, 같은 작업을 동시에 시도해도 `batch_execution_log` 의 유일 제약이 한쪽만 통과시킨다. 근거는 `docs/system-design/백엔드공통_배치_설계.md` 2장이다.
 
-배치 교체가 실패하면 **앱은 이미 새 버전이고 배치만 옛 버전인 구간**이 남는다. 스크립트가 그 사실을 로그로 남기고 종료 코드 1로 끝낸다. 되돌리지 않는 이유는, 배치만 옛 버전인 상태가 앱까지 되돌리는 것보다 대개 덜 위험하기 때문이다.
+배치 교체가 실패하면 **나머지 배치는 건드리지 않고** 종료 코드 1로 끝낸다. 앱은 이미 새 버전이고 배치 일부가 옛 버전인 구간이 남는다. 되돌리지 않는 이유는, 배치만 옛 버전인 상태가 앱까지 되돌리는 것보다 대개 덜 위험하기 때문이다. 남은 한 대가 작업을 맡고 있으니 급하지 않다.
+
+## 배치 스케줄러를 끈다
+
+장애 대응 중 자동 실행을 멈출 때 쓴다. 프로필은 그대로 두고 스위치만 내린다.
+
+```bash
+aws ssm put-parameter --name /lunchcatch/batch-scheduler-enabled --value false --overwrite
+ids=$(aws ec2 describe-instances --filters "Name=tag:Role,Values=batch" "Name=instance-state-name,Values=running" \
+  --query 'Reservations[].Instances[].InstanceId' --output text)
+aws ssm send-command --instance-ids $ids --document-name AWS-RunShellScript \
+  --parameters 'commands=["set -e","/usr/local/bin/lunchcatch-refresh-env","systemctl restart lunchcatch.service"]'
+```
+
+되살릴 때는 값을 `true` 로 두고 같은 명령을 돌린다.
+
+**SSM 값을 고쳐야 한다.** 인스턴스의 `.env` 를 손으로 고치면 다음 배포의 `refresh-env` 가 SSM 값으로 덮어써 스케줄러가 다시 켜진다. 새로 뜨는 인스턴스도 SSM 값을 읽으므로, ASG 가 교체한 배치도 꺼진 채로 뜬다.
+
+**끄는 동안 `BatchNotRun` 이 울린다.** 스케줄러가 안 돌면 성공 시각이 낡는다. 의도한 것이니 Alertmanager 에서 침묵을 건다.
 
 ## Terraform 과 스크립트의 경계
 
@@ -157,17 +175,18 @@ CDN 도메인과 ALB 주소는 재구축마다 바뀌지만 **손댈 것이 없�
 
 ### AMI 는 자동으로 안 올라간다
 
-`aws_instance.monitoring` 과 `aws_instance.batch` 에 `ignore_changes = [ami]` 가 걸려 있다.
+`aws_instance.monitoring` 에 `ignore_changes = [ami]`, 배치 시작 템플릿에 `ignore_changes = [image_id]` 가 걸려 있다.
 
-**걸지 않으면 apply 가 통째로 막힌다.** `data.aws_ami` 가 `most_recent` 라 Canonical 이 새
-Ubuntu 를 올리면 두 인스턴스가 교체 대상이 되는데, 모니터링에는 `prevent_destroy` 가 있어
-Terraform 이 거부한다. 그러면 **무관한 변경 하나를 넣으려 해도 못 넣는다.** 2026-09-23 에
+**모니터링은 걸지 않으면 apply 가 통째로 막힌다.** `data.aws_ami` 가 `most_recent` 라 Canonical 이 새
+Ubuntu 를 올리면 교체 대상이 되는데, `prevent_destroy` 가 있어 Terraform 이 거부한다. 그러면 **무관한 변경 하나를 넣으려 해도 못 넣는다.** 2026-09-23 에
 부하 생성기를 내리려다 이것에 막혔고 `-target` 으로 우회해야 했다.
 
 대가는 **커널이 자동으로 안 올라간다**는 것이다. 보안 패치가 필요하면 사람이 판단해서
 교체한다. 모니터링은 EBS 에 관측 데이터가 있으니 먼저 챙긴다.
 
-ASG(앱, 선착순)는 해당 없다. 시작 템플릿은 제자리 갱신되고 **다음에 뜨는 인스턴스가 새 AMI 를
+**배치는 걸지 않으면 무관한 apply 가 배치를 교체한다.** 배치 ASG 는 템플릿 버전이 바뀌면 instance refresh 로 한 대씩 교체하는데, AMI 가 바뀔 때마다 새 버전이 생긴다. 고친 것이 없는데 교체가 일어날 이유가 없다. user-data 를 고친 교체는 의도한 것이라 그대로 일어난다.
+
+앱 ASG 는 해당 없다. 시작 템플릿은 제자리 갱신되고 **다음에 뜨는 인스턴스가 새 AMI 를
 받는다.** 그래서 롤링 배포를 한 번 돌리면 자연히 최신이 된다.
 
 ### 재구축마다 남는 수동 작업
@@ -210,18 +229,18 @@ user-data 가 중간에 끊긴다.** SSM 파라미터가 아직 없어 `refresh-
 유닛도 안 만들어진다.
 
 **인스턴스는 `running` 이고 SSM 도 붙는다.** 그래서 눈에 안 띈다. 앱 ASG 는 healthy 가 안 되어
-스스로 교체하지만, **배치는 ASG 밖이라 그대로 남는다.**
+스스로 교체하지만, **배치 ASG 는 EC2 상태 검사만 보므로 그대로 남는다.** 인스턴스 자체는 정상이기 때문이다.
 
-2026-09-24 에 그렇게 당했다. `deploy.sh` 10단계가 `배치 교체 실패` 를 찍어서 알았다.
-그 경고가 없었으면 배치가 안 도는 채로 넘어갔을 것이다.
+2026-09-24 에 그렇게 당했다(배치가 ASG 밖 단독일 때). `deploy.sh` 10단계가 `배치 교체 실패` 를 찍어서 알았다.
+지금은 `BatchDegraded` 가 먼저 운다. 앱이 안 떠 수집 대상이 내려가 있기 때문이다.
 
 ```bash
 # 진단: 유닛이 있어야 한다
 aws ssm send-command --instance-ids <id> --document-name AWS-RunShellScript \
   --parameters 'commands=["systemctl is-active lunchcatch","ls /opt/lunchcatch/"]'
 
-# 조치: user-data 를 다시 돌리려면 인스턴스를 갈아야 한다
-cd terraform && terraform apply -replace=aws_instance.batch
+# 조치: user-data 를 다시 돌리려면 인스턴스를 갈아야 한다. ASG 가 새로 띄운다
+aws autoscaling terminate-instance-in-auto-scaling-group --instance-id <id> --no-should-decrement-desired-capacity
 ```
 
 **고친 뒤 다시 돌리지 않는다.** user-data 는 최초 부팅에만 돈다. 재부팅해도 안 돈다.
@@ -275,8 +294,8 @@ done
 상시 가동이 필요 없을 때 쓴다.
 
 ```bash
-./scripts/stop.sh     # ASG desired 0 -> 모니터링/배치 중지 -> RDS 중지
-./scripts/start.sh    # RDS 와 인스턴스 시작 -> 엔드포인트 갱신 -> min 2 회복 -> healthy 대기
+./scripts/stop.sh     # 앱 ASG desired 0 -> 모니터링 중지, 배치 ASG desired 0 -> RDS 중지
+./scripts/start.sh    # RDS 와 모니터링 시작 -> 엔드포인트 갱신 -> 앱과 배치 ASG min 2 회복 -> healthy 대기
 ```
 
 **재가동에 502초가 든다** (`OPS-1-14` 실측, 2026-09-24). 그중 492초가 RDS 가 `available` 이
@@ -290,6 +309,27 @@ done
 아예 안 나오고, 누락 데이터를 `Breaching` 으로 치기 때문이다. `stop.sh` 0단계가 알림을 끄고
 `start.sh` 5단계가 되살리므로 Slack 으로는 안 간다. **콘솔에서 빨간 것을 보면 이것부터 의심한다.**
 재가동 뒤 한 평가 주기(1분)면 `OK` 로 돌아온다.
+
+**재개했는데 앱이 안 뜨는 경우가 하나 있다.** 인프라를 내려둔 동안 `main` 에 머지하면
+이미지는 ECR 에 올라가지만 `deploy.sh` 가 사전 점검에서 멈춰 `current-sha` 를 못 채운다.
+
+`start.sh` 가 그 상태를 알아보고 ASG 를 올리지 않는다. 배치도 같은 이미지를 받으므로 올리지 않는다. RDS 와 모니터링까지만 올리고
+배포를 돌리라고 안내한 뒤 끝난다. 그대로 올렸다면 없는 태그를 받으려는 인스턴스가
+교체를 반복하다 10분 뒤에야 실패했을 것이다.
+
+```bash
+./scripts/start.sh              # 인프라만 올라온다
+./scripts/deploy.sh <커밋 SHA>   # current-sha 를 채우고 인스턴스를 띄운다
+```
+
+두 번째는 GitHub Actions 에서 실패한 배포 워크플로를 다시 실행해도 된다.
+
+**중지로는 절반밖에 못 줄인다.** ALB 와 ElastiCache 는 중지라는 개념이 없어 이 둘만으로 월 약 41 USD 가 계속 나간다.
+캐시를 2노드로 올린 뒤(`INF-37`) 이 금액이 12 USD 늘었다. 중지 방식의 절감폭이 그만큼 줄어든 것이다.
+
+`stop.sh` 가 앱부터 내리는 것은 의존 방향 때문이다. RDS 를 먼저 내리면 커넥션 오류가 마지막 구간의 지표를 오염시킨다. 모니터링은 ASG 밖이라 `stop-instances` 로 다룬다. 앱과 배치는 ASG 라 `min` 과 `desired` 를 0 으로 내린다. `stop-instances` 로 내리면 ASG 가 비정상으로 보고 교체해 세션이 끝나지 않는다(`INF-23`). 배치는 디스크에 상태가 없어 지워도 된다.
+
+**RDS 중지는 최대 7일이다.** 그 뒤 자동으로 다시 시작되므로 주 1회 이상 다시 내려야 한다.
 
 ## 부하 생성기
 
@@ -393,7 +433,7 @@ sleep(1)            VU 당 45회   2만 VU -> 90만 회   약 2,440 MB
 in-flight 는 약 200건이고 22 MB 급이다.
 
 **그 위에 오류 응답이 얹힌다.** k6 는 오류 경로가 늘면 더 쓴다
-(`lc-backend` 의 `docs/coupon/rebuild-measurement-2026-09-21b.md` 4장).
+(freshmarket 선착순 쿠폰 시험의 실측이다).
 
 ```
 램프 끝      5,227 MB   67%
@@ -441,7 +481,7 @@ API 계약과 스키마에 붙어 있어 코드와 함께 바뀌기 때문이다
 
 ```
 /opt/loadtest/
-├── lc-backend/loadtest/    시나리오 (issue.js, seed-*.sql, mint-tokens.py)
+├── lc-backend/loadtest/    시나리오 (k6 스크립트, mint-tokens.py)
 │   └── tokens.csv          토큰 2만 장
 ├── refresh.sh              다시 받고 다시 찍는다
 ├── mint.out                관리자 토큰 (0600)
@@ -463,7 +503,7 @@ sudo /opt/loadtest/refresh.sh
 ```bash
 cd /opt/loadtest/lc-backend/loadtest
 set -a; source /opt/loadtest/env; set +a
-k6 run -o experimental-prometheus-rw -e BASE_URL="$BASE_URL" -e COUPON_ID=900001 issue.js
+k6 run -o experimental-prometheus-rw -e BASE_URL="$BASE_URL" <시나리오>.js
 ```
 
 `set -a` 로 감싸는 것은 `K6_PROMETHEUS_RW_*` 가 환경 변수로 나가야 k6 가 읽기 때문이다.
@@ -483,16 +523,6 @@ p99 가 튄 이유를 읽을 수 있다. 부하 시험에서 알고 싶은 것�
 `dropped_iterations` 하나만 확인하지 못했다. 드롭이 있을 때만 나오는 값이라 확인 회차에서 안 났다.
 
 CSV 도 함께 남기려면 `--out csv=result.csv` 를 붙인다. 둘 다 된다.
-
-### 회차 결과를 남긴다
-
-```bash
-./scripts/loadtest-export.sh --since 30m --label v4-1차
-```
-
-Prometheus 에서 그 구간의 지표를 내려 `loadtest-runs/<시각>_<이름>/` 에 저장한다.
-k6 뿐 아니라 JVM, HikariCP, MySQL, Redis, 호스트 지표를 같은 시간축으로 함께 받는다.
-**k6 만 받으면 "느려졌다" 까지만 알고 왜 느려졌는지는 못 읽는다.**
 
 ### 함께 뽑는 대시보드
 
@@ -533,127 +563,7 @@ aws ssm start-session --target <monitoring-id> \
 ```
 `loadtest-runs/` 는 gitignore 대상이다. 보관할 회차만 골라 문서에 붙인다.
 
-**시드 SQL 은 자동으로 안 들어간다.** DB 에 쓰는 동작이라 부팅 때 돌면 위험해서 뺐다.
-아래 순서로 먼저 넣는다.
-
-### 시드는 배치 인스턴스를 거친다
-
-`scripts/loadtest-seed.sh` 가 한다.
-
-```bash
-./scripts/loadtest-seed.sh apply     # 회원 2만, 쿠폰 900001, 주변 데이터
-./scripts/loadtest-seed.sh verify    # 몇 장이 나갔는지
-./scripts/loadtest-seed.sh reset     # 회차 사이 되돌리기
-```
-
-**부하 생성기는 RDS 에 못 붙는다.** SG 가 3306 을 막아 두었고 그대로 둔다. 2만 명을 사칭하는
-기계에 DB 자격증명까지 줄 이유가 없다. 그래서 배치 인스턴스에 SSM Run Command 로 붙는다.
-DB 에 닿을 수 있는 것 중 이 일에 가장 가깝다. 앱은 ASG 가 언제든 갈아치우고 모니터링은 관측용이다.
-
-SQL 은 `raw.githubusercontent.com` 에서 바로 받는다. 레포가 public 이라 자격증명이 없고,
-**시나리오와 같은 커밋의 시드를 쓰게 되어 둘이 어긋나지 않는다.** 다른 커밋을 쓰려면 `BACKEND_REF` 로 준다.
-
-비밀번호는 `MYSQL_PWD` 로 넘긴다. 명령줄에 놓으면 `ps` 에 보이고 SSM 명령 이력에도 남는다.
-
-### 전체 순서
-
-| | 무엇 | 어디서 |
-|---|---|---|
-| 1 | 시드 주입 | `loadtest-seed.sh apply` (로컬에서) |
-| 2 | 토큰 찍기 | `sudo /opt/loadtest/refresh.sh` (생성기에서) |
-| 3 | 전용 ASG 올리기 | `coupon-event.sh open 3` (로컬에서) |
-| 4 | 이벤트 열기 | 앱의 관리자 API |
-| 5 | 시험 | `k6 run ...` (생성기에서) |
-| 6 | 결과 확인 | `loadtest-seed.sh verify` + Grafana |
-| 7 | 되돌리기 | `loadtest-seed.sh reset`, `coupon-event.sh close` |
-
-**4번을 SQL 로 대신하면 안 된다.** `is_active` 만 켜면 카운터 없는 Redis 를 요청이 쳐서
-전부 "준비되지 않음" 으로 끝난다. 여는 API 가 Redis 를 세우는 것이 핵심이다.
-
-로컬에서 도는 절차는 `lc-backend/loadtest/README.md` 가 따로 갖는다. 그쪽은 `docker exec` 로
-컨테이너 MySQL 에 붓는 방식이라 여기와 다르다.
-
 **k6 버전을 회차 기록에 함께 적어라.** 아래 메모리 실측이 1.7.1 기준이고 apt 는 최신을 깐다.
-
-## 선착순 이벤트
-
-용량 조절은 `scripts/coupon-event.sh` 가 한다.
-
-```bash
-./scripts/coupon-event.sh status      # 지금 상태
-./scripts/coupon-event.sh open 2      # 전제 확인 후 전용 ASG 를 2대로
-./scripts/coupon-event.sh close       # 0 으로 내리고 드레인 대기
-```
-
-`open` 이 먼저 보는 것은 셋이다. **캐시가 2노드이고 페일오버가 켜져 있는가**(이벤트 구간에는 캐시가
-판정 주체라 단일 노드면 그 노드와 함께 멈춘다), **RDS 가 available 인가**, 그리고 **커넥션 예산이
-남는가**다. `max_connections` 실측값 60 에서 평상시 사용을 빼면 전용 인스턴스가 쓸 수 있는 몫이 나온다.
-평상시는 앱 ASG 상한(3대 x 풀 8) + 배치 4 + 관리 3 = 31 로 잡는다. 앱이 오토스케일링이라
-이벤트 중 몇 대일지 모르므로 상한으로 최악을 잡는 것이다.
-
-**풀 크기는 스크립트가 들고 있지 않고 잰다.** 앱과 배치는 그 시점에 돌고 있으므로 SSM 으로
-인스턴스 안에서 `hikaricp_connections_max` 를 읽는다. 저장소의 yml 을 읽지 않으니 프로필과
-환경 변수를 다 해석한 뒤의 값이 나온다.
-
-**전용 풀은 그 시점에 못 읽는다.** 인스턴스가 아직 없기 때문이다. 그래서 `open` 은 얼마를 쓸지
-예측하지 않고 **"대당 몇까지 안전한가" 만** 낸다. 실제로 얼마를 쓰는지는 healthy 대기 뒤 5절이
-읽어 확정하고, **그 자리가 마지막으로 되돌릴 수 있는 지점**이다. 이벤트는 그다음에 사람이 연다.
-
-읽기가 실패하면 그 절을 건너뛰고 경고만 남긴다. 계측이 새 실패 지점이 되면 안 되기 때문이다.
-
-**세 대까지 여유롭게 통과한다.** 전용 풀이 2 라 대당 2개씩만 는다.
-
-| 대수 | 커넥션 | |
-|---|---|---|
-| 1 | 33 / 60 | 통과 |
-| 2 | 35 / 60 | 통과 |
-| 3 | 37 / 60 | 통과 |
-
-**2026-08-29 이전에는 3대가 막혔다.** 세 프로필이 모두 풀 10 이던 때는 63 이 나와 `--force` 가
-필요했다. 백엔드가 앱 8 / 배치 4 / 선착순 2 로 가른 뒤로는 여유가 크다.
-
-**스크립트는 이 값들을 복사해 두지 않는다.** 한때 `APP_POOL`, `BATCH_POOL`, `COUPON_POOL`
-상수를 들고 있었고 `application-*.yml` 이 바뀌면 사람이 맞춰야 했다. 어긋나도 아무 데도 안
-드러나서, 검산이 조용히 틀린 채로 통과했다. 지금은 인스턴스에게 물어보므로 그 위험이 없다.
-
-**못 읽으면 검산을 건너뛴다. 0 으로 치지 않는다.** `hikaricp_connections_max` 가 비어 오면
-(액추에이터가 아직 안 떴거나 지표가 없을 때 SSM 은 `Success` 인데 값만 빈다) 예전 코드는
-`printf '%.0f'` 가 `0` 을 찍어 그것이 곱해졌다. baseline 이 무너져 여유가 60 가까이 나오고
-검산이 통과했다. 숫자인지 먼저 보고, 아니면 경고를 남기고 그 절을 건너뛴다.
-
-**5절이 예산을 넘기면 종료 코드 1 로 끝난다.** 마지막으로 되돌릴 수 있는 지점이라고 적어
-두고 성공으로 끝내면, 사람이 안 보는 자리에서 넘긴 사실이 사라진다. 인스턴스는 그대로 두고
-상태만 보여 준 뒤 나간다. 내리는 것은 사람이 `close` 로 판단한다.
-
-**전용 ASG 는 `coupon_dedicated_enabled = true` 로 apply 해야 생긴다.** 없으면 `open` 이 거절한다.
-
-**이 스크립트는 이벤트 상태를 건드리지 않는다.** Redis 네 키 정리와 `is_active` 스위치는
-앱의 관리자 API 가 갖는다. 용량과 이벤트 상태를 한 스크립트에 섞으면 앱을 고칠 때마다
-여기를 함께 고쳐야 한다.
-
-**스케일링 정책에 맡기지 않고 미리 올리는 이유가 있다.** 2만 건이 몇 초에 몰리는데 알람 평가와
-부팅에 수 분이 걸린다. 확장이 끝나기 전에 이벤트가 끝난다. 정책은 길게 이어지는 부하의 안전망이다.
-
-**재개했는데 앱이 안 뜨는 경우가 하나 있다.** 인프라를 내려둔 동안 `main` 에 머지하면
-이미지는 ECR 에 올라가지만 `deploy.sh` 가 사전 점검에서 멈춰 `current-sha` 를 못 채운다.
-
-`start.sh` 가 그 상태를 알아보고 ASG 를 올리지 않는다. RDS 와 모니터링과 배치까지만 올리고
-배포를 돌리라고 안내한 뒤 끝난다. 그대로 올렸다면 없는 태그를 받으려는 인스턴스가
-교체를 반복하다 10분 뒤에야 실패했을 것이다.
-
-```bash
-./scripts/start.sh              # 인프라만 올라온다
-./scripts/deploy.sh <커밋 SHA>   # current-sha 를 채우고 인스턴스를 띄운다
-```
-
-두 번째는 GitHub Actions 에서 실패한 배포 워크플로를 다시 실행해도 된다.
-
-**중지로는 절반밖에 못 줄인다.** ALB 와 ElastiCache 는 중지라는 개념이 없어 이 둘만으로 월 약 41 USD 가 계속 나간다.
-캐시를 2노드로 올린 뒤(`INF-37`) 이 금액이 12 USD 늘었다. 중지 방식의 절감폭이 그만큼 줄어든 것이다.
-
-`stop.sh` 가 앱부터 내리는 것은 의존 방향 때문이다. RDS 를 먼저 내리면 커넥션 오류가 마지막 구간의 지표를 오염시킨다. 모니터링과 배치는 ASG 밖이라 `desired` 가 아니라 `stop-instances` 로 다룬다. 앱을 `stop-instances` 로 내리면 ASG 가 비정상으로 보고 교체해 세션이 끝나지 않는다(`INF-23`).
-
-**RDS 중지는 최대 7일이다.** 그 뒤 자동으로 다시 시작되므로 주 1회 이상 다시 내려야 한다.
 
 ## 전부 지운다
 

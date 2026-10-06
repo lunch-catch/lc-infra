@@ -1,6 +1,13 @@
 /*
  * CloudWatch 에 두는 판단 기준은 하나다. "모니터링 인스턴스가 죽어도 알아야 하는가".
- * 나머지는 Prometheus 가 본다. 무료 한도가 10개라 6개로 제한한다 (INF-31).
+ * 나머지는 Prometheus 가 본다. 무료 한도가 알람 지표 10개라 그 안에 둔다 (INF-31).
+ * 앱 스케일링 정책이 알람 2개를 자동으로 만들므로 그것까지 센다.
+ *
+ *   항상            monitoring-status, healthy-host-count, batch-capacity, 정책 2개   5개
+ *   도메인이 있으면  cert-expiry, endpoint-health(us-east-1)                          +2개
+ *
+ * 도메인을 붙이면 7개로 INF-12-14 의 상한 6 을 하나 넘는다 (2026-10-06 batch-capacity 추가).
+ * 무료 한도는 리전마다 10개라 비용은 없다. 상한을 7 로 올릴지는 pending-decisions 1.6 에 있다.
  *
  * 이상 탐지, 복합 알람, 고해상도 알람, 커스텀 지표, CloudWatch 대시보드는 쓰지 않는다.
  * 각각 별도 과금이라 예산을 조용히 갉아먹는다.
@@ -38,6 +45,41 @@ resource "aws_cloudwatch_metric_alarm" "monitoring_status" {
 
   dimensions = {
     InstanceId = aws_instance.monitoring.id
+  }
+
+  alarm_actions = [aws_sns_topic.critical.arn]
+  ok_actions    = [aws_sns_topic.critical.arn]
+}
+
+/*
+ * 배치 ASG 가 두 대를 채우지 못하고 있다.
+ *
+ * Prometheus 의 BatchDegraded 와 BatchAllDown 이 먼저 울리지만, 그것은 모니터링 인스턴스가
+ * 살아 있을 때뿐이다. 배치와 모니터링이 같은 사건(AZ 장애 등)으로 함께 죽으면 아무도 알리지 않는다.
+ *
+ * 인스턴스별 상태 검사가 아니라 그룹 지표를 본다. ASG 가 교체할 때마다 인스턴스 ID 가 바뀌어
+ * 인스턴스에 건 알람은 첫 교체 뒤 아무것도 보지 않게 된다. 교체도 ASG 가 하므로 알람은 알리기만 한다.
+ *
+ * 단일 지표로 둔다(INF-12-14). desired 와 견주는 수식을 쓰면 stop.sh 로 내렸을 때 안 울리지만
+ * 지표가 둘이 된다. 대신 stop.sh 가 healthy-host-count 와 함께 이 알람의 알림을 끄고 start.sh 가 켠다.
+ *
+ * 10분을 기다리는 것은 ASG 교체와 instance refresh 가 한 대를 띄우는 데 그만큼 걸리기 때문이다.
+ * 그 사이에는 다른 한 대가 작업을 맡고 있다.
+ */
+resource "aws_cloudwatch_metric_alarm" "batch_capacity" {
+  alarm_name          = "${var.project}-batch-capacity"
+  namespace           = "AWS/AutoScaling"
+  metric_name         = "GroupInServiceInstances"
+  statistic           = "Minimum"
+  period              = 60
+  evaluation_periods  = 10
+  threshold           = 2
+  comparison_operator = "LessThanThreshold"
+  treat_missing_data  = "breaching"
+  alarm_description   = "batch ASG has fewer than 2 in-service instances. the other batch takes over meanwhile"
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.batch.name
   }
 
   alarm_actions = [aws_sns_topic.critical.arn]

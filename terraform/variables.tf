@@ -126,52 +126,6 @@ variable "app_target_requests_per_instance" {
 }
 
 /*
- * 선착순 전용 경로를 만들지 정한다 (coupon.md 4장).
- *
- * false 면 대상 그룹도 리스너 규칙도 ASG 도 만들지 않고, 발급 요청이 평상시 앱으로 간다.
- * true 면 그 경로만 전용 ASG 로 갈라진다. 대수 조절은 scripts/coupon-event.sh 가 한다.
- *
- * 기본값이 true 인 것은 tfvars 가 gitignore 대상이기 때문이다.
- * 거기에만 있으면 다른 사람이 apply 할 때 전용 경로가 통째로 사라진다.
- *
- * ASG 는 desired 0 으로 태어나므로 켜 두어도 인스턴스 비용은 없다.
- * 대신 리스너 규칙이 살아 있어 이벤트 밖에서는 발급 요청이 503 이 된다.
- * 앱의 혼잡 503 과 구분되지 않으므로, 개발 중에 발급 API 를 쓰려면 false 로 내린다.
- *
- * 되돌리기가 쉬운 것이 이 구조를 택한 이유 중 하나다.
- * 문제가 나면 false 로 두어 선착순만 끊고 나머지는 살린다.
- */
-variable "coupon_dedicated_enabled" {
-  description = "선착순 전용 대상 그룹과 ASG 를 만들지 여부"
-  type        = bool
-  default     = true
-}
-
-/*
- * 전용 ASG 의 상한이다.
- *
- * coupon.md 5장의 커넥션 예산이 이 값을 묶었었다. 지금은 안 묶는다.
- *
- * application-coupon.yml 이 풀을 2 로 잡아 3대가 6 개만 쓴다. 평상시 31
- * (앱 상한 3대 x 8 + 배치 4 + 관리 3) 과 합쳐 37 이고, max_connections 실측 60 안이다.
- *
- * 풀이 10 이던 때는 3대가 63 으로 넘겨 coupon-event.sh 가 --force 를 요구했다.
- * 이 값을 4 이상으로 올린다면 그 검산을 다시 해야 한다.
- */
-variable "coupon_max_size" {
-  description = "선착순 전용 ASG 최대 대수"
-  type        = number
-  default     = 3
-}
-
-# 발급 엔드포인트 경로다. POST /v1/coupons/{couponId}/issues 를 와일드카드로 잡는다.
-variable "coupon_path_pattern" {
-  description = "선착순 전용 경로로 보낼 ALB 경로 패턴"
-  type        = string
-  default     = "/v1/coupons/*/issues"
-}
-
-/*
  * 도메인을 사기 전까지 쓰는 임시 경로다. 비우면 아무것도 만들지 않는다.
  *
  * ALB 를 거치지 않는다. 모니터링 인스턴스의 Caddy 가 직접 TLS 를 종료하고

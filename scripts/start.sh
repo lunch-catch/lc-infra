@@ -37,7 +37,7 @@ log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 # stop.sh 가 disable-alarm-actions 로 꺼 둔 것을 되돌린다.
 enable_alarms() {
   aws cloudwatch enable-alarm-actions --region "$REGION" \
-    --alarm-names "$PROJECT-healthy-host-count" "$PROJECT-monitoring-status"
+    --alarm-names "$PROJECT-healthy-host-count" "$PROJECT-monitoring-status" "$PROJECT-batch-capacity"
 }
 started=$(date +%s)
 
@@ -51,15 +51,13 @@ else
   log "1. RDS 상태가 $status 다"
 fi
 
-for role in monitoring batch; do
-  id=$(aws ec2 describe-instances --region "$REGION" \
-    --filters "Name=tag:Role,Values=$role" "Name=instance-state-name,Values=stopped" \
-    --query 'Reservations[0].Instances[0].InstanceId' --output text)
-  if [ "$id" != "None" ] && [ -n "$id" ]; then
-    log "1. $role 인스턴스 시작 $id"
-    aws ec2 start-instances --instance-ids "$id" --region "$REGION" > /dev/null
-  fi
-done
+mon_stopped=$(aws ec2 describe-instances --region "$REGION" \
+  --filters "Name=tag:Role,Values=monitoring" "Name=instance-state-name,Values=stopped" \
+  --query 'Reservations[0].Instances[0].InstanceId' --output text)
+if [ "$mon_stopped" != "None" ] && [ -n "$mon_stopped" ]; then
+  log "1. monitoring 인스턴스 시작 $mon_stopped"
+  aws ec2 start-instances --instance-ids "$mon_stopped" --region "$REGION" > /dev/null
+fi
 
 # 2. RDS 가 available 이 된 뒤에 앱을 올린다.
 #    이 대기가 이 스크립트의 핵심이다. 먼저 올리면 앱이 커넥션을 못 잡고 교체된다.
@@ -79,19 +77,8 @@ if [ "$endpoint" != "$current" ]; then
     --type String --overwrite --region "$REGION" > /dev/null
 fi
 
-# 배치와 모니터링은 중지했다 시작한 것이라 .env 가 부팅 시점 값 그대로다.
-# 그동안 엔드포인트가 바뀌었으면 여기서 따라잡는다.
-batch_id=$(aws ec2 describe-instances --region "$REGION" \
-  --filters "Name=tag:Role,Values=batch" "Name=instance-state-name,Values=running" \
-  --query 'Reservations[0].Instances[0].InstanceId' --output text)
-if [ "$batch_id" != "None" ] && [ -n "$batch_id" ]; then
-  log "2. 배치 .env 갱신 $batch_id"
-  aws ssm send-command --instance-ids "$batch_id" --document-name AWS-RunShellScript \
-    --region "$REGION" \
-    --parameters "commands=[\"set -e\",\"/usr/local/bin/$PROJECT-refresh-env\",\"systemctl restart $PROJECT.service\"]" \
-    --query 'Command.CommandId' --output text > /dev/null
-fi
-
+# 모니터링은 중지했다 시작한 것이라 .env 가 부팅 시점 값 그대로다.
+# 그동안 엔드포인트가 바뀌었으면 여기서 따라잡는다. 배치는 ASG 가 새로 띄우므로 부팅 때 새로 읽는다.
 mon_id=$(aws ec2 describe-instances --region "$REGION" \
   --filters "Name=tag:Role,Values=monitoring" "Name=instance-state-name,Values=running" \
   --query 'Reservations[0].Instances[0].InstanceId' --output text)
@@ -118,7 +105,7 @@ if [ "$sha" = "bootstrap" ] || [ "$sha" = "unset" ]; then
   log "   배포를 돌리면 그때 current-sha 가 채워지고 인스턴스가 뜬다."
   log "     ./scripts/deploy.sh <커밋 SHA>"
   log "   또는 GitHub Actions 의 배포 워크플로를 다시 실행한다."
-  log "   나머지(RDS, 모니터링, 배치)는 올라와 있다."
+  log "   나머지(RDS, 모니터링)는 올라와 있다. 배치도 같은 이유로 올리지 않았다."
   enable_alarms
   exit 0
 fi
@@ -131,6 +118,13 @@ log "3. ASG min 2 / desired $DESIRED (이미지 $sha)"
 aws autoscaling update-auto-scaling-group \
   --auto-scaling-group-name "$PROJECT-app" \
   --min-size 2 --desired-capacity "$DESIRED" --region "$REGION"
+
+# 배치도 여기서 올린다. 앱과 같은 이미지를 받으므로 위의 current-sha 확인을 함께 통과해야 한다.
+# 대수는 Terraform 의 aws_autoscaling_group.batch 와 같은 2 로 고정이다.
+log "3. 배치 ASG min 2 / desired 2"
+aws autoscaling update-auto-scaling-group \
+  --auto-scaling-group-name "$PROJECT-batch" \
+  --min-size 2 --desired-capacity 2 --region "$REGION"
 
 # 4. readiness 확인. 배포 절차의 사전 점검과 같은 것을 본다.
 log "4. 대상 그룹 healthy 대기 (상한 600초)"

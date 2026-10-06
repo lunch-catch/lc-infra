@@ -105,8 +105,8 @@
     },
     {
       "type": "timeseries",
-      "title": "발급 처리율 (TPS)",
-      "description": "초당 몇 장이 실제로 나갔는지다. 위의 도착률이 들어온 양이고 이쪽이 처리한 양이라, 둘이 붙어 있으면 흘리지 않고 받아 낸 것이고 벌어지면 그만큼 거절하거나 밀린 것이다. 재고가 소진되면 0 으로 떨어지는 것이 정상이다.",
+      "title": "처리율 (요청/초)",
+      "description": "k6 가 실제로 보낸 요청 수를 초당으로 본다. 목표 도착률과 차이가 나면 생성기가 부하를 다 못 낸 것이다. 아래 \"생성기가 제 몫을 했는지\" 와 함께 본다.",
       "gridPos": {
         "x": 12,
         "y": 1,
@@ -144,36 +144,9 @@
       },
       "targets": [
         {
-          "refId": "A",
-          "expr": "sum(rate(k6_coupon_issued_total[30s]))",
-          "legendFormat": "발급/초",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
           "refId": "B",
           "expr": "sum(rate(k6_http_reqs_total[30s]))",
           "legendFormat": "도착/초",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "C",
-          "expr": "sum(rate(k6_coupon_sold_out_final_total[30s]))",
-          "legendFormat": "소진 응답/초",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "D",
-          "expr": "sum(rate(k6_coupon_congested_total[30s]))",
-          "legendFormat": "혼잡 거절/초",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -184,7 +157,7 @@
     {
       "type": "timeseries",
       "title": "응답 지연",
-      "description": "상태 코드마다 선이 갈린다. k6 가 200 과 409(소진) 와 503(혼잡) 을 따로 집계하기 때문이다. 셋의 뜻이 다르다. 409 는 즉시 반환이라 빠르고 503 은 예산까지 기다렸다 끊는다. coupon.md 8장의 합격 기준은 처리된 발급 응답이므로 200 만 본다. 선은 그 SLO 인 1초다.",
+      "description": "k6 가 상태 코드마다 선을 따로 집계한다. 오류 응답은 빠르게 끝나 지연을 낮춰 보이게 하므로 실패율과 함께 본다. 빨간 선은 0.4초다.",
       "gridPos": {
         "x": 0,
         "y": 9,
@@ -407,378 +380,10 @@
     },
     {
       "type": "row",
-      "title": "선착순 발급 결과",
-      "gridPos": {
-        "x": 0,
-        "y": 25,
-        "w": 24,
-        "h": 1
-      },
-      "collapsed": false,
-      "panels": []
-    },
-    {
-      "type": "timeseries",
-      "title": "응답 종류별 누적",
-      "description": "issue.js 의 카운터다. issued 가 재고에서 멈추고 나머지가 sold_out 으로 가야 정상이다.",
-      "gridPos": {
-        "x": 0,
-        "y": 26,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never",
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "k6_coupon_issued_total",
-          "legendFormat": "발급 200",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "k6_coupon_sold_out_total",
-          "legendFormat": "소진 409",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "C",
-          "expr": "k6_coupon_congested_total",
-          "legendFormat": "혼잡 503",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "D",
-          "expr": "k6_coupon_rejected_total",
-          "legendFormat": "거절 422/404",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "봐서는 안 되는 것",
-      "description": "unexpected 는 설계에 없는 응답이고, connect_failed 는 생성기가 연결조차 못 한 것이다. 뒤는 앱이 아니라 시험 환경이 모자란 것이다.",
-      "gridPos": {
-        "x": 12,
-        "y": 26,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never",
-            "thresholdsStyle": {
-              "mode": "line"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "k6_coupon_unexpected_total",
-          "legendFormat": "예상 밖 응답",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "k6_coupon_connect_failed_total",
-          "legendFormat": "연결 실패",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "row",
-      "title": "회로가 무엇을 보고 열었나",
-      "gridPos": {
-        "x": 0,
-        "y": 34,
-        "w": 24,
-        "h": 1
-      },
-      "collapsed": false,
-      "panels": []
-    },
-    {
-      "type": "timeseries",
-      "title": "회로 상태",
-      "description": "1 이면 그 인스턴스의 회로가 열려 있다. couponSeq 가 열리면 순번을 못 받아 503 congested-seq-unavailable 로, couponWrite 가 열리면 503 congested-write-circuit 으로 나간다.",
-      "gridPos": {
-        "x": 0,
-        "y": 35,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never",
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "resilience4j_circuitbreaker_state{name=~\"coupon(Seq|Write)\",state=\"open\"}",
-          "legendFormat": "{{name}} {{instance_id}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "느린 호출 비율과 실패 비율",
-      "description": "회로를 여는 두 입력이다. 둘 중 하나가 50% 를 넘으면 열린다. -1 은 표본이 최소 호출 수(20) 에 못 미쳐 아직 판정하지 않는다는 뜻이다. 지난 회차에서 couponSeq 가 열린 이유가 느림인지 실패인지 여기서 갈린다.",
-      "gridPos": {
-        "x": 12,
-        "y": 35,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never",
-            "thresholdsStyle": {
-              "mode": "line"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 50
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "resilience4j_circuitbreaker_slow_call_rate{name=~\"coupon(Seq|Write)\"}",
-          "legendFormat": "느림 {{name}} {{instance_id}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "resilience4j_circuitbreaker_failure_rate{name=~\"coupon(Seq|Write)\"}",
-          "legendFormat": "실패 {{name}} {{instance_id}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "회로가 즉시 거절한 요청",
-      "description": "회로가 열려 있어 대상까지 가지도 않고 끊은 호출이다. 지난 회차의 거절 5,134건이 이 지표에 잡혔어야 했다.",
-      "gridPos": {
-        "x": 0,
-        "y": 43,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never",
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (name) (rate(resilience4j_circuitbreaker_not_permitted_calls_total{name=~\"coupon(Seq|Write)\"}[1m]))",
-          "legendFormat": "{{name}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "row",
       "title": "생성기가 제 몫을 했는지",
       "gridPos": {
         "x": 0,
-        "y": 51,
+        "y": 25,
         "w": 24,
         "h": 1
       },
@@ -791,7 +396,7 @@
       "description": "0 이 아니면 k6 가 계획한 부하를 다 못 보냈다. 이 회차의 수치는 앱이 아니라 생성기의 한계를 잰 것이다. 다른 패널과 달리 이 지표 이름은 실물로 확인하지 못했다. k6 가 드롭이 있을 때만 내보내는데 확인 회차에서 드롭이 안 났다. 첫 회차에 빈 채로 보이면 이름부터 의심한다.",
       "gridPos": {
         "x": 0,
-        "y": 52,
+        "y": 26,
         "w": 12,
         "h": 8
       },
@@ -855,7 +460,7 @@
       "description": "iteration_duration 이 계속 늘면 VU 가 쌓여 메모리가 는다. 2만 VU 회차에서 먼저 보는 값이다.",
       "gridPos": {
         "x": 12,
-        "y": 52,
+        "y": 26,
         "w": 12,
         "h": 8
       },
@@ -911,151 +516,6 @@
           "refId": "C",
           "expr": "sum(rate(k6_data_received_total[1m]))",
           "legendFormat": "수신 B/s",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "row",
-      "title": "Redis 키 재건",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 60,
-        "w": 24,
-        "h": 1
-      },
-      "panels": []
-    },
-    {
-      "type": "timeseries",
-      "title": "기여가 얼마나 늦나",
-      "description": "주도자가 재건 락을 세운 뒤 각 인스턴스가 자기 큐를 다 올리기까지 걸린 시간이다. 빨간 선이 지금 기다리는 값(coupon.issue.rebuild-contribute-wait, 3초)이고, 실제 값이 그보다 한참 낮게 깔리면 그만큼 줄여 장애 시간을 줄일 수 있다.",
-      "gridPos": {
-        "x": 0,
-        "y": 61,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "always",
-            "thresholdsStyle": {
-              "mode": "line"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 3
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "coupon_seq_rebuild_contribute_lag_seconds_max",
-          "legendFormat": "{{instance_id}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "기여 분포와 횟수",
-      "description": "회차가 쌓여야 값을 좁힐 수 있다. 분위수는 여러 회차에 걸친 분포이고, 횟수는 재건이 몇 번 돌았고 그때 몇 대가 올렸는지를 뜻한다.",
-      "gridPos": {
-        "x": 12,
-        "y": 61,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "always",
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "coupon_seq_rebuild_contribute_lag_seconds{quantile=~\"0.5|0.95|0.99\"}",
-          "legendFormat": "{{instance_id}} p{{quantile}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "increase(coupon_seq_rebuild_contribute_lag_seconds_count[5m])",
-          "legendFormat": "{{instance_id}} 기여 횟수",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"

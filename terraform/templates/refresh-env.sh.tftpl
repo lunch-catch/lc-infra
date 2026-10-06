@@ -49,6 +49,8 @@ DB_ENDPOINT=$(get db-endpoint)
 CACHE_ENDPOINT=$(get cache-endpoint)
 CDN_DOMAIN=$(get cdn-domain)
 LOKI_ENDPOINT=$(get loki-endpoint)
+# 배치만 쓴다. compose 가 role 이 batch 일 때만 컨테이너로 넘긴다.
+BATCH_SCHEDULER_ENABLED=$(get batch-scheduler-enabled)
 DB_PASSWORD=$(sec db-password)
 
 # 앱이 기본값 없이 요구하는 값들이다. 하나라도 빠지면 @Value 가 기동을 막는다.
@@ -86,5 +88,6 @@ KAKAO_CLIENT_SECRET=$KAKAO_CLIENT_SECRET
 KAKAO_APP_ID=$KAKAO_APP_ID
 KAKAO_ADMIN_KEY=$KAKAO_ADMIN_KEY
 APP_INSTANCE_ID=$INSTANCE_ID
+BATCH_SCHEDULER_ENABLED=$BATCH_SCHEDULER_ENABLED
 ENV
 chmod 600 /opt/${project}/.env

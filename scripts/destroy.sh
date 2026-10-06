@@ -70,7 +70,7 @@ log "1. 대상 계정 $account / 리전 $REGION / 프로젝트 $PROJECT"
 #
 # Prometheus 는 모니터링 인스턴스의 도커 볼륨에 담기고 밖으로 내보내는 설정이 없다.
 # 2026-09-30 장애 회차가 수치만 남고 그림을 통째로 잃은 자리다.
-# 절차는 backend 의 docs/coupon/coupon-load-scenarios.md 10장에 있다.
+# 절차는 docs/deploy/README.md 의 "함께 뽑는 대시보드" 에 있다.
 newest=$(find "$ROOT/loadtest-runs" -name '*.png' -path '*/grafana/*' -mmin -360 2>/dev/null | head -1)
 if [ -z "$newest" ]; then
   log "   최근 6시간 안에 뽑은 대시보드가 없다"

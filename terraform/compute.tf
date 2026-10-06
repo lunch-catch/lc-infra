@@ -109,24 +109,6 @@ locals {
     unit             = templatefile("${path.module}/templates/systemd.service.tftpl", { project = var.project, profiles = "prod" })
   })
 
-  /*
-   * 전용 인스턴스는 같은 이미지를 coupon 프로파일로 띄운다.
-   *
-   * application-coupon.yml 이 커넥션 풀을 줄이는 자리다 (coupon.md 5장).
-   * 그 파일이 아직 없어도 기동은 된다. Spring 은 없는 프로파일 파일을 무시한다.
-   * 다만 파일이 생기기 전에는 풀이 앱과 같은 10 이라 3대를 올리면 예산을 넘긴다.
-   */
-  coupon_user_data = templatefile("${path.module}/templates/app-user-data.sh.tftpl", {
-    common_bootstrap = local.common_bootstrap
-    project          = var.project
-    region           = var.region
-    github_org       = var.github_org
-    refresh_env      = local.refresh_env
-    alloy            = local.alloy_config
-    compose          = templatefile("${path.module}/templates/compose.yaml.tftpl", merge(local.compose_args, { profiles = "prod,coupon", role = "coupon" }))
-    unit             = templatefile("${path.module}/templates/systemd.service.tftpl", { project = var.project, profiles = "prod,coupon" })
-  })
-
   batch_user_data = templatefile("${path.module}/templates/app-user-data.sh.tftpl", {
     common_bootstrap = local.common_bootstrap
     project          = var.project
@@ -230,7 +212,6 @@ resource "aws_autoscaling_group" "app" {
    *
    * 길게 잡아서 손해 보는 것은 정당한 추가 확장이 늦어지는 것인데, 상한이 3이라 거의 없다.
    *
-   * coupon ASG 에는 안 넣는다. 스케일링 정책이 없어 이 값이 쓰일 자리가 없다 (INF-40).
    */
   default_instance_warmup = 300
 
@@ -255,7 +236,7 @@ resource "aws_autoscaling_group" "app" {
   }
 
   /*
-   * 인스턴스가 읽을 SSM 값이 먼저 있어야 한다. 근거는 instances.tf 의 aws_instance.batch 에 있다.
+   * 인스턴스가 읽을 SSM 값이 먼저 있어야 한다. 근거는 aws_autoscaling_group.batch 에 있다.
    *
    * ASG 는 apply 도중에 인스턴스를 띄우므로 이 순서가 없으면 첫 대수가 값 없이 뜬다.
    * 그 인스턴스는 헬스체크에 실패해 ASG 가 교체하므로 스스로 낫지만, 교체가 도는 동안
@@ -266,6 +247,7 @@ resource "aws_autoscaling_group" "app" {
     aws_ssm_parameter.db_endpoint,
     aws_ssm_parameter.cache_endpoint,
     aws_ssm_parameter.cdn_domain,
+    aws_ssm_parameter.batch_scheduler_enabled,
     aws_ssm_parameter.loki_endpoint,
   ]
 }
@@ -284,31 +266,51 @@ resource "aws_autoscaling_lifecycle_hook" "app_terminating" {
 }
 
 /*
- * 선착순 전용 ASG 다 (coupon.md 4장). coupon_dedicated_enabled 로 켜고 끈다.
+ * 트래픽으로 앱을 늘린다.
  *
- * desired 0 으로 태어난다. 이벤트 전에 올리고 끝나면 내린다.
- * 평상시에 켜 두면 커넥션 예산만 먹는다.
+ * 스케일 인을 막지 않는다. 상시 서비스라 부하가 빠지면 내려가는 것이 맞다.
+ *
+ * 이 정책이 CloudWatch 알람 2개를 자동으로 만든다. alarms.tf 와 합친 수는 alarms.tf 머리에 있다.
  */
-resource "aws_launch_template" "coupon" {
-  count = var.coupon_dedicated_enabled ? 1 : 0
+resource "aws_autoscaling_policy" "app_requests" {
+  name                   = "${var.project}-app-requests"
+  autoscaling_group_name = aws_autoscaling_group.app.name
+  policy_type            = "TargetTrackingScaling"
 
-  name_prefix   = "${var.project}-coupon-"
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ALBRequestCountPerTarget"
+      resource_label         = "${aws_lb.main.arn_suffix}/${aws_lb_target_group.app.arn_suffix}"
+    }
+
+    target_value = var.app_target_requests_per_instance
+  }
+}
+
+/*
+ * 배치 서버다. 앱과 같은 jar 를 prod,batch 프로필로 띄운다. ALB 에 붙지 않는다.
+ *
+ * AMI 가 x86 인 것은 앱과 같은 컨테이너 이미지를 받기 때문이다.
+ * 빌드가 러너(x86_64)에서 단일 아키텍처로 나오므로 앱이 x86 인 한 배치도 x86 이어야 한다.
+ * arm 으로 두었을 때 컨테이너가 exec format error 로 계속 재시작했다.
+ */
+resource "aws_launch_template" "batch" {
+  name_prefix   = "${var.project}-batch-"
   image_id      = data.aws_ami.ubuntu_x86.id
-  instance_type = var.instance_types["app"]
+  instance_type = var.instance_types["batch"]
 
   iam_instance_profile {
-    name = aws_iam_instance_profile.instance["app"].name
+    name = aws_iam_instance_profile.instance["batch"].name
   }
 
-  # 앱과 같은 보안 그룹이다. 같은 곳(RDS, 캐시)을 같은 포트로 본다.
-  vpc_security_group_ids = [aws_security_group.app.id]
-  user_data              = base64encode(local.coupon_user_data)
+  vpc_security_group_ids = [aws_security_group.batch.id]
+  user_data              = base64encode(local.batch_user_data)
 
   block_device_mappings {
     device_name = "/dev/sda1"
 
     ebs {
-      volume_size           = 30
+      volume_size           = 20
       volume_type           = "gp3"
       encrypted             = true
       delete_on_termination = true
@@ -325,54 +327,75 @@ resource "aws_launch_template" "coupon" {
     resource_type = "instance"
 
     tags = {
-      Name = "${var.project}-coupon"
-      Role = "coupon"
+      Name = "${var.project}-batch"
+      Role = "batch"
     }
   }
 
+  /*
+   * AMI 변경을 무시한다.
+   *
+   * 아래 ASG 는 템플릿 버전이 바뀌면 인스턴스를 교체한다. 그런데 image_id 는 most_recent 라
+   * Canonical 이 새 AMI 를 올릴 때마다 무관한 apply 가 새 버전을 만들어 배치를 갈아엎는다.
+   * 돌던 작업은 다른 배치가 이어받지만, 우리가 고친 것이 없는데 교체가 일어날 이유가 없다.
+   * 템플릿(user-data)을 고친 교체는 의도한 것이라 그대로 일어난다.
+   */
   lifecycle {
     create_before_destroy = true
+    ignore_changes        = [image_id]
   }
 }
 
 /*
- * liveness 대상 그룹에 넣지 않는다.
- * 그것은 Route 53 헬스체크가 밖에서 찌르는 자리이고, 전용 인스턴스는 그 대상이 아니다.
+ * 두 대를 AZ 마다 하나씩 둔다. 둘 다 스케줄러를 켠 액티브-액티브다 (백엔드 배치 운영 문서 2장).
+ * 한 대만 두면 00:00 에 장애가 났을 때 사람이 넘겨야 한다. 같은 작업을 동시에 시도해도
+ * batch_execution_log 의 유일 제약이 한쪽만 통과시키고, 멈춘 쪽의 작업은 2분 뒤 다른 쪽이 이어받는다.
  *
- * desired_capacity 에 ignore_changes 를 건다.
- * 이벤트 운영과 스케일링 정책이 값의 주인이고 apply 가 되돌리면 안 된다.
+ * ASG 에 두는 것은 자가 치유 때문이다. 처음에는 "프로세스는 항상 하나" 라 롤링 대상이 아니라는
+ * 이유로 단독 인스턴스였는데, 액티브-액티브가 되면서 그 근거가 사라졌다. 단독 인스턴스는
+ * 종료되거나 AZ 를 잃으면 사람이 apply 할 때까지 돌아오지 않는다. ASG 는 남은 AZ 에 다시 띄운다.
+ *
+ * 대수는 고정이다. 스케일링 정책이 없다. 배치는 부하에 따라 늘릴 일이 없고, 늘려도 점유 경쟁만 는다.
+ * 세션을 끝낼 때는 stop.sh 가 min 과 desired 를 0 으로 내리고 start.sh 가 2 로 되돌린다.
  */
-resource "aws_autoscaling_group" "coupon" {
-  count = var.coupon_dedicated_enabled ? 1 : 0
-
-  name                = "${var.project}-coupon"
+resource "aws_autoscaling_group" "batch" {
+  name                = "${var.project}-batch"
   vpc_zone_identifier = [for s in aws_subnet.private : s.id]
 
-  min_size         = 0
-  desired_capacity = 0
-  max_size         = var.coupon_max_size
+  min_size         = 2
+  desired_capacity = 2
+  max_size         = 2
 
   /*
-   * 이 ASG 만 EC2 다. 앱과 배치는 ELB 로 둔다.
-   *
-   * ELB 로 두면 "ALB 에서 빼는 것" 과 "인스턴스를 죽이는 것" 이 한 판정에 묶인다. 이벤트가
-   * 90초인데 그 안에 종료가 일어나면 기동 4~6분 동안 대수가 줄어든 채로 끝난다. 느려서
-   * 빠진 인스턴스는 부하가 걷히면 돌아오는데, 죽여 버리면 돌아올 것이 없다.
-   *
-   * EC2 로 두면 느린 인스턴스는 ALB 대상에서만 빠지고 살아 있다가 다시 healthy 가 되면
-   * 돌아온다. 진짜로 죽은 인스턴스는 EC2 상태 검사가 잡는다.
-   *
-   * 평상시 desired 0 이라 이 완화가 상시 위험을 늘리지 않는다. 이벤트 동안만 도는 ASG 다.
+   * EC2 상태 검사만 본다. ALB 대상이 아니라 ELB 헬스체크가 없다.
+   * 컨테이너가 죽은 것은 Docker 의 restart 가 되살리고, 반복되면 ContainerRestartLoop 이 운다.
    */
   health_check_type         = "EC2"
   health_check_grace_period = 300
 
-  target_group_arns = [aws_lb_target_group.coupon[0].arn]
-
   launch_template {
-    id      = aws_launch_template.coupon[0].id
-    version = "$Latest"
+    id      = aws_launch_template.batch.id
+    version = aws_launch_template.batch.latest_version
   }
+
+  /*
+   * 템플릿을 고치면 한 대씩 교체한다. 버전을 $Latest 가 아니라 숫자로 걸어야 Terraform 이
+   * 바뀐 것을 알고 교체를 시작한다.
+   *
+   * 50% 는 두 대 중 한 대다. 한 대가 교체되는 동안 다른 한 대가 작업을 맡는다.
+   * 둘을 한꺼번에 내리면 그 사이 00:00 묶음이 비고 이어받을 서버도 없다.
+   */
+  instance_refresh {
+    strategy = "Rolling"
+
+    preferences {
+      min_healthy_percentage = 50
+      instance_warmup        = 180
+    }
+  }
+
+  # CloudWatch 의 batch-capacity 알람이 본다. 1분 단위 그룹 지표는 무료다.
+  enabled_metrics = ["GroupInServiceInstances"]
 
   tag {
     key                 = "Project"
@@ -380,57 +403,27 @@ resource "aws_autoscaling_group" "coupon" {
     propagate_at_launch = true
   }
 
+  # stop.sh 와 start.sh 가 세션마다 바꾼다. apply 가 되돌리면 세션 중에 배치가 뜬다.
   lifecycle {
-    ignore_changes = [desired_capacity]
+    ignore_changes = [desired_capacity, min_size]
   }
 
   /*
-   * 인스턴스가 읽을 SSM 값이 먼저 있어야 한다. 근거는 instances.tf 의 aws_instance.batch 에 있다.
+   * 인스턴스가 읽을 SSM 값이 먼저 있어야 한다.
    *
-   * ASG 는 apply 도중에 인스턴스를 띄우므로 이 순서가 없으면 첫 대수가 값 없이 뜬다.
-   * 그 인스턴스는 헬스체크에 실패해 ASG 가 교체하므로 스스로 낫지만, 교체가 도는 동안
-   * 배포의 healthy 대기가 헛돈다.
+   * Terraform 은 user-data 안의 문자열을 읽지 않으므로 이 의존을 스스로 세우지 못한다.
+   * 2026-09-26 에 배치가 RDS 보다 16분 먼저 떠서 db-endpoint 가 없었고, refresh-env 가
+   * 거기서 죽어 systemd 유닛조차 안 쓰였다. 인스턴스는 살아 있는데 아무것도 안 돌았다.
+   *
+   * refresh-env 에도 대기를 넣었지만 그것은 나중 기동을 위한 안전망이다. apply 를 10분
+   * 기다리게 둘 이유가 없으므로 순서는 여기서 못 박는다.
    */
   depends_on = [
     aws_ssm_parameter.current_sha,
     aws_ssm_parameter.db_endpoint,
     aws_ssm_parameter.cache_endpoint,
     aws_ssm_parameter.cdn_domain,
+    aws_ssm_parameter.batch_scheduler_enabled,
     aws_ssm_parameter.loki_endpoint,
   ]
-}
-
-/*
- * 전용 ASG 에는 스케일링 정책을 두지 않는다. 대수는 coupon-event.sh 가 이벤트 전에 직접 정한다.
- *
- * 반응형 확장이 이 이벤트에는 구조적으로 안 맞는다. 확장 판정이 1분 데이터포인트 3개 연속이라
- * 최소 3분이 걸리는데, 선착순 쇄도는 그보다 짧게 끝난다. 판정이 나기 전에 재고가 소진된다.
- *
- * 시작 시각을 아는 이벤트라 미리 여는 것이 맞다. 정책을 두면 표준 운용(open 3 = max_size)에서는
- * 올릴 자리가 없어 절대 안 돌고, 안 도는 것이 남아 있으면 읽는 사람이 대수를 정책이 정한다고 오해한다.
- *
- * 앱 ASG 는 다르다. 상시 서비스라 트래픽이 언제 붙을지 몰라 정책이 주 수단이다 (INF-39).
- */
-/*
- * 트래픽으로 앱을 늘린다. 선착순 전용 ASG 의 정책과 같은 지표를 쓴다.
- *
- * 스케일 인을 막지 않는다. 선착순은 이벤트 중 잠깐 잦아들었다고 내리면 다음 파도를 못 받아
- * 막아 두었지만, 일반 경로는 상시 서비스라 부하가 빠지면 내려가는 것이 맞다.
- *
- * 이 정책이 CloudWatch 알람 2개를 자동으로 만든다. alarms.tf 의 4개와 합쳐 6개이고
- * INF-31 이 정한 상한과 정확히 같다. 알람을 더 만들려면 이 정책 몫을 먼저 빼야 한다.
- */
-resource "aws_autoscaling_policy" "app_requests" {
-  name                   = "${var.project}-app-requests"
-  autoscaling_group_name = aws_autoscaling_group.app.name
-  policy_type            = "TargetTrackingScaling"
-
-  target_tracking_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "ALBRequestCountPerTarget"
-      resource_label         = "${aws_lb.main.arn_suffix}/${aws_lb_target_group.app.arn_suffix}"
-    }
-
-    target_value = var.app_target_requests_per_instance
-  }
 }

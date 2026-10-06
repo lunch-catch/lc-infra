@@ -184,8 +184,12 @@ done
 
 # 10. 배치 인스턴스를 교체한다.
 #
-#     배치는 롤링 대상이 아니다. 중지 후 교체한다.
-#     롤링으로 하면 구버전과 신버전 배치가 겹쳐 "프로세스는 항상 하나" 전제가 깨진다.
+#     두 대를 한 대씩 교체한다. 둘 다 스케줄러를 켠 액티브-액티브라 한 대가 내려가 있는 동안
+#     다른 한 대가 작업을 맡는다. 한꺼번에 내리면 그 사이 00:00 묶음이나 쿠폰 만료가 비고,
+#     실행 중이던 작업을 이어받을 서버도 없다.
+#
+#     잠시 구버전과 신버전 배치가 함께 돈다. 같은 작업을 동시에 시도해도 batch_execution_log
+#     의 유일 제약이 한쪽만 통과시키므로 중복 실행은 없다 (백엔드 배치 운영 문서 2장).
 #
 #     앱보다 뒤에 하는 이유는 스키마 확장 후 축소 때문이다.
 #     앱이 먼저 새 버전이 되어야 배치가 새 스키마를 전제해도 안전하다.
@@ -193,13 +197,15 @@ done
 #     user-data 는 최초 부팅에만 돈다. 그냥 재시작하면 부팅 때 읽은 옛 값으로 다시 뜬다.
 #     refresh-env 가 SSM 을 다시 읽어 .env 를 통째로 만든다.
 #     GIT_SHA 만 고치면 DB 엔드포인트가 부팅 시점 값에 고정되어, 복원으로 주소가 바뀌면 못 따라간다.
-batch_id=$(aws ec2 describe-instances --region "$REGION" \
+batch_ids=$(aws ec2 describe-instances --region "$REGION" \
   --filters "Name=tag:Role,Values=batch" "Name=instance-state-name,Values=running" \
-  --query 'Reservations[0].Instances[0].InstanceId' --output text)
+  --query 'Reservations[].Instances[].InstanceId' --output text)
 
-if [ "$batch_id" = "None" ] || [ -z "$batch_id" ]; then
+if [ -z "$batch_ids" ]; then
   log "10. 배치 인스턴스가 없다. 건너뛴다"
-else
+fi
+
+for batch_id in $batch_ids; do
   log "10. 배치 교체 $batch_id"
   cmd_id=$(aws ssm send-command \
     --instance-ids "$batch_id" \
@@ -209,6 +215,7 @@ else
     --query 'Command.CommandId' --output text)
 
   # 배치가 실행 중이면 stop 이 graceful shutdown 을 기다린다. systemd TimeoutStopSec 60 이 상한이다
+  st=Pending
   for _ in $(seq 1 30); do
     st=$(aws ssm get-command-invocation --command-id "$cmd_id" --instance-id "$batch_id" \
       --region "$REGION" --query 'Status' --output text 2>/dev/null || echo Pending)
@@ -216,13 +223,19 @@ else
       Success) break ;;
       Failed|Cancelled|TimedOut)
         log "    배치 교체 실패 ($st). 앱은 이미 새 버전이다"
-        log "    배치가 옛 버전으로 도는 구간이 생겼다. 수동으로 확인하라"
+        log "    나머지 배치는 건드리지 않았다. 옛 버전으로 도는 배치가 남았으니 수동으로 확인하라"
         exit 1 ;;
     esac
     sleep 5
   done
-  log "    배치 교체 완료"
-fi
+
+  # 다음 배치를 내리기 전에 이것이 실제로 떴는지 본다. 둘 다 내려간 구간을 만들지 않는다.
+  if [ "$st" != "Success" ]; then
+    log "    배치 교체가 끝나지 않았다 ($st). 나머지 배치는 건드리지 않는다"
+    exit 1
+  fi
+  log "    배치 교체 완료 $batch_id"
+done
 
 # 11. 최종 확인
 log "11. 최종 healthy $(healthy_count) / desired $desired"

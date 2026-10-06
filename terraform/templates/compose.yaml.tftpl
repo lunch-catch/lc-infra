@@ -13,8 +13,7 @@ services:
       # 어디에 붙는지만 준다. 드라이버 옵션은 백엔드의 data-source-properties 가 갖는다.
       #
       # 전에는 이 URL 에 connectTimeout 과 socketTimeout 을 붙여 두었는데, 그 값이
-      # application-coupon.yml 의 data-source-properties(250/250)와 충돌하고 있었다.
-      # 어느 쪽이 이기는지 실측한 적이 없어 운영 값이 무엇인지 아무도 확신하지 못했다.
+      # 백엔드의 data-source-properties 와 충돌해 어느 쪽이 이기는지 아무도 확신하지 못했다.
       #
       # rewriteBatchedStatements 도 여기 있었다. 원래 application.yml 의 url 기본값에
       # 적혀 있었지만 ${"$"}{DB_URL:...} 문법이라 이 환경 변수가 있으면 버려진다.
@@ -41,6 +40,11 @@ services:
       CDN_BASE_URL: "https://$${CDN_DOMAIN}"
       APP_NAME: "${project}"
       APP_INSTANCE_ID: "$${APP_INSTANCE_ID}"
+%{ if role == "batch" ~}
+      # 배치 스케줄러 스위치. SSM batch-scheduler-enabled 에서 온다.
+      # 앱에는 넘기지 않는다. 넘기면 앱 스케줄러가 켜질 길이 생긴다.
+      LAUNCHCATCH_SCHEDULER_ENABLED: "$${BATCH_SCHEDULER_ENABLED}"
+%{ endif ~}
       TRACE_SAMPLE_RATE: "0.1"
       # MaxRAMPercentage 는 컨테이너 한도 기준이다.
       # DNS TTL 이 결정적이다. 이것이 빠지면 페일오버 후 옛 주소를 계속 찾는다.

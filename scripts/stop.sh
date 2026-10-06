@@ -44,7 +44,7 @@ log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 #    알람 자체는 지우지 않는다. 알림만 끄고 상태 기록은 계속 남긴다.
 log "0. 알람 알림 중지"
 aws cloudwatch disable-alarm-actions --region "$REGION" \
-  --alarm-names "$PROJECT-healthy-host-count" "$PROJECT-monitoring-status"
+  --alarm-names "$PROJECT-healthy-host-count" "$PROJECT-monitoring-status" "$PROJECT-batch-capacity"
 
 # 1. 앱을 먼저 내린다.
 #    stop-instances 를 쓰면 ASG 가 비정상으로 보고 교체해 세션을 끝낼 수 없다 (INF-23).
@@ -71,14 +71,12 @@ else
   log "3. 모니터링 인스턴스가 이미 내려가 있다"
 fi
 
-# 배치도 ASG 밖이다. 스케줄러가 도는 채로 두면 DB 가 켜져 있지 않아 계속 실패한다.
-batch_id=$(aws ec2 describe-instances --region "$REGION" \
-  --filters "Name=tag:Role,Values=batch" "Name=instance-state-name,Values=running" \
-  --query 'Reservations[0].Instances[0].InstanceId' --output text)
-if [ "$batch_id" != "None" ] && [ -n "$batch_id" ]; then
-  log "3. 배치 인스턴스 중지 $batch_id"
-  aws ec2 stop-instances --instance-ids "$batch_id" --region "$REGION" > /dev/null
-fi
+# 배치도 ASG 라 앱과 같이 min 과 desired 를 0 으로 내린다. stop-instances 를 쓰면 ASG 가 교체한다.
+# 스케줄러가 도는 채로 두면 DB 가 꺼진 뒤 계속 실패한다. 배치는 디스크에 상태가 없어 지워도 된다.
+log "3. 배치 ASG min 0 / desired 0"
+aws autoscaling update-auto-scaling-group \
+  --auto-scaling-group-name "$PROJECT-batch" \
+  --min-size 0 --desired-capacity 0 --region "$REGION"
 
 # 4. RDS 를 마지막에 내린다. 완료를 기다릴 필요는 없다.
 #    최대 7일 뒤 자동으로 다시 시작되므로 주 1회 이상 재중지가 필요하다.

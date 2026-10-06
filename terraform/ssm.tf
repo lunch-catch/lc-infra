@@ -65,6 +65,25 @@ resource "aws_ssm_parameter" "cdn_domain" {
 }
 
 /*
+ * 배치 스케줄러를 재배포 없이 끄는 스위치다 (백엔드 배치 운영 문서 1장).
+ *
+ * 앱은 환경변수 LAUNCHCATCH_SCHEDULER_ENABLED 가 프로필 설정보다 우선한다. 그런데 .env 는
+ * refresh-env 가 배포와 재시작마다 통째로 다시 쓰므로, 인스턴스에서 손으로 고친 값은 다음 배포에 사라진다.
+ * 그래서 값을 여기 두고 refresh-env 가 읽는다. 끄는 법은 이 값을 false 로 바꾸고 배치에서
+ * refresh-env 와 서비스 재시작을 돌리는 것이다. 운영자가 바꾸는 값이라 Terraform 은 되돌리지 않는다.
+ */
+resource "aws_ssm_parameter" "batch_scheduler_enabled" {
+  name        = "${local.ssm_prefix}/batch-scheduler-enabled"
+  description = "batch scheduler kill switch. true or false"
+  type        = "String"
+  value       = "true"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
+/*
  * 앱과 redis_exporter 가 붙을 주소. RDS 와 같은 이유로 복원 시 바뀔 수 있다.
  * 앱에는 VALKEY_HOST 라는 이름으로 들어간다. 앱이 로컬 compose 와 변수명을 맞춰 둔 것을 따른다.
  */

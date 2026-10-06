@@ -137,7 +137,7 @@ resource "aws_route_table" "private" {
  * S3 는 게이트웨이 엔드포인트로 뺀다. 시간당 요금이 없어 공짜다.
  *
  * ECR 이미지 레이어의 실체가 S3 에 있다. 이걸 안 붙이면 인스턴스가 뜰 때마다 이미지 전체가
- * NAT 의 데이터 처리 요금을 탄다. 선착순 이벤트는 전용 3대를 한꺼번에 올리므로 그 순간에 몰린다.
+ * NAT 의 데이터 처리 요금을 탄다. 배포와 ASG 교체로 여러 대가 한꺼번에 뜨면 그 순간에 몰린다.
  */
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = aws_vpc.main.id
