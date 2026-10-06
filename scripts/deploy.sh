@@ -32,7 +32,7 @@ fi
 ASG="$PROJECT-app"
 BACKEND_REPO="${BACKEND_REPO:-lunch-catch/lc-backend}"
 
-# 신규가 healthy 가 될 때까지 기다리는 상한. 기동이 4~6분이라 여유를 둔다.
+# 신규가 healthy 가 될 때까지 기다리는 상한. 실측 기동이 약 160초라(2026-10-06) 두 배 넘게 둔다.
 HEALTHY_TIMEOUT=360
 
 # 스모크로 찌를 경로다. 6번은 인스턴스 안에서, 7번은 ALB 를 거쳐 같은 경로를 본다.
