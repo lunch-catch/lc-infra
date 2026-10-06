@@ -264,6 +264,24 @@ resource "aws_vpc_security_group_ingress_rule" "cache_from_app" {
   description                  = "app cache access"
 }
 
+/*
+ * 배치도 캐시를 쓴다 (2026-10-06). lunchcatch 의 00:00 묶음이 Valkey 를 읽고 쓰고, 배치 운영 문서가
+ * Valkey 응답 시간 초과를 일시적 오류로 분류해 다시 실행한다.
+ *
+ * freshmarket 배치는 캐시를 안 써서 이 규칙이 없었다. 그대로 두면 배치의 Redis 헬스체크가 DOWN 이고
+ * 캐시를 쓰는 단계가 연결 시간 초과로 재실행만 반복하다 실패한다.
+ *
+ * 위 sg_names.cache 설명은 고치지 않는다. 보안 그룹 설명을 바꾸면 그룹이 교체되어 캐시가 잠깐 끊긴다.
+ */
+resource "aws_vpc_security_group_ingress_rule" "cache_from_batch" {
+  security_group_id            = aws_security_group.cache.id
+  referenced_security_group_id = aws_security_group.batch.id
+  from_port                    = 6379
+  to_port                      = 6379
+  ip_protocol                  = "tcp"
+  description                  = "batch cache access"
+}
+
 resource "aws_vpc_security_group_ingress_rule" "cache_from_mon" {
   security_group_id            = aws_security_group.cache.id
   referenced_security_group_id = aws_security_group.mon.id
