@@ -210,7 +210,7 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 | `04-data-stores.json` | 04 데이터 저장소 | MySQL 커넥션과 쿼리, RDS 메모리, 캐시 적중률 |
 
 **임계값이 있는 패널에는 선을 그어 두었다.** `rules.yml` 의 값과 같은 값이다.
-CPU 크레딧 173 과 58, 디스크 80%, Hikari 대기 9, 컨테이너 재기동 3회, 배치 1800초다.
+CPU 크레딧 173 과 58(알람이 아니라 시험 전 참고선이다. 알람은 초과분을 본다), 디스크 80%, Hikari 대기 9, 컨테이너 재기동 3회, 배치 1800초다.
 배치의 00:00 묶음은 하루 한 번이라 `rules.yml` 이 90000초로 따로 본다. 패널의 1800초 선은 생존 신호와 이어받기 기준이다.
 알람이 울리기 전에 어디쯤 와 있는지 화면에서 먼저 보라고 맞춰 둔 것이다.
 
@@ -227,7 +227,7 @@ cd /opt/lunchcatch/infra && git pull --ff-only
 ### CloudWatch 지표 이름 확인
 
 `cloudwatch_exporter` 는 CloudWatch 이름을 자기 규칙으로 바꿔 내보낸다.
-`aws_ec2_cpucredit_balance_average` 는 `rules.yml` 이 쓰고 있어 확인된 이름이지만,
+`aws_ec2_cpucredit_balance_average` 와 `aws_ec2_cpusurplus_credit_balance_average` 는 확인된 이름이지만,
 ALB 와 RDS 쪽 이름은 첫 기동 때 한 번 맞춰 보는 것이 빠르다.
 
 ```bash
