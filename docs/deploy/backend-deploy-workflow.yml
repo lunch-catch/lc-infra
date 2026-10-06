@@ -51,19 +51,20 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - uses: gradle/actions/setup-gradle@v4
+      # 외부 액션은 태그가 아니라 커밋으로 고정한다. 태그는 옮겨질 수 있어 배포 권한을 가진 잡에서 남의 코드가 바뀐 채 돈다
+      - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
 
       - name: 빌드
         run: ./gradlew bootJar --no-daemon
 
       # ECR 로그인에 필요해서 push 앞에 있다. GHCR 일 때는 배포 단계 앞에만 있으면 됐다.
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ap-northeast-2
 
       - id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
 
       # 태그는 커밋 SHA 다. latest 를 쓰지 않는다.
       # 어느 인스턴스가 어느 버전인지 태그만 보고 알 수 있어야 롤백 판단이 선다.
