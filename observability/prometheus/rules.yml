@@ -1,0 +1,132 @@
+# 알람 규칙. 값의 근거는 백엔드공통_알람과알림_설계.md 5절에 있다.
+# 문서가 (미정) 으로 둔 것은 파일 끝에 자리만 남겨 두었다. 측정 전에 값을 지어내지 않는다.
+groups:
+  - name: watchdog
+    rules:
+      # 알림이 오지 않는 것을 감지할 수단이다 (INF-33).
+      # 항상 발화하며 5분마다 재발송된다. 이것이 끊기면 파이프라인이 죽은 것이다.
+      - alert: Watchdog
+        expr: vector(1)
+        labels:
+          severity: watchdog
+        annotations:
+          description: "알림 파이프라인이 살아 있다"
+
+  - name: critical
+    rules:
+      # 배포 전 대비 2배, 3분 지속. 롤백 판단의 근거다.
+      - alert: HighFiveXXRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{status=~"5.."}[3m]))
+          /
+          sum(rate(http_server_requests_seconds_count[3m]))
+          >
+          2 * sum(rate(http_server_requests_seconds_count{status=~"5.."}[3m] offset 1h))
+          /
+          sum(rate(http_server_requests_seconds_count[3m] offset 1h))
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          description: "5xx 비율이 한 시간 전 대비 2배를 넘었다. 롤백을 판단하라"
+
+  - name: warning
+    rules:
+      # 최대 누적량의 30%. t3.small 은 576 이 최대라 173 이다.
+      # (t3.micro 가 288 이다. 전에 그 값을 적어 두었으나 임계값 자체는 576 기준이라 맞다)
+      #
+      # 지표는 cloudwatch_exporter 가 AWS/EC2 에서 가져온다.
+      # node_exporter 에는 이 값이 없다. 크레딧은 하이퍼바이저가 관리해 호스트 안에서 보이지 않는다.
+      # 전에 node_cpu_credit_balance 라는 존재하지 않는 이름을 쓰고 있어 두 알람이 발동한 적이 없다.
+      #
+      # 인스턴스가 unlimited 모드라 이 둘은 성능 경고가 아니다.
+      # 크레딧이 말라도 스로틀링이 없고 초과분이 과금될 뿐이다 (vCPU 시간당 0.05 USD).
+      # 그래서 "느려진다" 가 아니라 "여기부터 돈이 나간다" 로 읽어야 한다.
+      # standard 모드로 바꾸면 그때부터 성능 경고가 된다.
+      - alert: CpuCreditLow
+        expr: aws_ec2_cpucredit_balance_average < 173
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          description: "CPU 크레딧이 30% 아래다. 곧 초과분 과금이 시작된다"
+
+      # 최대 누적량의 10%. 여기부터는 사실상 계속 초과분을 낸다.
+      - alert: CpuCreditCritical
+        expr: aws_ec2_cpucredit_balance_average < 58
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          description: "CPU 크레딧이 10% 아래다. 초과분 과금 중이다. 부하 원인을 확인하라"
+
+      # 풀 크기 10 의 90%. 대기가 쌓이면 톰캣 스레드가 먼저 마른다.
+      - alert: HikariPendingHigh
+        expr: hikaricp_connections_pending > 9
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          description: "커넥션 풀 대기가 90% 를 넘었다. 느린 쿼리를 확인하라"
+
+      # 캐시는 Degradable 이라 죽어도 서비스는 돈다. 강등 경로가 실제로 동작하는지 확인한다.
+      - alert: CacheConnectionFailed
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          description: "캐시 연결이 1분간 끊겼다. 강등 경로 동작을 확인하라"
+
+      # 10분 내 3회. OOM 이 가장 흔한 원인이다.
+      - alert: ContainerRestartLoop
+        expr: changes(container_start_time_seconds[10m]) >= 3
+        labels:
+          severity: warning
+        annotations:
+          description: "컨테이너가 10분 내 3회 재기동했다. OOM 여부를 확인하라"
+
+      - alert: DiskUsageHigh
+        expr: |
+          100 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}
+                 / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          description: "디스크 사용률이 80% 를 넘었다. 로그를 정리하라"
+
+      # 배포 절차가 신규 인스턴스를 최대 6분 기다린다. 90초를 넘으면 먼저 알린다.
+      - alert: ReadinessSlow
+        expr: |
+          probe_success{job="app"} == 0
+        for: 90s
+        labels:
+          severity: warning
+        annotations:
+          description: "readiness 가 90초 넘게 실패했다. 배포를 중단하라"
+
+      # 배치가 조용히 멈추는 것을 잡는다.
+      #
+      # 배치 인스턴스는 ALB 대상이 아니라 HealthyHostCount 에 안 걸린다.
+      # 에러 알람은 작업이 돌아야 울리므로 프로세스가 아예 안 뜨면 아무 신호도 없다.
+      # 그래서 실패가 아니라 마지막 성공 시각이 낡는 것으로 감시한다.
+      #
+      # 작업 주기가 fixedDelay 10분이라 30분이면 세 번을 연달아 놓친 것이다.
+      - alert: BatchNotRun
+        expr: |
+          time() - batch_job_last_success_timestamp_seconds > 1800
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          description: "배치 {{ $labels.scheduler }} 가 30분 넘게 성공하지 못했다"
+
+  # 임계값이 정해지지 않은 알람들. 부하 시험 후 채운다.
+  #
+  # - alert: FiveZeroTwo            502 발생. (미정) 초과
+  # - alert: RdsFreeableMemoryLow   RDS 여유 메모리. (미정) 미만
+  # - alert: TomcatThreadsHigh      톰캣 스레드 사용률. (미정)% 초과
+  # - alert: ConsumedLcuHigh        ConsumedLCUs. (미정) 초과
+  # - alert: P99Slow                p99 응답시간. 기준선 대비 3배. 기준선이 없다
+  # - alert: IntegrityCheckFailed   정합성 검증 실패. 검증 쿼리 결과를 내보내는 경로가 없다

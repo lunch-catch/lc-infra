@@ -1,0 +1,72 @@
+# ALB, RDS, ElastiCache 의 인스턴스 레벨 지표를 CloudWatch 에서 가져온다.
+# period 와 range 는 CloudWatch 원본 해상도인 60초에 맞춘다. 더 촘촘히 긁으면 API 요청만 늘어난다.
+region: ap-northeast-2
+period_seconds: 60
+range_seconds: 300
+
+metrics:
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: HTTPCode_ELB_5XX_Count
+    aws_dimensions: [LoadBalancer]
+    aws_statistics: [Sum]
+
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: HTTPCode_ELB_502_Count
+    aws_dimensions: [LoadBalancer]
+    aws_statistics: [Sum]
+
+  # 백분위는 Statistics 가 아니라 ExtendedStatistics 로 넘긴다.
+  # p99 를 aws_statistics 에 두면 CloudWatch 가 InvalidParameterValue 로 거절해
+  # 이 지표만 조용히 수집되지 않는다.
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: TargetResponseTime
+    aws_dimensions: [LoadBalancer]
+    aws_statistics: [Average]
+    aws_extended_statistics: [p99]
+
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: ConsumedLCUs
+    aws_dimensions: [LoadBalancer]
+    aws_statistics: [Sum]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: FreeableMemory
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: DatabaseConnections
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average, Maximum]
+
+  # 크레딧은 서서히 변한다. 300초로 긁어 API 요청을 아낀다.
+  - aws_namespace: AWS/RDS
+    aws_metric_name: CPUCreditBalance
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+    period_seconds: 300
+
+  - aws_namespace: AWS/ElastiCache
+    aws_metric_name: CPUCreditBalance
+    aws_dimensions: [CacheClusterId]
+    aws_statistics: [Average]
+    period_seconds: 300
+
+  # EC2 크레딧은 이 경로로만 나온다.
+  # node_exporter 는 호스트 안에서 보는 것이라 하이퍼바이저가 관리하는 크레딧 잔량을 알지 못한다.
+  # 이것이 없으면 CpuCreditLow 와 CpuCreditCritical 이 발동할 지표를 갖지 못한다.
+  #
+  # range 를 전역값(300)보다 넓게 잡는다. CloudWatch 가 이 지표를 5분마다 내는데
+  # 조회 범위가 같은 5분이면 스크레이프가 빈 구간에 걸려 계열이 사라진다.
+  #
+  # set_timestamp 를 끄는 것이 짝이다. 켜 두면 익스포터가 CloudWatch 원본 시각을 그대로 붙이는데,
+  # 그 시각은 발행 지연 때문에 현재보다 수 분 전이다. Prometheus 의 순간 조회는 5분만 되돌아보므로
+  # 값이 멀쩡히 수집되는데도 조회에서는 계속 비어 보인다. 범위를 넓힐수록 더 오래된 값을 골라 악화된다.
+  # 끄면 스크레이프 시각으로 기록되어 알람의 for 절이 연속으로 성립한다.
+  - aws_namespace: AWS/EC2
+    aws_metric_name: CPUCreditBalance
+    aws_dimensions: [InstanceId]
+    aws_statistics: [Average]
+    period_seconds: 300
+    range_seconds: 900
+    set_timestamp: false

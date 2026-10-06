@@ -1,0 +1,45 @@
+# cp terraform.tfvars.example terraform.tfvars
+#
+# 기본값으로 두어도 되는 것은 적지 않았다. variables.tf 를 보라.
+# tfvars 는 gitignore 대상이다. 잘못된 변수 파일로 destroy 를 돌리면 ALB 가 사라진다.
+
+# 도메인이 생기면 채운다. 비어 있으면 Route 53 과 ACM 을 만들지 않는다.
+domain_name = ""
+
+# 기본값이 true 다. 끌 때만 적는다.
+# db_multi_az = false
+
+# 계정을 여럿 쓴다면 프로파일을 박아 둔다. 잘못된 계정에 apply 하는 사고를 막는다.
+# aws configure --profile lunchcatch 로 먼저 만든다.
+aws_profile = "lunchcatch"
+
+# aws sts get-caller-identity --profile lunchcatch 로 확인한 계정 ID 를 넣는다.
+# 자격증명이 여기 없는 계정을 가리키면 plan 이 멈춘다.
+allowed_account_ids = ["000000000000"]
+
+# critical 알림을 받을 이메일. 비우면 이메일 구독을 만들지 않는다.
+# CloudWatch 알람은 SNS 로만 가므로, 이것과 Chatbot 둘 다 없으면 그 알람들이 갈 곳이 없다.
+alert_email = ""
+
+# Grafana 를 팀원에게 열 때 채운다. domain_name 이 함께 있어야 동작한다.
+# 값을 넣기 전에 SSM 에 시크릿부터 넣는다. observability/README.md 에 순서가 있다.
+grafana_oidc_client_id = ""
+
+# 도메인을 사기 전까지 쓰는 임시 경로다. 비우면 아무것도 만들지 않는다.
+# 채우면 모니터링 인스턴스에 EIP 가 붙고 Caddy 가 Let's Encrypt 인증서를 받는다.
+# domain_name 이 생기면 이 값을 비운다.
+duckdns_hostname = ""
+
+# 기본값이 true 다. 끌 때만 적는다.
+# 끄면 발급 요청이 평상시 앱으로 가고, 켜 두면 이벤트 밖에서 503 이 된다.
+#
+# 3대가 커넥션 예산에 든다. application-coupon.yml 이 풀을 2 로 잡아 대당 2개만 쓴다.
+# 평상시 31 과 합쳐 37 이고 max_connections 실측 60 안이다.
+# coupon_dedicated_enabled = false
+
+# 아래 넷은 기본값이 없거나 환경마다 다르다. tfvars 에 반드시 적어야 한다.
+#
+#   allowed_account_ids       계정마다 다름
+#   alert_email               사람마다 다름
+#   duckdns_hostname          비우면 Caddy 와 EIP 가 사라진다
+#   db_backup_retention_days  프리 티어에서만 낮춘다. 기본값 7 로 두면 apply 가 실패한다

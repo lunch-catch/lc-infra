@@ -1,0 +1,97 @@
+# lc-backend 의 .github/workflows/deploy.yml 로 넣을 파일이다.
+#
+# 이 저장소가 원본을 갖는 이유는 배포 절차가 인프라 결정에서 나오기 때문이다.
+# ASG 이름, 대상 그룹 이름, SSM 경로가 전부 Terraform 이 정한 값이다.
+#
+# 적용하려면 lc-backend 에 이 파일을 복사하고 아래를 설정한다.
+#   변수   AWS_DEPLOY_ROLE_ARN   bootstrap 에서 terraform output github_role_arns 의 deploy 값
+#   시크릿 SLACK_WEBHOOK_DEPLOY  #alerts-deploy 채널 웹훅
+
+name: 배포
+
+# main 병합 시에만 배포한다.
+#
+# 팀원은 develop 으로만 PR 을 열고 main 으로 가는 경로는 관리자의 릴리스 PR 뿐이다.
+# main 은 보호 브랜치라 PR 병합 외에 push 경로가 없으므로 이 트리거로 충분하다.
+#
+# AWS 쪽에서도 같은 조건이 강제된다.
+# 배포 역할의 신뢰 정책이 repo:...:ref:refs/heads/main 으로 못 박혀 있어
+# 다른 브랜치에서 이 워크플로를 돌려도 STS 가 자격증명을 주지 않는다.
+on:
+  push:
+    branches: [main]
+
+# 배포는 중간에 끊으면 안 된다. 구 인스턴스를 지우는 도중에 취소되면 용량이 반이 된다.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+# packages 는 GHCR 시절의 것이다. ECR 로 옮기면서 뺐다.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 배포 스크립트는 lc-infra 가 소유한다. llm-verify 가 형제 저장소를 받아 쓰는 것과 같은 방식이다.
+      - name: 인프라 스크립트
+        uses: actions/checkout@v4
+        with:
+          repository: lunch-catch/lc-infra
+          path: infra
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: 빌드
+        run: ./gradlew bootJar --no-daemon
+
+      # ECR 로그인에 필요해서 push 앞에 있다. GHCR 일 때는 배포 단계 앞에만 있으면 됐다.
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-northeast-2
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 태그는 커밋 SHA 다. latest 를 쓰지 않는다.
+      # 어느 인스턴스가 어느 버전인지 태그만 보고 알 수 있어야 롤백 판단이 선다.
+      #
+      # 저장소가 IMMUTABLE 이라 같은 SHA 로 다시 밀면 push 가 거부된다.
+      # 재실행으로 이미지가 바뀌는 일이 없어야 태그가 버전의 근거가 된다.
+      - name: 이미지 push
+        run: |
+          IMAGE=${{ steps.ecr.outputs.registry }}/lunchcatch:${{ github.sha }}
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      # 0번 사전 점검부터 10번 최종 확인까지 스크립트가 수행한다.
+      - name: 롤링 배포
+        env:
+          PROJECT: lunchcatch
+          # 스모크 대상의 호스트는 deploy.sh 가 ALB 에서 직접 조회한다.
+          # 여기서 정하는 것은 경로뿐이고, 비우면 /v1/products 를 쓴다.
+          SMOKE_PATH: ${{ vars.SMOKE_PATH }}
+        run: infra/scripts/deploy.sh ${{ github.sha }}
+
+      # 배포 알림만 Alertmanager 를 거치지 않는다.
+      # AWS 자격증명을 얻기 전에도 실패를 알려야 해서 웹훅을 저장소 시크릿에 둔다.
+      - name: 결과 알림
+        if: always()
+        env:
+          WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEPLOY }}
+        run: |
+          [ -z "$WEBHOOK" ] && exit 0
+          STATUS="${{ job.status }}"
+          curl -fsS -X POST "$WEBHOOK" \
+            -H 'Content-Type: application/json' \
+            -d "{\"text\":\"[$STATUS] 배포 ${{ github.sha }} by ${{ github.actor }}\"}"

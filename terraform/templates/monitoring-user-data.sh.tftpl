@@ -1,0 +1,39 @@
+#!/bin/bash
+${common_bootstrap}
+
+# 관측 설정은 Git 이 유일한 출처다 (INF-32).
+# 임계값은 부하 시험 후 여러 번 고칠 값이라 Terraform 에 넣지 않는다.
+# 고친 뒤에는 이 인스턴스에서 git pull 하고 reload 한다 (OPS-2-18).
+GITHUB_TOKEN=$(aws ssm get-parameter --name "/${project}/github-token" --region ${region} --with-decryption --query 'Parameter.Value' --output text)
+install -d -m 0755 /opt/${project}
+git clone --depth 1 "https://x-access-token:$GITHUB_TOKEN@github.com/${github_org}/${infra_repo}.git" /opt/${project}/infra
+
+# SSM 조회와 .env 생성을 스크립트로 빼 둔다.
+# 엔드포인트가 바뀌면 다시 돌려야 하므로 여기 인라인으로 두지 않는다.
+cat > /usr/local/bin/${project}-refresh-monitoring-env <<'REFRESH'
+${refresh_env}
+REFRESH
+chmod 755 /usr/local/bin/${project}-refresh-monitoring-env
+
+/usr/local/bin/${project}-refresh-monitoring-env
+
+cat > /etc/systemd/system/observability.service <<'UNIT'
+[Unit]
+Description=observability stack
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/${project}/infra/observability
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable --now observability.service

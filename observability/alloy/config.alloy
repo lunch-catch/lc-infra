@@ -1,0 +1,39 @@
+// 컨테이너 로그를 읽어 Loki 로 민다.
+// 각 인스턴스에서 돌고, Loki 는 모니터링 인스턴스 하나에만 있다.
+
+discovery.docker "containers" {
+	host = "unix:///var/run/docker.sock"
+}
+
+// 레이블에 값 종류가 무한한 항목을 넣지 않는다 (INF-9-04).
+// 카디널리티가 폭발하면 Loki 가 느려진다.
+// 인스턴스 ID 는 ASG 교체마다 새로 생겨 무한이라 레이블로 쓰지 않고 본문에 남긴다.
+discovery.relabel "containers" {
+	targets = discovery.docker.containers.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+	}
+}
+
+loki.source.docker "containers" {
+	host       = "unix:///var/run/docker.sock"
+	targets    = discovery.relabel.containers.output
+	forward_to = [loki.write.default.receiver]
+
+	// 배포 버전이 로그에 남아야 혼재 구간에서 구 버전과 신 버전을 가른다 (OBS-7-03).
+	// 배포마다 하나씩 늘어나므로 유한하다.
+	labels = {
+		job     = "docker",
+		role    = sys.env("INSTANCE_ROLE"),
+		git_sha = sys.env("GIT_SHA"),
+	}
+}
+
+loki.write "default" {
+	endpoint {
+		url = "http://" + sys.env("LOKI_ENDPOINT") + ":3100/loki/api/v1/push"
+	}
+}

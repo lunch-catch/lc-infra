@@ -1,0 +1,87 @@
+# docs/wiki 를 GitHub 위키로 밀어넣는다.
+#
+# 위키는 <저장소>.wiki.git 이라는 별도 git 저장소다. clone 해서 파일을 넣고 push 하면 페이지가 된다.
+# 파일명이 페이지 제목이 되고 Home.md 가 첫 화면이다.
+#
+# 원본은 언제나 docs/wiki 다. 위키에서 직접 고친 것은 다음 동기화 때 덮어써진다.
+# 위키에 편집 권한이 있어도 거기서 고치지 않는다. 리뷰를 거치지 않은 문서가 되기 때문이다.
+#
+# GITHUB_TOKEN 으로는 위키에 push 할 수 없다. 위키가 별도 저장소라 기본 토큰의 권한 밖이다.
+# WIKI_TOKEN 시크릿에 PAT 을 넣어야 한다. 없으면 이 워크플로는 건너뛴다.
+
+name: 위키 동기화
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/wiki/**"
+      - ".github/workflows/wiki-sync.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wiki-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      WIKI_TOKEN: ${{ secrets.WIKI_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 토큰이 없으면 알리고 끝낸다
+        if: env.WIKI_TOKEN == ''
+        run: |
+          echo "::warning::WIKI_TOKEN 이 없어 위키 동기화를 건너뛴다. 저장소 Secrets 에 PAT 을 넣어야 한다."
+
+      - name: 위키로 밀어넣는다
+        if: env.WIKI_TOKEN != ''
+        run: |
+          if [ ! -d docs/wiki ]; then
+            echo "::warning::docs/wiki 가 없다. 보낼 것이 없어 끝낸다."
+            exit 0
+          fi
+
+          # 위키 저장소는 첫 페이지를 UI 에서 한 번 만들어야 생긴다.
+          # 없는 상태로 clone 하면 실패하므로 그 사실을 알리고 끝낸다.
+          URL="https://x-access-token:$WIKI_TOKEN@github.com/${{ github.repository }}.wiki.git"
+          if ! git clone --quiet "$URL" wiki 2>/dev/null; then
+            echo "::error::위키 저장소를 열지 못했다. 저장소 설정에서 Wiki 를 켜고 첫 페이지를 한 번 만든다."
+            exit 1
+          fi
+
+          # --delete 를 준다. docs/wiki 에서 지운 문서가 위키에 남으면
+          # 어느 쪽이 원본인지 흐려지고 낡은 문서가 검색에 걸린다.
+          rsync -a --delete --exclude '.git' docs/wiki/ wiki/
+
+          cd wiki
+          git add -A
+          if git diff --cached --quiet; then
+            echo "바뀐 것이 없다."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "docs/wiki 동기화 ${GITHUB_SHA:0:7}"
+          git push --quiet
+          echo "위키 갱신 완료"
+
+      - name: 요약
+        if: always()
+        run: |
+          {
+            echo "## 위키 동기화"
+            echo ""
+            if [ -d docs/wiki ]; then
+              echo "보낸 문서 $(find docs/wiki -name '*.md' | wc -l | tr -d ' ')건"
+              find docs/wiki -name '*.md' | sed 's|docs/wiki/|- |'
+            else
+              echo "docs/wiki 가 없다."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

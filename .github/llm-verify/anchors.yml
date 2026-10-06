@@ -1,0 +1,94 @@
+# 앵커 규칙 (infra)
+#
+# diff 에 어떤 파일이 있으면 (1) 어떤 파일을 함께 동봉하고 (2) 어떤 점검 항목을 켤지 정한다.
+# 구조는 backend 의 같은 파일과 같고, 판정 대상만 다르다.
+#
+# 판정 대상이 둘이다. 문서와 Terraform 코드.
+#
+# 문서를 판정한다는 것은 두 가지를 본다는 뜻이다.
+#   확정값을 바꿨을 때 다른 문서와 어긋나지 않는가
+#   가이드를 바꿨을 때 그 결정이 실제로 지켜질 수 있는 형태인가
+#
+# Terraform 을 판정하는 것은 code-guideline.md 12장 하나다.
+#   확정값이 코드에 그대로 들어갔는가
+#
+# 참조하는 레지스트리는 둘이다.
+#   lc-infra/.github/llm-verify/items.yml  118건  INF, OPS, PRE
+#   lunch-catch/.github ... items.yml     219건  일반 품질 속성
+
+version: 1
+source: infra
+
+defaults:
+  # 판정 대상으로 치는 것. backend 와 달리 여기서는 문서가 판정 대상이다.
+  code_globs:
+    - "docs/**"
+    - ".github/**"
+    - "verify.sh"
+    - "**/*.tf"
+    - "scripts/**"
+  # 어떤 규칙도 걸리지 않으면 운영 항목만 켠다
+  on_no_match:
+    activate:
+      levels: [운영]
+      prefixes: [OPS]
+  # 앵커를 가져오지 못하면 통과시키지 않는다
+  unresolved_anchor: INSUFFICIENT_EVIDENCE
+  # 기준 저장소 참조는 시점으로 고정한다 (qa-llm-verification.md 2.2절)
+  baseline_ref: base
+
+rules:
+  # 확정값 문서. 여기 적힌 수치가 backend 판정의 기준이 되므로 서로 어긋나면 안 된다.
+  - id: system-design
+    status: unverified
+    trigger:
+      - "docs/system-design/*.md"
+    # 나머지 확정값 문서를 함께 동봉한다. 모순은 문서 하나만 봐서는 보이지 않는다.
+    anchors:
+      - "docs/system-design/*.md"
+    activate:
+      prefixes: [INF, OPS, PRE, REL, PERF, OBS, CMP, TRD]
+      levels: [설계, 운영, 실행전]
+
+  # 점검 항목의 원본. 문서를 고치면 items.yml 을 다시 생성해야 한다.
+  - id: guideline
+    status: unverified
+    trigger:
+      - "docs/infra-review/*-guideline.md"
+    anchors:
+      - ".github/llm-verify/items.yml"
+      - "docs/system-design/*.md"
+    activate:
+      prefixes: [INF, OPS, PRE, TRD, MNT]
+      levels: [코드, 설계, 운영, 실행전]
+
+  # 인프라 코드. 확정값이 코드에 그대로 들어갔는지 본다.
+  - id: terraform
+    status: unverified
+    trigger:
+      - "**/*.tf"
+      - "scripts/*.sh"
+    # 확정값 문서를 동봉해야 값이 맞는지 볼 수 있다.
+    anchors:
+      - ".github/llm-verify/items.yml"
+      - "docs/system-design/*.md"
+    activate:
+      prefixes: [INF, OPS, PRE, REL, SEC, OBS, MNT]
+      levels: [코드, 운영, 실행전]
+      # 12장만 인프라 코드를 판정한다. 나머지 INF 장은 backend 코드가 대상이다.
+      chapters:
+        INF: [12]
+
+  # 워크플로와 스크립트. 게이트 자체가 바뀌는 자리다.
+  - id: workflow
+    status: unverified
+    trigger:
+      - ".github/workflows/*.yml"
+      - "verify.sh"
+    anchors:
+      - ".github/llm-verify/items.yml"
+    activate:
+      # MNT 를 넣지 않는다. MNT-5-* 는 빌드에 포맷터와 정적 분석이 걸렸는지를 묻는데
+      # 이 저장소에는 빌드가 없어 매번 NOT_APPLICABLE 이 된다. 그 판정은 backend 가 맡는다.
+      prefixes: [OPS, PRE]
+      levels: [운영, 실행전]

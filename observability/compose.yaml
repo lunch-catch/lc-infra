@@ -1,0 +1,226 @@
+# 모니터링 인스턴스에서 도는 관측 스택이다.
+# 태그를 라인이 아니라 패치까지 고정한다. latest 는 어디에도 쓰지 않는다 (기술스택 6장).
+#
+# 설정은 읽기 전용으로 마운트한다 (INF-32).
+# 컨테이너 안에서 고쳐도 다음 재기동에 사라지므로 Git 이 유일한 출처가 된다.
+
+services:
+  # 패널을 PNG 로 내보내는 렌더러다.
+  renderer:
+    image: grafana/grafana-image-renderer:v5.12.4
+    container_name: renderer
+    restart: unless-stopped
+    environment:
+      ENABLE_METRICS: "false"
+    # 메모리를 묶는다.
+    #
+    # 이 인스턴스가 t4g.small 2 GB 이고 나머지 열 컨테이너가 이미 1.3 GB 를 쓴다. 렌더러는
+    # 유휴에 80 MB 급이지만 Chromium 이 렌더링하는 동안 늘어난다. 상한이 없으면 호스트가
+    # 마르고 Prometheus 나 Grafana 가 함께 죽는다. 상한에 닿으면 렌더러만 죽는다.
+    mem_limit: 400m
+    # Chromium 이 /dev/shm 을 쓴다. 기본 64 MB 로는 큰 패널에서 모자란다.
+    shm_size: 256m
+
+  prometheus:
+    image: prom/prometheus:v3.13.1
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules.yml:/etc/prometheus/rules.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # 부하 시험 결과를 되짚어 보려면 이 정도가 필요하다.
+      - --storage.tsdb.retention.time=15d
+      # 설정을 고치고 재기동 없이 반영하는 경로다 (OPS-2-18).
+      - --web.enable-lifecycle
+      # k6 가 부하 시험 결과를 밀어 넣는다. 기본값은 긁어오기만 하고 받지 않는다.
+      # 입구가 열리므로 SG 에서 부하 생성기만 9090 에 닿게 막아 둔다.
+      - --web.enable-remote-write-receiver
+
+  grafana:
+    image: grafana/grafana:12.4.3
+    container_name: grafana
+    restart: unless-stopped
+    # 루프백에만 묶는다. 밖에서 오는 것은 Caddy 가 받고, SSM 포트 포워딩은 localhost 로 붙어 그대로 된다.
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      # 값은 SSM grafana-admin-password 에서 온다. 밖에 열려 있는데 비어 있으면 refresh 가 막는다.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      # 패널의 Export as image 가 이 주소로 렌더러를 부른다
+      GF_RENDERING_SERVER_URL: http://renderer:8081/render
+      # 렌더러가 Grafana 를 되부르는 주소다. 컨테이너 이름으로 준다
+      GF_RENDERING_CALLBACK_URL: http://grafana:3000/
+      # 도메인이 없으면 SSM 포트 포워딩으로 보므로 localhost 가 맞다. 값은 refresh-monitoring-env 가 .env 에 넣는다.
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000/}
+      # ALB 가 Google 로 인증을 끝내고 X-Amzn-Oidc-Identity 헤더에 이메일을 실어 보낸다.
+      # 이 헤더를 믿어도 되는 근거는 SG-mon 의 3000 인바운드가 SG-alb 출처만 허용한다는 것이다.
+      # 다른 경로로는 이 포트에 닿을 수 없어 헤더를 위조해 넣을 상대가 없다.
+      #
+      # 도메인이 없는 동안에는 GRAFANA_AUTH_PROXY_ENABLED 가 false 라 평소 로그인 화면이 그대로 뜬다.
+      GF_AUTH_PROXY_ENABLED: ${GRAFANA_AUTH_PROXY_ENABLED:-false}
+      GF_AUTH_PROXY_HEADER_NAME: X-Amzn-Oidc-Identity
+      GF_AUTH_PROXY_HEADER_PROPERTY: email
+      GF_AUTH_PROXY_AUTO_SIGN_UP: "true"
+      GF_AUTH_PROXY_SYNC_TTL: "60"
+      # 팀원은 보기만 한다. 대시보드는 Git 이 갖고 화면에서 고칠 수 없다.
+      GF_USERS_AUTO_ASSIGN_ORG_ROLE: Viewer
+
+  # DUCKDNS_HOSTNAME 이 있을 때만 뜬다. refresh-monitoring-env 가 COMPOSE_PROFILES 를 정한다.
+  caddy:
+    image: caddy:2.11.4-alpine
+    container_name: caddy
+    restart: unless-stopped
+    profiles:
+      - tls
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # 발급받은 인증서가 여기 남는다. 지우면 재발급이고 Let's Encrypt 한도에 걸린다.
+      - caddy-data:/data
+      - caddy-config:/config
+    # 해시의 $ 는 refresh-monitoring-env 가 $$ 로 적어 둔다. 여기서 원래대로 돌아온다.
+    env_file:
+      - .env
+    depends_on:
+      - grafana
+
+  loki:
+    image: grafana/loki:3.7.4
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-data:/loki
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    container_name: alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    # 웹훅 URL 은 SSM 에서 받아 파일로 넣는다. compose 파일에 평문으로 두지 않는다.
+    secrets:
+      - slack_webhook_critical
+      - slack_webhook_warning
+      - slack_webhook_watchdog
+
+  # 이 인스턴스 자기 컨테이너 로그도 Loki 로 보낸다.
+  alloy:
+    image: grafana/alloy:v1.12.1
+    container_name: alloy
+    restart: unless-stopped
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      INSTANCE_ROLE: monitoring
+      GIT_SHA: none
+      LOKI_ENDPOINT: loki
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - /etc/alloy/config.alloy
+
+  # 관리형 서비스는 OS 접근이 안 된다. 엔진 내부 지표는 이 경로가 유일하다.
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.17.2
+    container_name: mysqld-exporter
+    restart: unless-stopped
+    command:
+      - --mysqld.address=${DB_ENDPOINT}:3306
+      # 사용자 이름은 플래그로만 들어간다.
+      # 익스포터가 환경변수로 읽는 것은 MYSQLD_EXPORTER_PASSWORD 하나뿐이고,
+      # 이름을 받는 경로는 --mysqld.username 과 --config.my-cnf 둘뿐이다.
+      # 전에 MYSQLD_EXPORTER_USER 로 넘겼을 때는 아무도 읽지 않아
+      # "no user specified in section or parent" 로 1분마다 재시작했다.
+      - --mysqld.username=${DB_EXPORTER_USER}
+    environment:
+      # 전용 계정을 따로 만들지 않고 마스터로 붙는다.
+      # RDS 는 CREATE USER 를 자동으로 해 주지 않아, 전용 계정을 쓰면 재구축마다 손으로 만들어야 한다.
+      # 대가는 감시 도구가 DB 전권을 갖는다는 것이다.
+      MYSQLD_EXPORTER_PASSWORD: ${DB_EXPORTER_PASSWORD}
+
+  # Valkey 가 RESP 호환이라 이름이 redis 여도 그대로 붙는다.
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.69.0
+    container_name: redis-exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: "redis://${CACHE_ENDPOINT}:6379"
+
+  # RDS 와 ElastiCache 의 인스턴스 레벨 지표. CPU 크레딧이 여기서 나온다.
+  cloudwatch-exporter:
+    image: prom/cloudwatch-exporter:v0.16.0
+    container_name: cloudwatch-exporter
+    restart: unless-stopped
+    volumes:
+      - ./cloudwatch/config.yml:/config/config.yml:ro
+    command:
+      - /config/config.yml
+
+  # 이 호스트의 지표. 앱과 배치가 쓰는 것과 같은 구성이다.
+  #
+  # prometheus.yml 의 node 와 cadvisor 잡은 Role 을 가리지 않고 실행 중인 모든 인스턴스를 긁는다.
+  # 여기에 두 익스포터가 없으면 모니터링 인스턴스만 영영 down 으로 남는다.
+  # 감시 도구가 자기 자신을 못 보는 상태이고, 이 호스트가 CPU 크레딧을 소진하면
+  # 나머지 관측이 통째로 눈이 머는데 그것을 알려 줄 지표가 없다.
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    container_name: node-exporter
+    restart: unless-stopped
+    pid: host
+    ports:
+      - "9100:9100"
+    volumes:
+      - /:/host:ro,rslave
+    command:
+      - --path.rootfs=/host
+
+  # 기본 포트가 8080 이라 다른 것과 겹치지 않게 8082 로 옮긴다. 앱 쪽과 같은 규칙이다.
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    container_name: cadvisor
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "8082:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  alertmanager-data:
+  caddy-data:
+  caddy-config:
+
+secrets:
+  slack_webhook_critical:
+    file: /run/secrets/slack_webhook_critical
+  slack_webhook_warning:
+    file: /run/secrets/slack_webhook_warning
+  slack_webhook_watchdog:
+    file: /run/secrets/slack_webhook_watchdog

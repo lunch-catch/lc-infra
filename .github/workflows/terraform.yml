@@ -1,0 +1,65 @@
+# 인프라 코드 게이트
+#
+# 이 저장소에는 빌드가 없어 지금까지 CI 가 보는 것이 문서와 items.yml 의 일치 하나뿐이었다.
+# Terraform 이 들어오면서 처음으로 실행 가능한 산출물이 생겼고, 그것을 보는 자리가 여기다.
+#
+# fmt 와 validate 는 자격증명이 필요 없어 PR 에서 차단해도 된다. 결정론적이라 오탐이 없다.
+# plan 은 AWS 를 조회해야 해서 자격증명이 필요하다. 없으면 건너뛴다.
+# 상태 파일을 읽는 것뿐이라 plan 자체는 인프라를 바꾸지 않는다.
+
+name: 인프라 코드 검사
+
+on:
+  pull_request:
+    paths:
+      - "**/*.tf"
+      - ".terraform.lock.hcl"
+      - ".github/workflows/terraform.yml"
+
+# plan 이 상태 파일 잠금을 잡으므로 동시에 돌리지 않는다
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write        # OIDC 로 AWS 자격증명을 받는다. 장기 키를 두지 않는다
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          # 확정값은 기술 스택 문서 3.7절에 있다
+          terraform_version: "~1.15"
+
+      - name: 형식
+        run: terraform fmt -check -recursive -diff
+
+      # validate 는 backend 초기화 없이도 돈다. 자격증명이 필요 없다
+      - name: 문법
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - name: AWS 자격증명
+        id: creds
+        continue-on-error: true
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.TF_PLAN_ROLE_ARN }}
+          aws-region: ap-northeast-2
+
+      # 자격증명이 없으면 여기까지다. fmt 와 validate 만으로도 게이트 값은 한다
+      - name: 계획
+        if: steps.creds.outcome == 'success'
+        run: |
+          terraform init -backend-config=backend.hcl
+          terraform plan -no-color -lock-timeout=5m

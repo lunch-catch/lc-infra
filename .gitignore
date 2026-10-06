@@ -1,0 +1,42 @@
+### OS ###
+.DS_Store
+
+### IDE ###
+.idea/
+.vscode/
+*.iml
+
+### Editor ###
+*.swp
+*.swo
+*~
+
+### 사람마다 다른 값 ###
+.env
+.env.*
+!.env.example
+
+### 비밀 ###
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
+# Terraform
+.terraform/
+.terraform.lock.hcl.bak
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# 부하 시험 회차 데이터. 지표 JSON 이라 커밋하지 않는다.
+# 보관할 회차만 골라 문서에 붙인다.
+loadtest-runs/

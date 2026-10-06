@@ -1,0 +1,17 @@
+[Unit]
+Description=${project} (${profiles})
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/${project}
+EnvironmentFile=/opt/${project}/.env
+ExecStart=/usr/bin/docker compose up -d --pull always
+ExecStop=/usr/bin/docker compose down
+# 종료 타임아웃 계층의 가장 바깥이다. compose 45초보다 길어야 한다.
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

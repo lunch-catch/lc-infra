@@ -1,0 +1,109 @@
+services:
+  app:
+    image: ${app_image}:$${GIT_SHA}
+    container_name: ${project}
+    # always 가 아니다. 운영자가 멈춘 것을 되살리면 장애 주입 시험이 성립하지 않는다.
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: "${profiles}"
+      #
+      # 어디에 붙는지만 준다. 드라이버 옵션은 백엔드의 data-source-properties 가 갖는다.
+      #
+      # 전에는 이 URL 에 connectTimeout 과 socketTimeout 을 붙여 두었는데, 그 값이
+      # application-coupon.yml 의 data-source-properties(250/250)와 충돌하고 있었다.
+      # 어느 쪽이 이기는지 실측한 적이 없어 운영 값이 무엇인지 아무도 확신하지 못했다.
+      #
+      # rewriteBatchedStatements 도 여기 있었다. 원래 application.yml 의 url 기본값에
+      # 적혀 있었지만 ${"$"}{DB_URL:...} 문법이라 이 환경 변수가 있으면 버려진다.
+      # 그래서 운영에는 적용된 적이 없었고 로컬에서만 되는 모양이었다 (2026-08-30).
+      #
+      # 둘 다 백엔드로 옮겼다. 인프라는 엔드포인트만 소유한다.
+      #
+      DB_URL: "jdbc:mysql://$${DB_ENDPOINT}:3306/${db_name}"
+      DB_USERNAME: "${db_username}"
+      DB_PASSWORD: "$${DB_PASSWORD}"
+      # 앱이 기본값 없이 요구하는 값들이다. 빠지면 @Value 가 기동을 막는다.
+      # 값은 SSM 시크릿에서 refresh-env 를 거쳐 .env 로 들어온다.
+      JWT_SECRET: "$${JWT_SECRET}"
+      KAKAO_CLIENT_ID: "$${KAKAO_CLIENT_ID}"
+      KAKAO_CLIENT_SECRET: "$${KAKAO_CLIENT_SECRET}"
+      KAKAO_APP_ID: "$${KAKAO_APP_ID}"
+      KAKAO_ADMIN_KEY: "$${KAKAO_ADMIN_KEY}"
+      # 이름을 앱에 맞춘다. 앱은 로컬 compose 와 같은 변수를 써야 해서 VALKEY_HOST 로 정했다.
+      # 값은 SSM cache-endpoint 에서 온다. 복원으로 주소가 바뀌면 refresh-env 가 따라잡는다.
+      VALKEY_HOST: "$${CACHE_ENDPOINT}"
+      VALKEY_PORT: "6379"
+      # 앱의 cdn.base-url 이 이 값을 읽는다 (lc-backend #66).
+      # 이미지 URL 앞에 붙는 주소이고, 이름을 그 설정 키에 맞춰 두었다.
+      CDN_BASE_URL: "https://$${CDN_DOMAIN}"
+      APP_NAME: "${project}"
+      APP_INSTANCE_ID: "$${APP_INSTANCE_ID}"
+      TRACE_SAMPLE_RATE: "0.1"
+      # MaxRAMPercentage 는 컨테이너 한도 기준이다.
+      # DNS TTL 이 결정적이다. 이것이 빠지면 페일오버 후 옛 주소를 계속 찾는다.
+      JAVA_TOOL_OPTIONS: >-
+        -XX:MaxRAMPercentage=70
+        -Dnetworkaddress.cache.ttl=5
+        -Dnetworkaddress.cache.negative.ttl=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health/liveness"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
+    # 종료 타임아웃 계층. Spring graceful 30초보다 길고 systemd 60초보다 짧다.
+    stop_grace_period: 45s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # 호스트 지표. CPU 크레딧이 여기서 나온다. 모니터링이 9100 으로 긁는다.
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    container_name: node-exporter
+    restart: unless-stopped
+    pid: host
+    ports:
+      - "9100:9100"
+    volumes:
+      - /:/host:ro,rslave
+    command:
+      - --path.rootfs=/host
+
+  # 컨테이너 지표. OOM 감지가 여기서 나온다.
+  # 기본 포트가 8080 이라 앱과 겹친다. 8082 로 옮긴다.
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    container_name: cadvisor
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "8082:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+
+  # 컨테이너 로그를 Loki 로 민다. Loki 는 모니터링 인스턴스에 있다.
+  alloy:
+    image: grafana/alloy:v1.12.1
+    container_name: alloy
+    restart: unless-stopped
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      INSTANCE_ROLE: "${role}"
+      GIT_SHA: "$${GIT_SHA}"
+      LOKI_ENDPOINT: "$${LOKI_ENDPOINT}"
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - /etc/alloy/config.alloy

@@ -1,0 +1,6 @@
+# cp terraform.tfvars.example terraform.tfvars
+#
+# terraform/ 과 같은 계정을 가리켜야 한다. 상태 버킷이 거기 있다.
+
+aws_profile         = "lunchcatch"
+allowed_account_ids = ["000000000000"]

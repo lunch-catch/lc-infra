@@ -1,0 +1,468 @@
+# 값의 근거는 전부 docs/system-design/ 에 있다. 여기서 새로 정하지 않는다.
+
+/*
+ * 계정을 여럿 쓰는 환경에서 어느 자격증명을 쓸지 고른다.
+ * 비우면 기본 자격증명이나 환경변수를 쓴다.
+ */
+variable "aws_profile" {
+  description = "AWS CLI 프로파일 이름"
+  type        = string
+  default     = ""
+}
+
+/*
+ * 잘못된 계정에 apply 하는 사고를 막는 마지막 방어다.
+ * 프로파일을 잘못 잡거나 환경변수가 남아 있으면 plan 단계에서 멈춘다.
+ * 비워 두면 검사하지 않는다.
+ */
+variable "allowed_account_ids" {
+  description = "이 구성을 적용해도 되는 AWS 계정 ID"
+  type        = list(string)
+  default     = []
+}
+
+variable "project" {
+  description = "모든 리소스 이름과 SSM 경로의 접두사"
+  type        = string
+  default     = "lunchcatch"
+}
+
+variable "region" {
+  description = "AWS 리전. 범위가 단일 리전이다 (INF-01)"
+  type        = string
+  default     = "ap-northeast-2"
+}
+
+/*
+ * AWS 는 계정마다 AZ 이름을 다른 물리 영역에 매핑한다.
+ * 그래서 이 값은 이 계정 기준이며 변수로 둔다.
+ */
+variable "azs" {
+  description = "논리 AZ 이름을 실제 AZ 에 매핑한다"
+  type        = map(string)
+
+  default = {
+    a = "ap-northeast-2a"
+    c = "ap-northeast-2c"
+  }
+}
+
+variable "vpc_cidr" {
+  description = "VPC CIDR"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+/*
+ * 앱을 퍼블릭 서브넷에 두는 이유는 NAT Gateway 를 쓰지 않기 위해서다 (INF-09).
+ * 보안은 서브넷이 아니라 보안 그룹으로 확보한다.
+ */
+variable "public_subnet_cidrs" {
+  description = "퍼블릭 서브넷. ALB, 앱, 모니터링, 배치, 부하 생성"
+  type        = map(string)
+
+  default = {
+    a = "10.0.1.0/24"
+    c = "10.0.2.0/24"
+  }
+}
+
+variable "private_subnet_cidrs" {
+  description = "프라이빗 서브넷. RDS 와 ElastiCache"
+  type        = map(string)
+
+  default = {
+    a = "10.0.11.0/24"
+    c = "10.0.12.0/24"
+  }
+}
+
+/*
+ * 비어 있으면 Route 53 과 ACM 과 HTTPS 리스너를 만들지 않는다.
+ * 도메인이 생기면 이 값만 채워 apply 한다.
+ */
+variable "domain_name" {
+  description = "서비스 도메인. 예: api.example.com"
+  type        = string
+  default     = ""
+}
+
+# Grafana 를 붙일 서브도메인. 인증서 SAN 과 호스트 헤더 조건이 이 값을 쓴다.
+variable "grafana_subdomain" {
+  description = "Grafana 서브도메인 라벨. 예: grafana"
+  type        = string
+  default     = "grafana"
+}
+
+/*
+ * 비어 있으면 Grafana 를 ALB 에 붙이지 않는다.
+ * 값이 있어도 domain_name 이 비어 있으면 붙이지 않는다. OIDC 인증은 HTTPS 리스너에서만 되기 때문이다.
+ *
+ * 클라이언트 ID 는 시크릿이 아니다. OAuth 흐름에서 브라우저에 그대로 드러난다.
+ * 시크릿은 SSM 의 grafana-oidc-client-secret 에서 읽는다.
+ */
+variable "grafana_oidc_client_id" {
+  description = "Google OAuth 클라이언트 ID. 비우면 Grafana 를 노출하지 않는다"
+  type        = string
+  default     = ""
+}
+
+/*
+ * 앱을 늘리는 기준이다. 대상당 분당 요청 수가 이 값을 넘으면 인스턴스를 더 띄운다.
+ *
+ * CPU 를 쓰지 않는다. 일반 경로도 요청 스레드가 DB 응답을 기다리며 블록되므로,
+ * 톰캣 스레드 200 개가 다 잠겨 포화된 상태에서도 CPU 는 낮게 유지될 수 있다.
+ * 도착률은 병목이 어디든 부하를 그대로 반영한다.
+ *
+ * 시작값이고 실측이 아니다. 한 대가 견디는 도착률을 부하 시험에서 잰 뒤 그 값에서 역산한다.
+ *
+ * 늘려도 DB 는 한 대다. 앱을 3 대로 올려 처리량이 안 늘면 병목이 DB 이므로
+ * 그때는 확장이 아니라 쿼리나 등급을 봐야 한다.
+ */
+variable "app_target_requests_per_instance" {
+  description = "앱 ASG 확장 기준. 대상당 분당 요청 수"
+  type        = number
+  default     = 6000
+}
+
+/*
+ * 선착순 전용 경로를 만들지 정한다 (coupon.md 4장).
+ *
+ * false 면 대상 그룹도 리스너 규칙도 ASG 도 만들지 않고, 발급 요청이 평상시 앱으로 간다.
+ * true 면 그 경로만 전용 ASG 로 갈라진다. 대수 조절은 scripts/coupon-event.sh 가 한다.
+ *
+ * 기본값이 true 인 것은 tfvars 가 gitignore 대상이기 때문이다.
+ * 거기에만 있으면 다른 사람이 apply 할 때 전용 경로가 통째로 사라진다.
+ *
+ * ASG 는 desired 0 으로 태어나므로 켜 두어도 인스턴스 비용은 없다.
+ * 대신 리스너 규칙이 살아 있어 이벤트 밖에서는 발급 요청이 503 이 된다.
+ * 앱의 혼잡 503 과 구분되지 않으므로, 개발 중에 발급 API 를 쓰려면 false 로 내린다.
+ *
+ * 되돌리기가 쉬운 것이 이 구조를 택한 이유 중 하나다.
+ * 문제가 나면 false 로 두어 선착순만 끊고 나머지는 살린다.
+ */
+variable "coupon_dedicated_enabled" {
+  description = "선착순 전용 대상 그룹과 ASG 를 만들지 여부"
+  type        = bool
+  default     = true
+}
+
+/*
+ * 전용 ASG 의 상한이다.
+ *
+ * coupon.md 5장의 커넥션 예산이 이 값을 묶었었다. 지금은 안 묶는다.
+ *
+ * application-coupon.yml 이 풀을 2 로 잡아 3대가 6 개만 쓴다. 평상시 31
+ * (앱 상한 3대 x 8 + 배치 4 + 관리 3) 과 합쳐 37 이고, max_connections 실측 60 안이다.
+ *
+ * 풀이 10 이던 때는 3대가 63 으로 넘겨 coupon-event.sh 가 --force 를 요구했다.
+ * 이 값을 4 이상으로 올린다면 그 검산을 다시 해야 한다.
+ */
+variable "coupon_max_size" {
+  description = "선착순 전용 ASG 최대 대수"
+  type        = number
+  default     = 3
+}
+
+# 발급 엔드포인트 경로다. POST /v1/coupons/{couponId}/issues 를 와일드카드로 잡는다.
+variable "coupon_path_pattern" {
+  description = "선착순 전용 경로로 보낼 ALB 경로 패턴"
+  type        = string
+  default     = "/v1/coupons/*/issues"
+}
+
+/*
+ * 도메인을 사기 전까지 쓰는 임시 경로다. 비우면 아무것도 만들지 않는다.
+ *
+ * ALB 를 거치지 않는다. 모니터링 인스턴스의 Caddy 가 직접 TLS 를 종료하고
+ * Let's Encrypt 에서 인증서를 받는다. ACM 은 도메인 소유 검증이 필요해 쓸 수 없다.
+ *
+ * domain_name 이 생기면 이 값을 비운다. 두 경로를 동시에 켜지 않는다.
+ */
+variable "duckdns_hostname" {
+  description = "DuckDNS 호스트명. 예: lunchcatch.duckdns.org"
+  type        = string
+  default     = ""
+}
+
+/*
+ * Caddy 의 443 을 열어 줄 대역이다.
+ *
+ * 기본값이 전체 공개인 것은 Caddy 의 basic_auth 가 인증 전 요청을 막기 때문이다.
+ * 팀이 고정 IP 를 쓴다면 좁히는 편이 낫다. VPN 출구 IP 는 공유되고 바뀌므로 좁히는 의미가 적다.
+ */
+variable "grafana_https_allowed_cidrs" {
+  description = "Caddy 443 을 열어 줄 CIDR 목록"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
+/*
+ * 역할별 인스턴스 타입. 기술 스택 확정 문서 2.6절.
+ *
+ * batch 는 app 과 같은 아키텍처여야 한다. 같은 컨테이너 이미지를 batch 프로필로 띄우기 때문이다.
+ * t4g 계열(ARM64)로 두었을 때 배포 이미지가 amd64 라 컨테이너가
+ * "exec /opt/java/openjdk/bin/java: exec format error" 로 계속 재시작했다.
+ * 빌드가 러너(x86_64)에서 단일 아키텍처로 나오므로 app 이 t3 인 한 batch 도 t3 여야 한다.
+ *
+ * batch 를 t3.micro 에서 t3.small 로 올렸다 (2026-08-30). 1 GB 로는 모자랐다.
+ *
+ * 실측이 있다. 배포가 배치를 재시작한 직후 여유 메모리가 910 MiB 중 103 MiB(11%)까지
+ * 떨어졌고, 커널이 SSM 에이전트와 node-exporter 와 cadvisor 를 죽였다.
+ * JVM 만 살아남아 up=1 이 유지되는 바람에 겉으로는 정상으로 보였고,
+ * SSM 명령이 Undeliverable 로 떨어지고 나서야 드러났다.
+ *
+ * 1 GB 에 다음이 함께 올라간다. 애초에 맞지 않는다.
+ *
+ *   JVM             heap max 616 MiB (Eden 170 + Survivor 21 + Tenured 425)
+ *   dockerd         컨테이너 넷을 관리한다
+ *   cadvisor        컨테이너 지표를 읽느라 자체 사용이 적지 않다
+ *   node-exporter   가볍다
+ *   SSM 에이전트     이것이 죽으면 원격 진단 자체가 막힌다
+ *
+ * 월 9.49 에서 18.98 USD 가 된다. t3.micro 는 프리 티어 750시간 대상이라 사실상 공짜였고
+ * t3.small 은 아니므로 증가분이 그대로 크레딧에서 나간다.
+ *
+ * 메모리 대신 JVM 힙을 조이는 선택지도 있었다. -Xmx384m 이면 1 GB 에 들어간다.
+ * 그러나 배치가 대량 쓰기를 도는 순간 GC 압박이 그대로 처리 시간이 되고,
+ * 그때 RDS 페일오버가 겹치면 열려 있던 트랜잭션이 길어져 RTO 2분을 넘긴다.
+ * 스케줄러 한 대에 9.49 USD 를 아끼려고 만들 위험이 아니다.
+ *
+ * monitoring 은 관계없다. 자기 이미지를 따로 받고 전부 멀티아키를 제공한다.
+ *
+ * load_test 는 x86 이다. k6 는 멀티아키를 제공하므로 제약은 아니고 나머지와 맞춰 둔 것이다.
+ *
+ * m7i-flex.large 는 고른 것이 아니라 남은 것이다 (2026-08-30).
+ *
+ * 확정값은 m7i.xlarge (4 vCPU / 16 GB) 였고 실측에서 나온 값이었다. 그런데 이 계정이
+ * 프리 티어라 RunInstances 가 거부한다. InvalidParameterCombination 으로 떨어진다.
+ * 띄울 수 있는 것이 여섯뿐이고 그중 메모리가 가장 큰 것이 m7i-flex.large 8 GB 다.
+ *
+ * 목록은 describe-instance-types 의 free-tier-eligible 필터로 얻는다. 2026-09-27 조회다.
+ *
+ *   m7i-flex.large  2 vCPU  8 GiB   <- 이것뿐
+ *   c7i-flex.large  2 vCPU  4 GiB
+ *   t8i.small / t3.small / t4g.small   2 GiB
+ *   t8i.micro / t3.micro / t4g.micro   1 GiB
+ *
+ * r 계열(2 vCPU / 16 GiB)을 쓰려고 2026-09-27 에 시도했다가 되돌렸다. RunInstances 가
+ * InvalidParameterCombination 으로 거부한다. vCPU 가 2 여도 프리 티어 목록에 없으면 안 된다.
+ *
+ * dry-run 으로 확인하면 안 된다. run-instances --dry-run 은 권한과 파라미터 형식만 보고
+ * DryRunOperation 을 돌려준다. 계정 등급 제한은 실제 호출에서만 걸리므로, r7i.large 와
+ * r6i.large 와 r5.large 가 모두 dry-run 을 통과하고 실제로는 셋 다 거부된다.
+ *
+ * 그래서 아래 둘을 알면서 어긴다.
+ *
+ * 하나. 메모리가 모자란다. 2026-08-28 에 5,076 MiB 를 재고 8 GB 의 63% 라고 적었는데
+ * 그것은 60초 램프 끝까지의 값이었다. 회차는 그 뒤로 30초를 더 도는데 그 구간에 메모리가
+ * 계속 올라 2026-09-26 실측 최고점이 7,667 MB 다. 오류 응답이 늘면 MemTotal 7,776 MiB 를
+ * 넘긴다.
+ *
+ * 판정을 받은 VU 가 sleep(1) 로 계속 돌아서 반복이 90만 회 쌓이는 것이 원인이다. 곡선과
+ * 반복당 비용은 docs/deploy/README.md 의 실측표 아래에 있다.
+ *
+ * 둘. flex 를 안 쓰기로 했던 결정을 어긴다. 측정 안정성 때문이었던 결정이다.
+ *
+ * 크레딧 이야기가 아니다. m7i-flex 는 BurstablePerformanceSupported 가 false 라
+ * T 계열과 달리 크레딧을 쓰지 않는다. 베이스라인 위에서 24시간 중 95% 를 풀 성능으로
+ * 보장하는 방식이다. describe-instance-credit-specifications 가 standard 를 돌려주지만
+ * 버스터블이 아닌 타입에는 의미 없는 잔여 필드다.
+ *
+ * 그래서 오히려 진단이 어렵다. T 계열이면 회차 간 차이가 났을 때 CPUCreditBalance 를 보고
+ * 크레딧이 말랐는지 알 수 있는데, flex 에는 그런 지표가 없다. 원인 없이 숫자만 흔들린다.
+ * 대책은 같은 회차를 두 번 이상 돌려 재현되는지 보는 것뿐이다.
+ *
+ * CPU 는 원래 실측하지 못했고 이제 4 vCPU 가 아니라 2 vCPU 다.
+ *
+ * 첫 회차에서 셋을 본다. dropped_iterations 가 0 인가, free -m 에 스왑이 안 생기는가,
+ * CPU 가 100% 에 안 붙는가. 하나라도 어긋나면 이 인스턴스의 한계를 잰 것이지
+ * 앱의 한계를 잰 것이 아니다. 그때는 부하를 여러 대로 나눠야 한다.
+ */
+variable "instance_types" {
+  description = "역할별 인스턴스 타입. 기술 스택 확정 문서 2.6절"
+  type        = map(string)
+
+  default = {
+    app        = "t3.small"
+    monitoring = "t4g.small"
+    batch      = "t3.small"
+    load_test  = "m7i-flex.large"
+  }
+}
+
+variable "db_instance_class" {
+  description = "RDS 인스턴스 클래스"
+  type        = string
+  default     = "db.t4g.micro"
+}
+
+variable "cache_node_type" {
+  description = "ElastiCache 노드 타입"
+  type        = string
+  default     = "cache.t4g.micro"
+}
+
+variable "db_name" {
+  description = "데이터베이스 이름. backend 의 compose.yaml 과 같아야 한다"
+  type        = string
+  default     = "lunchcatch"
+}
+
+variable "db_username" {
+  description = "DB 마스터 사용자"
+  type        = string
+  default     = "lunchcatch"
+}
+
+variable "github_org" {
+  description = "GitHub 조직. OIDC 신뢰 조건과 저장소 clone 경로에 쓴다"
+  type        = string
+  default     = "lunch-catch"
+}
+
+variable "github_backend_repo" {
+  description = "배포를 트리거하는 저장소. 이 저장소의 main 브랜치만 배포 역할을 맡을 수 있다"
+  type        = string
+  default     = "lc-backend"
+}
+
+variable "github_infra_repo" {
+  description = "terraform plan 을 돌리는 저장소"
+  type        = string
+  default     = "lc-infra"
+}
+
+variable "media_bucket_name" {
+  description = "이미지 버킷 이름. 비우면 {project}-media 를 쓴다"
+  type        = string
+  default     = ""
+}
+
+/*
+ * 확정값이고 2026-08-28 부터 켜져 있다 (기술 스택 확정 문서 2.6절).
+ *
+ * 기본값을 true 로 둔다. tfvars 는 gitignore 대상이라 거기에만 있으면
+ * 다른 사람이 apply 할 때 조용히 Single-AZ 로 내려간다. RTO 2분과 RPO 0 목표가
+ * 그 순간 성립하지 않게 되는데 plan 에서 눈에 잘 띄지 않는다.
+ *
+ * 끄려면 tfvars 에 명시적으로 false 를 적는다. 그 편이 의도가 드러난다.
+ */
+variable "db_multi_az" {
+  description = "RDS Multi-AZ 여부. false 인 동안은 RTO 2분과 RPO 0 목표가 성립하지 않는다"
+  type        = bool
+  default     = true
+}
+
+# 문서가 "트래픽이 가장 적은 시간대" 로만 정해 두었다. 실제 패턴을 보고 확정한다.
+variable "db_backup_window" {
+  description = "RDS 자동 백업 창 (UTC). 기본값은 KST 새벽 3시다"
+  type        = string
+  default     = "18:00-19:00"
+}
+
+variable "db_maintenance_window" {
+  description = "RDS 유지보수 창 (UTC). 백업 창과 겹치지 않게 둔다"
+  type        = string
+  default     = "sun:19:30-sun:20:30"
+}
+
+# 시험 시간에만 켠다. 상시 가동 전제의 명시적 예외다.
+/*
+ * k6 버전을 박는다. 최신을 깔면 안 된다.
+ *
+ * VU 당 메모리 실측(2026-08-28, 2만 VU 에 5.0 GB)이 1.7.1 기준이고, m7i.xlarge 를
+ * 고른 근거가 그 수치다. 런타임이 바뀌면 같은 스크립트가 다른 메모리를 쓴다.
+ *
+ * 부하 시험은 회차 간 숫자를 비교하는 일이라 도구가 고정되어야 한다.
+ * 도구가 바뀌면 이번 회차가 나빠진 것이 앱 탓인지 k6 탓인지 못 가린다.
+ *
+ * 올릴 때는 이 값만 바꾸고 메모리를 다시 잰 뒤 deploy/README 의 실측표를 갱신한다.
+ */
+/*
+ * 부하 생성기의 node_exporter 버전이다.
+ *
+ * observability/compose.yaml 이 쓰는 prom/node-exporter 태그와 같은 값을 둔다. 다른 인스턴스는
+ * 도커로 돌리고 생성기는 바이너리로 돌리는데, 버전이 갈리면 같은 지표가 다른 이름으로 나올 수
+ * 있어 회차 간 비교가 흔들린다.
+ *
+ * 올릴 때는 compose.yaml 과 함께 올린다.
+ */
+variable "node_exporter_version" {
+  description = "부하 생성기에 설치할 node_exporter 버전. compose.yaml 과 같은 값을 둔다"
+  type        = string
+  default     = "1.9.1"
+}
+
+variable "k6_version" {
+  description = "부하 생성기에 설치할 k6 버전"
+  type        = string
+  default     = "1.7.1"
+}
+
+variable "load_test_enabled" {
+  description = "부하 생성 인스턴스를 띄울지 여부"
+  type        = bool
+  default     = false
+}
+
+# Chatbot 이 죽었을 때의 대체 경로다. 비우면 이메일 구독을 만들지 않는다.
+variable "alert_email" {
+  description = "critical 알림을 받을 이메일"
+  type        = string
+  default     = ""
+}
+
+# presigned PUT 이 브라우저에서 직접 간다. 프론트 도메인이 정해지면 좁힌다.
+variable "media_cors_origins" {
+  description = "이미지 업로드를 허용할 오리진"
+  type        = list(string)
+  default     = ["*"]
+}
+
+/*
+ * 월 예산. 기술 스택 확정 문서 5.2절의 추정 총액이 근거다.
+ * 프리 티어 크레딧으로 도는 동안에도 소진 속도를 봐야 하므로 값을 둔다.
+ */
+variable "monthly_budget_usd" {
+  description = "월 예산 상한. 50, 80, 100% 와 예측 100% 에서 알린다"
+  type        = string
+  default     = "140"
+}
+
+/*
+ * 확정값은 7일이다 (백업과복원 설계 3.1절). PITR 로 되돌릴 수 있는 범위를 정한다.
+ *
+ * 프리 티어 FREE 플랜은 이 값에 상한이 있어 7을 거부한다.
+ *   FreeTierRestrictionError: The specified backup retention period exceeds
+ *   the maximum available to free tier customers.
+ *
+ * 유료 플랜으로 올린 뒤 7로 되돌린다. 그 전까지는 복구 가능 범위가 그만큼 좁다.
+ */
+variable "db_backup_retention_days" {
+  description = "RDS 자동 백업 보존 기간. 확정값은 7이고 프리 티어에서만 낮춘다"
+  type        = number
+  default     = 7
+}
+
+/*
+ * GitHub 의 불변 식별자다. 이름을 바꿔도 변하지 않아 OIDC 주체의 새 형식에 쓰인다.
+ * gh api orgs/<org> 와 gh api repos/<org>/<repo> 의 id 값이다.
+ */
+variable "github_org_id" {
+  description = "GitHub 조직의 숫자 ID"
+  type        = string
+  default     = "331821599"
+}
+
+variable "github_backend_repo_id" {
+  description = "lc-backend 저장소의 숫자 ID"
+  type        = string
+  default     = "1379931699"
+}
+
+variable "github_infra_repo_id" {
+  description = "lc-infra 저장소의 숫자 ID"
+  type        = string
+  default     = "1379931905"
+}

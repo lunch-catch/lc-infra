@@ -1,0 +1,42 @@
+# 점검 항목 레지스트리가 문서와 일치하는가
+#
+# items.yml 은 가이드 문서에서 생성된 파생물이다.
+# 문서를 고치고 재생성하지 않으면 둘이 갈라지는데, 갈라져도 아무 에러가 나지 않는다.
+# 문서에는 있으니 사람 눈에는 정상으로 보이고, 게이트는 items.yml 만 보므로
+# 새 점검 항목이 영원히 판정되지 않는다.
+#
+# 생성기는 lunch-catch/.github 에 있어 함께 체크아웃한다.
+# 이 검사는 결정론적이라 오탐이 없다. 그래서 LLM 게이트와 달리 차단해도 된다.
+
+name: 레지스트리 검사
+
+on:
+  pull_request:
+    paths:
+      - "docs/infra-review/**"
+      - ".github/llm-verify/items.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: target
+
+      - name: 생성기
+        uses: actions/checkout@v4
+        with:
+          repository: lunch-catch/.github
+          path: common
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # gen_items.py 는 표준 라이브러리만 쓴다. 설치할 것이 없다
+      - name: 문서와 레지스트리 대조
+        run: |
+          python3 common/.github/llm-verify/gen_items.py \
+            target/docs/infra-review '*-guideline.md' infra 코드 \
+            -o target/.github/llm-verify/items.yml --check

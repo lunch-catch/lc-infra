@@ -1,0 +1,26 @@
+#!/bin/bash
+${common_bootstrap}
+
+# SSM 조회와 .env 생성을 스크립트로 빼 둔다.
+# 재배포 때 같은 것을 다시 돌려야 하므로 여기 인라인으로 두지 않는다.
+cat > /usr/local/bin/${project}-refresh-env <<'REFRESH'
+${refresh_env}
+REFRESH
+chmod 755 /usr/local/bin/${project}-refresh-env
+
+/usr/local/bin/${project}-refresh-env
+
+cat > /opt/${project}/compose.yaml <<'COMPOSE'
+${compose}
+COMPOSE
+
+cat > /opt/${project}/alloy-config.alloy <<'ALLOY'
+${alloy}
+ALLOY
+
+cat > /etc/systemd/system/${project}.service <<'UNIT'
+${unit}
+UNIT
+
+systemctl daemon-reload
+systemctl enable --now ${project}.service

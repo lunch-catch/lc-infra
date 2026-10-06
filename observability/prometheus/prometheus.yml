@@ -1,0 +1,134 @@
+# 앱 지표는 15초로 긁는다. 페일오버 2분이나 인스턴스 전환 30초 같은 짧은 사건을 보려면 이 해상도가 필요하다.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    project: lunchcatch
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+rule_files:
+  - /etc/prometheus/rules.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # 앱은 ASG 가 교체하므로 주소가 바뀐다. 정적 목록을 쓸 수 없다.
+  # EC2 서비스 디스커버리로 태그를 보고 찾는다.
+  #
+  # instance 는 EC2 의 Name 태그다. 한 역할의 여러 대가 같은 이름을 갖는다.
+  # 그래서 instance_id 를 함께 남긴다. 없으면 3대가 같은 범례로 겹쳐 보여
+  # 그중 한 대만 이상한 경우를 못 가린다.
+  #
+  # 앱은 지금 1대라 안 드러나지만 오토스케일링으로 3대까지 는다 (INF-39).
+  #
+  - job_name: app
+    metrics_path: /actuator/prometheus
+    ec2_sd_configs:
+      - region: ap-northeast-2
+        port: 8081
+        filters:
+          - name: tag:Role
+            values: [app]
+          - name: instance-state-name
+            values: [running]
+    relabel_configs:
+      - source_labels: [__meta_ec2_tag_Name]
+        target_label: instance
+      - source_labels: [__meta_ec2_instance_id]
+        target_label: instance_id
+
+  - job_name: batch
+    metrics_path: /actuator/prometheus
+    ec2_sd_configs:
+      - region: ap-northeast-2
+        port: 8081
+        filters:
+          - name: tag:Role
+            values: [batch]
+          - name: instance-state-name
+            values: [running]
+    relabel_configs:
+      - source_labels: [__meta_ec2_tag_Name]
+        target_label: instance
+      # 배치는 1대 고정이지만 교체되면 id 가 바뀐다. 회차 비교에 그 구분이 필요하다.
+      - source_labels: [__meta_ec2_instance_id]
+        target_label: instance_id
+
+  #
+  # 선착순 전용 인스턴스다. app 과 나누는 이유는 필터가 tag:Role 이기 때문이다.
+  #
+  # 이것이 없어 1차 부하 시험(2026-08-30)에서 정작 시험 대상의 앱 지표를 하나도 못 받았다.
+  # node 와 cadvisor 는 Role 을 값으로 안 걸러서 잡혔는데 app 과 batch 는 값을 박아 두어
+  # coupon 이 어디에도 안 들어갔다. 호스트 지표만 보이니 빠진 줄도 몰랐다.
+  #
+  # SG 는 손댈 것이 없다. 전용 인스턴스가 aws_security_group.app 을 그대로 쓰므로
+  # 8081 인바운드(app_mgmt_from_mon)가 이미 적용된다.
+  - job_name: coupon
+    metrics_path: /actuator/prometheus
+    ec2_sd_configs:
+      - region: ap-northeast-2
+        port: 8081
+        filters:
+          - name: tag:Role
+            values: [coupon]
+          - name: instance-state-name
+            values: [running]
+    relabel_configs:
+      - source_labels: [__meta_ec2_tag_Name]
+        target_label: instance
+      # 전용 ASG 는 대수가 바뀌므로 인스턴스 id 를 남겨야 어느 대의 값인지 읽을 수 있다.
+      - source_labels: [__meta_ec2_instance_id]
+        target_label: instance_id
+
+  # 호스트 지표. CPU 크레딧이 여기서 나온다.
+  - job_name: node
+    ec2_sd_configs:
+      - region: ap-northeast-2
+        port: 9100
+        filters:
+          - name: instance-state-name
+            values: [running]
+    relabel_configs:
+      - source_labels: [__meta_ec2_tag_Name]
+        target_label: instance
+      - source_labels: [__meta_ec2_tag_Role]
+        target_label: role
+      # 전용 ASG 3대가 Name 태그를 공유한다. 이것이 없으면 세 호스트의 메모리와 CPU 가
+      # 한 이름으로 겹쳐, 그중 한 대만 마르는 경우를 못 가린다.
+      - source_labels: [__meta_ec2_instance_id]
+        target_label: instance_id
+
+  # 컨테이너 지표. OOM 감지가 여기서 나온다.
+  - job_name: cadvisor
+    ec2_sd_configs:
+      - region: ap-northeast-2
+        port: 8082
+        filters:
+          - name: instance-state-name
+            values: [running]
+    relabel_configs:
+      - source_labels: [__meta_ec2_tag_Name]
+        target_label: instance
+      - source_labels: [__meta_ec2_instance_id]
+        target_label: instance_id
+
+  - job_name: mysqld
+    static_configs:
+      - targets: ["mysqld-exporter:9104"]
+
+  - job_name: redis
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+
+  # CloudWatch 지표 자체가 60초 해상도다.
+  # 15초로 긁으면 같은 값을 네 번 받으면서 API 요청만 네 배가 되어 무료 한도를 넘는다.
+  - job_name: cloudwatch
+    scrape_interval: 60s
+    static_configs:
+      - targets: ["cloudwatch-exporter:9106"]
