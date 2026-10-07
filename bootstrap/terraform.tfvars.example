@@ -4,3 +4,6 @@
 
 aws_profile         = "lunchcatch"
 allowed_account_ids = ["000000000000"]
+
+# Route 53 에서 등록한 도메인. 호스팅 영역이 이 계층에 산다 (dns.tf). 없으면 비운다
+zone_name = "lunchcatch.com"

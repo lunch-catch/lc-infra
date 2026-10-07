@@ -157,11 +157,21 @@ done
 # 배포 역할에 elasticloadbalancing:DescribeLoadBalancers 가 이미 있어 그냥 물어보면 된다.
 #
 # 밖에서 정하는 것은 경로뿐이다. 경로는 재구축과 무관하게 안정적이다.
-# 도메인을 붙이면 이 조회가 필요 없어지지만 그때까지는 이쪽이 맞다.
-alb_dns=$(aws elbv2 describe-load-balancers --names "$PROJECT-alb" \
-  --region "$REGION" --query 'LoadBalancers[0].DNSName' --output text)
-log "7. 스모크 (ALB 경유) http://$alb_dns$SMOKE_PATH"
-curl -fsS --max-time 10 "http://$alb_dns$SMOKE_PATH" > /dev/null
+#
+# 도메인이 있으면 그 주소로 HTTPS 를 찌른다. 그때 80 은 443 으로 리다이렉트하는데, curl -f 는
+# 301 을 성공으로 본다. ALB 주소로 계속 찌르면 앱이 죽어 있어도 스모크가 통과한다.
+# 도메인은 사전 점검(preflight PRE-1-05)과 같은 방법으로 ACM 인증서에서 찾는다. 배포 역할에 권한이 있다.
+smoke_host=$(aws acm list-certificates --region "$REGION" \
+  --query "CertificateSummaryList[?contains(DomainName, '$PROJECT')].DomainName | [0]" --output text 2>/dev/null || echo None)
+if [ "$smoke_host" != "None" ] && [ -n "$smoke_host" ]; then
+  smoke_url="https://$smoke_host$SMOKE_PATH"
+else
+  alb_dns=$(aws elbv2 describe-load-balancers --names "$PROJECT-alb" \
+    --region "$REGION" --query 'LoadBalancers[0].DNSName' --output text)
+  smoke_url="http://$alb_dns$SMOKE_PATH"
+fi
+log "7. 스모크 (ALB 경유) $smoke_url"
+curl -fsS --max-time 10 "$smoke_url" > /dev/null
 
 # 9. 3번에서 기록한 구 인스턴스만 종료한다.
 #    desired 를 함께 줄여 원래 대수로 돌아간다.

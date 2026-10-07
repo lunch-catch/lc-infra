@@ -173,6 +173,30 @@ cp docs/deploy/backend-deploy-workflow.yml ../backend/.github/workflows/deploy.y
 
 CDN 도메인과 ALB 주소는 재구축마다 바뀌지만 **손댈 것이 없다.** 앞의 것은 `apply.sh` 5단계가 SSM `cdn-domain` 에 실어 앱 컨테이너까지 보내고, 뒤의 것은 `deploy.sh` 가 스모크 직전에 직접 조회한다.
 
+### 서비스 도메인
+
+`lunchcatch.com` 을 Route 53 에서 등록했다 (2026-10-07, 자동 갱신). 백엔드 API 는 `api.lunchcatch.com` 이다.
+
+| 무엇 | 어디 | destroy 때 |
+|---|---|---|
+| 호스팅 영역 | `bootstrap/dns.tf` (`zone_name`) | **남는다.** 지우면 네임서버가 바뀌어 도메인이 끊긴다 |
+| ACM 인증서, HTTPS 리스너, `api` 별칭, 외부 헬스체크 | `terraform/dns.tf`, `alb.tf` (`domain_name`) | 지워지고 재구축 때 다시 만들어진다 |
+
+호스팅 영역은 등록할 때 Route 53 이 자동으로 만든 것을 import 했다. 새로 만들지 않는다.
+
+```bash
+cd bootstrap && terraform import 'aws_route53_zone.main[0]' Z03486202JHZN5I319GON
+```
+
+도메인 등록 정보의 네임서버와 영역의 네임서버가 같은지는 이렇게 본다. 다르면 도메인이 응답하지 않는다.
+
+```bash
+aws route53domains get-domain-detail --region us-east-1 --domain-name lunchcatch.com --query 'Nameservers[].Name'
+cd bootstrap && terraform output name_servers
+```
+
+**`terraform` 을 손으로 돌릴 때는 `AWS_PROFILE=lunchcatch` 를 붙인다.** 리소스는 tfvars 의 프로필을 쓰지만 S3 백엔드는 기본 자격증명으로 가서 상태 잠금에서 실패한다. 스크립트는 프로필을 스스로 건다.
+
 ### AMI 는 자동으로 안 올라간다
 
 `aws_instance.monitoring` 에 `ignore_changes = [ami]`, 배치 시작 템플릿에 `ignore_changes = [image_id]` 가 걸려 있다.

@@ -3,8 +3,9 @@
 # 기본값으로 두어도 되는 것은 적지 않았다. variables.tf 를 보라.
 # tfvars 는 gitignore 대상이다. 잘못된 변수 파일로 destroy 를 돌리면 ALB 가 사라진다.
 
-# 도메인이 생기면 채운다. 비어 있으면 Route 53 과 ACM 을 만들지 않는다.
-domain_name = ""
+# 백엔드 API 주소. 비어 있으면 ACM 과 HTTPS 리스너를 만들지 않는다.
+# 호스팅 영역(api 를 뗀 이름)은 bootstrap/ 의 zone_name 이 먼저 만들어 두어야 한다.
+domain_name = "api.lunchcatch.com"
 
 # 기본값이 true 다. 끌 때만 적는다.
 # db_multi_az = false

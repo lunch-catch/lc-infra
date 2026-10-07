@@ -49,7 +49,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TF="$ROOT/terraform"
 
 # 가드가 박혀 있는 파일들. 마지막에 이 목록을 그대로 되돌린다.
-GUARDED=(alb.tf dns.tf ecr.tf instances.tf rds.tf storage.tf)
+# dns.tf 는 빠졌다. 호스팅 영역이 bootstrap/ 으로 옮겨 가 지킬 것이 없다 (2026-10-07)
+GUARDED=(alb.tf ecr.tf instances.tf rds.tf storage.tf)
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }

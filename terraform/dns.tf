@@ -1,6 +1,7 @@
 /*
  * 도메인이 없으면 만들지 않는다.
- * var.domain_name 을 채우면 호스팅 영역, 인증서, HTTPS 리스너가 함께 생긴다.
+ * var.domain_name 을 채우면 인증서, HTTPS 리스너, ALB 별칭 레코드가 함께 생긴다.
+ * 호스팅 영역은 bootstrap/ 이 먼저 갖고 있어야 한다.
  *
  * stateless JWT 가 헤더로 오가므로 평문 구간을 둘 수 없다 (INF-17, 되돌릴 수 없음).
  * 즉 도메인이 없는 상태는 임시다.
@@ -35,15 +36,17 @@ locals {
   )
 }
 
-resource "aws_route53_zone" "main" {
+/*
+ * 호스팅 영역은 만들지 않고 찾아 쓴다. bootstrap/dns.tf 가 갖는다 (2026-10-07).
+ *
+ * 여기서 만들면 destroy.sh 가 지웠다 다시 만들 때 네임서버가 바뀌어 도메인이 끊긴다.
+ * 도메인 등록 정보의 네임서버는 따라 바뀌지 않는다. 영역은 파괴를 견디는 계층에 두고,
+ * 이 구성은 그 안에 레코드만 넣고 뺀다.
+ */
+data "aws_route53_zone" "main" {
   count = local.has_domain ? 1 : 0
 
-  name    = local.zone_name
-  comment = "${var.project} service domain"
-
-  lifecycle {
-    prevent_destroy = true
-  }
+  name = local.zone_name
 }
 
 /*
@@ -74,7 +77,7 @@ resource "aws_route53_record" "cert_validation" {
     for o in aws_acm_certificate.main[0].domain_validation_options : o.domain_name => o
   } : {}
 
-  zone_id         = aws_route53_zone.main[0].zone_id
+  zone_id         = data.aws_route53_zone.main[0].zone_id
   name            = each.value.resource_record_name
   type            = each.value.resource_record_type
   records         = [each.value.resource_record_value]
@@ -92,7 +95,7 @@ resource "aws_acm_certificate_validation" "main" {
 resource "aws_route53_record" "alb" {
   count = local.has_domain ? 1 : 0
 
-  zone_id = aws_route53_zone.main[0].zone_id
+  zone_id = data.aws_route53_zone.main[0].zone_id
   name    = var.domain_name
   type    = "A"
 
@@ -111,7 +114,7 @@ resource "aws_route53_record" "alb" {
 resource "aws_route53_record" "grafana" {
   count = local.has_grafana ? 1 : 0
 
-  zone_id = aws_route53_zone.main[0].zone_id
+  zone_id = data.aws_route53_zone.main[0].zone_id
   name    = local.grafana_host
   type    = "A"
 
