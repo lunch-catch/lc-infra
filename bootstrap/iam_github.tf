@@ -325,6 +325,9 @@ data "aws_iam_policy_document" "deploy" {
       "elasticache:DescribeReplicationGroups",
       "acm:DescribeCertificate",
       "acm:ListCertificates",
+      # 사전 점검 PRE-1-06 이 헬스체크를 찾는 데 쓴다. 없으면 조회가 실패해 "헬스체크 미설정" 으로
+      # 건너뛰어, 외부에서 서비스가 안 닿아도 배포가 그대로 진행됐다 (2026-10-07 도메인 첫 배포에서 발견)
+      "route53:ListHealthChecks",
       "route53:GetHealthCheckStatus",
       "cloudwatch:GetMetricStatistics",
     ]
