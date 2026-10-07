@@ -12,14 +12,16 @@ lunch-catch 백엔드의 인프라다. Terraform 으로 AWS 를 만들고, `main
 | 껐다 켠다, 지운다 | 같은 문서의 "세션 단위로", "전부 지운다" |
 | 배포가 어떻게 도는지 | 같은 문서 |
 | 왜 이렇게 정했는지 | [`docs/system-design/`](docs/system-design/) |
+| 개발 서버 | [`docs/system-design/런치캐치_개발서버.md`](docs/system-design/런치캐치_개발서버.md). `./scripts/dev-up.sh`, `./scripts/dev-down.sh` |
 | 도메인과 프론트(Vercel) | [`docs/system-design/런치캐치_프론트엔드_배포와_도메인.md`](docs/system-design/런치캐치_프론트엔드_배포와_도메인.md) |
 | 코드가 결정과 맞는지 본다 | [`docs/infra-review/`](docs/infra-review/) |
 
 ## 구성
 
 ```
-terraform/       AWS 리소스. 단일 환경이라 모듈로 쪼개지 않는다
-bootstrap/       파괴를 견디는 계층. 상태 버킷, 시크릿, GitHub OIDC 역할, 도메인 호스팅 영역. 로컬 상태로 관리한다
+terraform/       운영 AWS 리소스. 모듈로 쪼개지 않는다
+dev/             개발 서버. 운영과 상태를 나눠 따로 올리고 내린다
+bootstrap/       파괴를 견디는 계층. 상태 버킷, 시크릿, GitHub OIDC 역할, 도메인 호스팅 영역, 개발 ECR. 로컬 상태로 관리한다
 observability/   모니터링 인스턴스에서 도는 것들. Terraform 이 아니라 git clone 으로 배포한다
 scripts/         런타임을 다루는 것들. Terraform 이 건드리면 안 되는 영역이다
 docs/            설계 근거와 판정 기준
@@ -51,6 +53,7 @@ Terraform 쪽에 `ignore_changes` 를 걸어 두었다. 자세한 것은 [`docs/
 | `preflight.sh` | 배포 직전 차단 게이트(G-RELEASE) |
 | `stop.sh` / `start.sh` | 세션 단위로 껐다 켠다. 절반 정도 줄어든다 |
 | `destroy.sh` | 전부 지운다. 오래 안 쓸 때 |
+| `dev-up.sh` / `dev-down.sh` | 개발 서버를 켜고 끈다. 끄기는 삭제가 아니라 중지다 |
 
 ## 계정을 잘못 보고 실행하는 것을 막는다
 

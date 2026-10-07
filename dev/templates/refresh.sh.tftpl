@@ -1,0 +1,43 @@
+#!/bin/bash
+#
+# SSM 에서 값을 읽어 .env 를 통째로 다시 쓰고 컨테이너를 맞춘다.
+# 최초 부팅과 배포가 같은 코드를 쓴다. 배포 워크플로가 SSM Run Command 로 이것을 부른다.
+set -euo pipefail
+
+P=/${project}
+R=${region}
+DIR=/opt/${project}-dev
+
+sec() { aws ssm get-parameter --name "$1" --region "$R" --with-decryption --query 'Parameter.Value' --output text; }
+
+# 배포할 SHA 다. develop 배포가 한 번도 없으면 비어 있다. 그때는 app 을 빼고 올린다.
+GIT_SHA=$(aws ssm get-parameter --name "$P/dev/current-sha" --region "$R" --query 'Parameter.Value' --output text 2>/dev/null || true)
+
+install -d -m 0755 "$DIR"
+umask 077
+cat > "$DIR/.env" <<ENV
+GIT_SHA=$GIT_SHA
+DB_PASSWORD=$(sec "$P/dev/db-password")
+JWT_SECRET=$(sec "$P/dev/jwt-signing-key")
+KAKAO_CLIENT_ID=$(sec "$P/kakao-client-id")
+KAKAO_CLIENT_SECRET=$(sec "$P/kakao-client-secret")
+KAKAO_APP_ID=$(sec "$P/kakao-app-id")
+KAKAO_ADMIN_KEY=$(sec "$P/kakao-admin-key")
+ENV
+umask 022
+
+cd "$DIR"
+if [ -z "$GIT_SHA" ]; then
+  echo "SSM $P/dev/current-sha 가 없다. lc-backend 의 deploy-dev 워크플로를 한 번 돌려라. app 을 빼고 올린다"
+  docker compose up -d caddy mysql valkey
+  exit 0
+fi
+
+# 토큰이 12시간짜리라 매번 받는다. 호스트에 둘 자격증명은 없다. 인스턴스 역할이 곧 pull 권한이다
+aws ecr get-login-password --region "$R" | docker login --username AWS --password-stdin ${registry}
+docker compose pull app
+docker compose up -d --remove-orphans
+
+# 디스크가 20 GB 라 지난 이미지를 치운다
+docker image prune -f > /dev/null
+echo "개발 서버를 $GIT_SHA 로 맞췄다"

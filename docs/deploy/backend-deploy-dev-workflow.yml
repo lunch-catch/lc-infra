@@ -1,0 +1,131 @@
+# 원본은 lc-infra 의 docs/deploy/backend-deploy-dev-workflow.yml 이다. 고칠 때는 둘을 함께 고친다.
+#
+# develop 병합 시 개발 서버(api.dev.lunchcatch.com)에 배포한다.
+# 구성과 이유는 lc-infra 의 docs/system-design/런치캐치_개발서버.md 다.
+#
+# 필요한 설정
+#   변수   AWS_DEPLOY_DEV_ROLE_ARN   lc-infra bootstrap 의 terraform output github_role_arns 의 deploy-dev 값
+
+name: 개발 서버 배포
+
+on:
+  push:
+    branches: [develop]
+  # 개발 서버를 새로 올린 뒤 최신 develop 을 다시 띄울 때 쓴다. develop 이 아닌 브랜치로 돌리면 STS 가 거부한다.
+  workflow_dispatch:
+
+# 개발 서버는 최신 develop 만 의미가 있다. 앞선 배포가 돌고 있으면 버리고 새것을 돌린다.
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      AWS_REGION: ap-northeast-2
+      ECR_REPOSITORY: lunchcatch-dev
+      API_HOST: api.dev.lunchcatch.com
+      SHA: ${{ github.sha }}
+    steps:
+      # 액션은 태그가 아니라 커밋으로 고정한다. 운영 배포 워크플로와 같은 기준이다.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_DEV_ROLE_ARN }}
+          aws-region: ap-northeast-2
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+
+      # 저장소가 IMMUTABLE 이라 같은 SHA 를 다시 밀면 거부된다. 재실행이면 빌드부터 건너뛴다.
+      - id: exists
+        name: 이미지가 이미 있나
+        run: |
+          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" \
+               --image-ids imageTag="$SHA" > /dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "이미 올린 이미지다. 빌드를 건너뛴다"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.exists.outputs.skip == 'false'
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - if: steps.exists.outputs.skip == 'false'
+        uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
+
+      - name: 빌드와 이미지 push
+        if: steps.exists.outputs.skip == 'false'
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          ./gradlew bootJar --no-daemon
+          IMAGE="$REGISTRY/$ECR_REPOSITORY:$SHA"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      # 서버가 내려가 있어도 남긴다. 다음에 dev-up.sh 로 올리면 이 SHA 로 뜬다.
+      - name: 배포할 SHA 기록
+        run: |
+          aws ssm put-parameter --name /lunchcatch/dev/current-sha \
+            --type String --value "$SHA" --overwrite > /dev/null
+
+      - id: server
+        name: 개발 서버가 떠 있나
+        run: |
+          id=$(aws ec2 describe-instances \
+            --filters "Name=tag:Role,Values=dev-server" "Name=instance-state-name,Values=running" \
+            --query 'Reservations[0].Instances[0].InstanceId' --output text)
+          if [ "$id" = "None" ] || [ -z "$id" ]; then
+            echo "개발 서버가 내려가 있다. 이미지만 올렸다. lc-infra 의 dev-up.sh 로 올리면 이 SHA 로 뜬다"
+            echo "id=" >> "$GITHUB_OUTPUT"
+          else
+            echo "id=$id" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 서버의 refresh 가 SSM 을 다시 읽어 .env 를 쓰고 새 이미지를 받아 재시작한다.
+      - name: 재시작
+        if: steps.server.outputs.id != ''
+        env:
+          INSTANCE_ID: ${{ steps.server.outputs.id }}
+        run: |
+          cmd=$(aws ssm send-command --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --parameters 'commands=["/usr/local/bin/lunchcatch-dev-refresh"]' \
+            --query 'Command.CommandId' --output text)
+          for _ in $(seq 1 60); do
+            st=$(aws ssm get-command-invocation --command-id "$cmd" --instance-id "$INSTANCE_ID" \
+              --query 'Status' --output text 2>/dev/null || echo Pending)
+            case "$st" in Success|Failed|Cancelled|TimedOut) break ;; esac
+            sleep 5
+          done
+          aws ssm get-command-invocation --command-id "$cmd" --instance-id "$INSTANCE_ID" \
+            --query 'StandardOutputContent' --output text
+          [ "$st" = "Success" ] || { echo "재시작 실패 ($st)"; exit 1; }
+
+      # 컨테이너가 올라와도 JVM 기동에 40초 남짓 걸린다. 그만큼 기다린다.
+      - name: 스모크
+        if: steps.server.outputs.id != ''
+        run: |
+          for _ in $(seq 1 36); do
+            if curl -fsS --max-time 5 "https://$API_HOST/v3/api-docs" > /dev/null; then
+              echo "응답한다. https://$API_HOST"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "3분 안에 응답하지 않았다"
+          exit 1

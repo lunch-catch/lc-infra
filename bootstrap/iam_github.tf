@@ -109,6 +109,19 @@ locals {
         "repo:${var.github_org}@${var.github_org_id}/${var.github_backend_repo}@${var.github_backend_repo_id}:ref:refs/heads/perf/*",
       ]
     }
+    /*
+     * 개발 서버 배포다 (INF-45). develop 브랜치만 맡을 수 있다.
+     * 운영 배포 역할을 develop 에 열지 않으려고 따로 둔다. develop 에는 리뷰 전 코드가 들어간다.
+     * 권한은 dev.tf 의 deploy_dev 가 정한다. 개발 ECR 과 개발 서버만 건드린다.
+     */
+    deploy-dev = {
+      description   = "deploy to the dev server on merge to lc-backend develop"
+      like_subjects = []
+      subjects = [
+        "repo:${var.github_org}/${var.github_backend_repo}:ref:refs/heads/develop",
+        "repo:${var.github_org}@${var.github_org_id}/${var.github_backend_repo}@${var.github_backend_repo_id}:ref:refs/heads/develop",
+      ]
+    }
     tf_plan = {
       description   = "terraform plan from lc-infra pull requests"
       like_subjects = []
