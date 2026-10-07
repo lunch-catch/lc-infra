@@ -233,6 +233,7 @@ springdoc 3.1.0  ->  Boot 4.1.0
 | 개발 서버 유무 | 상시 가동 시 월 28~52 USD 추가 |
 | 이중화 전환 시점 | `desired_capacity` 2로 상향. 월 22 USD 추가 |
 | Terraform 마이너 버전 | 구축 시점 최신 안정 버전 |
+| 프론트와 백엔드 연동 설정 (CORS 출처, 쿠키 Secure, 카카오 리다이렉트, 프론트 API 주소) | 프론트가 mock 을 걷을 때. 목록은 프론트엔드 배포와 도메인 문서 6장 |
 
 이미지 조회 방식은 **CloudFront + OAC 로 확정**했다 (2026-08-08).
 근거는 [백엔드공통_이미지저장소_설계.md](../system-design/백엔드공통_이미지저장소_설계.md), 점검 항목은 [code-guideline.md](./code-guideline.md) 11장에 있다.
