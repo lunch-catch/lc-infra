@@ -20,7 +20,6 @@ lunch-catch 백엔드의 인프라다. Terraform 으로 AWS 를 만들고, `main
 ```
 terraform/       AWS 리소스. 단일 환경이라 모듈로 쪼개지 않는다
 bootstrap/       파괴를 견디는 계층. 상태 버킷, 시크릿, GitHub OIDC 역할, 도메인 호스팅 영역. 로컬 상태로 관리한다
-frontend/        (예정) Vercel 프로젝트와 프론트 서브도메인. destroy 대상이 아니다
 observability/   모니터링 인스턴스에서 도는 것들. Terraform 이 아니라 git clone 으로 배포한다
 scripts/         런타임을 다루는 것들. Terraform 이 건드리면 안 되는 영역이다
 docs/            설계 근거와 판정 기준
