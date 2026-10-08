@@ -27,7 +27,8 @@ services:
         condition: service_started
     environment:
       # 서버가 하나라 API 와 스케줄러를 한 프로세스에서 돌린다. batch 가 스케줄러를 켜고 풀을 5 로 둔다
-      SPRING_PROFILES_ACTIVE: "batch"
+      # prod 는 로그 출력(JSON)만 켠다. 빠지면 logback 에 출력이 없어 docker logs 가 빈다
+      SPRING_PROFILES_ACTIVE: "prod,batch"
       DB_URL: "jdbc:mysql://mysql:3306/${project}"
       DB_USERNAME: "${project}"
       DB_PASSWORD: "$${DB_PASSWORD}"
@@ -50,10 +51,12 @@ services:
       APP_INSTANCE_ID: "dev"
       TRACE_SAMPLE_RATE: "0"
       # 힙은 컨테이너 상한(mem_limit)의 70% 다. 상한이 있어야 이 비율이 뜻대로 돈다
+      # user.timezone 이 빠지면 DB 시각이 9시간 밀려 저장된다. Hibernate 가 JVM 시간대(UTC)로 넘기고 드라이버가 세션 시간대(Asia/Seoul)로 다시 바꾼다.
       JAVA_TOOL_OPTIONS: >-
         -XX:MaxRAMPercentage=70
         -Dnetworkaddress.cache.ttl=5
         -Dnetworkaddress.cache.negative.ttl=1
+        -Duser.timezone=Asia/Seoul
     mem_limit: 1100m
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health/liveness"]
