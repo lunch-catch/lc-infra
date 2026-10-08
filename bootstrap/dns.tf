@@ -43,7 +43,8 @@ output "name_servers" {
 
 /*
  * 프론트(Vercel) 레코드다 (INF-44, 프론트엔드 배포 문서 4.3절).
- * 값은 프론트가 Vercel 의 도메인 화면에서 받아 준 것이다 (2026-10-07). Vercel 이 프로젝트마다 다른
+ * 값은 프론트가 Vercel 의 도메인 화면에서 받아 준 것이다 (2026-10-07).
+ * owner 둘의 소유 확인 값은 2026-10-08 에 바뀌었다. 도메인이 다른 프로젝트에 잘못 붙어 있어 옮기면서 다시 받았다. Vercel 이 프로젝트마다 다른
  * 값을 줄 수 있어 손으로 짓지 않는다. 프로젝트를 다시 만들면 값이 바뀌므로 다시 받아 고친다.
  *
  * 백엔드를 destroy 해도 프론트 주소는 살아 있어야 해서 영역과 같은 이 계층에 둔다.
@@ -73,8 +74,8 @@ locals {
     "vc-domain-verify=lunchcatch.com,1982d63988987db6085a",
     "vc-domain-verify=www.lunchcatch.com,b2e8d015c2995cb190f4",
     "vc-domain-verify=dev.lunchcatch.com,b4eb657e262b3f14e918",
-    "vc-domain-verify=owner.lunchcatch.com,68b4a19f798652e24139",
-    "vc-domain-verify=owner.dev.lunchcatch.com,92faf9462b410ad3a0ca",
+    "vc-domain-verify=owner.lunchcatch.com,e50d8c842d13e790c998",
+    "vc-domain-verify=owner.dev.lunchcatch.com,f4ea35c0d4cf62cb0a8f",
   ]
 }
 
