@@ -210,22 +210,68 @@ curl -fsS --max-time 10 "$smoke_url" > /dev/null
 # 9. 3번에서 기록한 구 인스턴스만 종료한다.
 #    desired 를 함께 줄여 원래 대수로 돌아간다.
 #
+#    줄이면 min 아래가 되는 마지막 구 인스턴스는 줄이지 않고 종료한다. AWS 가 min 아래로의 감소를
+#    거부하기 때문이다. 그러면 ASG 가 빈 자리를 채우는데, 2번에서 current-sha 를 갱신했으므로 새 버전이다.
+#    예전에는 이 거부를 "이미 없다" 로 읽고 넘어가 구 버전이 한 대 남은 채 완료로 보고될 수 있었다
+#    (2026-10-08. 그때는 AZ 균형 맞추기가 우연히 그 인스턴스를 지웠다).
+#
 #    그 인스턴스가 이미 없을 수 있다. 구 버전이 unhealthy 인 상태로 배포를 시작하면
 #    (재구축 직후 current-sha 가 bootstrap 이라 이미지를 못 받는 경우가 그렇다)
 #    ASG 가 5번 대기 중에 자기 판단으로 먼저 교체해 버린다.
-#
-#    그때 뜬 교체분은 2번에서 current-sha 를 갱신한 뒤에 부팅했으므로 이미 새 이미지다.
-#    지울 이유가 없고, 남은 일은 4번에서 올린 desired 를 되돌리는 것뿐이다.
-#    이것을 실패로 두면 앱이 멀쩡한데 배포만 실패로 보고된다.
+#    그때 뜬 교체분은 이미 새 이미지라 지울 이유가 없고, 4번에서 올린 desired 만 되돌린다.
+min_size=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names "$ASG" \
+  --region "$REGION" --query 'AutoScalingGroups[0].MinSize' --output text)
+
+current_desired() {
+  aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names "$ASG" \
+    --region "$REGION" --query 'AutoScalingGroups[0].DesiredCapacity' --output text
+}
+
+# ASG 에 남아 서비스 중인 구 인스턴스. 종료 대기(Terminating:Wait)는 대상 그룹에서 빠졌으므로 세지 않는다.
+old_in_service() {
+  local id state
+  for id in $old_ids; do
+    state=$(aws autoscaling describe-auto-scaling-instances --instance-ids "$id" --region "$REGION" \
+      --query 'AutoScalingInstances[0].LifecycleState' --output text 2>/dev/null || echo None)
+    case "$state" in None|Terminating*|Terminated) ;; *) echo "$id" ;; esac
+  done
+}
+
 app_switched=1
 for id in $old_ids; do
-  log "9. 구 인스턴스 종료 $id"
-  aws autoscaling terminate-instance-in-auto-scaling-group --instance-id "$id" \
-    --should-decrement-desired-capacity --region "$REGION" > /dev/null 2>&1 && continue
+  state=$(aws autoscaling describe-auto-scaling-instances --instance-ids "$id" --region "$REGION" \
+    --query 'AutoScalingInstances[0].LifecycleState' --output text 2>/dev/null || echo None)
+  case "$state" in
+    None|Terminating*|Terminated)
+      log "9. $id 이미 없다. ASG 가 먼저 교체했다"
+      if [ "$(current_desired)" -gt "$desired" ]; then
+        log "   desired 만 $desired 로 되돌린다"
+        aws autoscaling set-desired-capacity --auto-scaling-group-name "$ASG" \
+          --desired-capacity "$desired" --region "$REGION"
+      fi
+      continue ;;
+  esac
 
-  log "   이미 없다. ASG 가 먼저 교체했다. desired 만 $desired 로 되돌린다"
-  aws autoscaling set-desired-capacity --auto-scaling-group-name "$ASG" \
-    --desired-capacity "$desired" --region "$REGION" > /dev/null
+  if [ "$(current_desired)" -gt "$min_size" ]; then
+    log "9. 구 인스턴스 종료 $id (desired -1)"
+    aws autoscaling terminate-instance-in-auto-scaling-group --instance-id "$id" \
+      --should-decrement-desired-capacity --region "$REGION" > /dev/null
+  else
+    log "9. 구 인스턴스 종료 $id (desired 가 min $min_size 이라 줄이지 않는다. ASG 가 새 버전으로 채운다)"
+    aws autoscaling terminate-instance-in-auto-scaling-group --instance-id "$id" \
+      --no-should-decrement-desired-capacity --region "$REGION" > /dev/null
+  fi
+done
+
+# 채운 인스턴스가 붙을 때까지 기다린다. 이 구간에 healthy 가 하나 모자랄 수 있으나 서비스는 이어진다.
+final_desired=$(current_desired)
+log "9. healthy $final_desired 대기 (상한 ${HEALTHY_TIMEOUT}초)"
+deadline=$(( $(date +%s) + HEALTHY_TIMEOUT ))
+while [ "$(healthy_count)" -lt "$final_desired" ]; do
+  if [ "$(date +%s)" -ge "$deadline" ]; then
+    die "채운 인스턴스가 healthy 가 되지 않았다. healthy $(healthy_count) / desired $final_desired. 구 버전은 이미 내렸다"
+  fi
+  sleep 10
 done
 
 resume_alarms
@@ -285,6 +331,9 @@ for batch_id in $batch_ids; do
   log "    배치 교체 완료 $batch_id"
 done
 
-# 11. 최종 확인
-log "11. 최종 healthy $(healthy_count) / desired $desired"
+# 11. 최종 확인. 서비스 중인 구 인스턴스가 하나라도 있으면 완료가 아니다.
+#     3번 뒤에 뜬 인스턴스는 모두 2번에서 갱신한 SHA 로 부팅했으므로, 구 인스턴스만 없으면 전부 새 버전이다.
+left=$(old_in_service)
+[ -z "$left" ] || die "구 버전 인스턴스가 서비스 중이다: $left"
+log "11. 최종 healthy $(healthy_count) / desired $(current_desired). 구 버전 0대"
 log "배포 완료 $SHA"
