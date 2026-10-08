@@ -47,6 +47,9 @@ services:
       KAKAO_REDIRECT_URI: "https://${kakao_callback_host}/oauth/callback"
       # 개발 서버에는 이미지 저장소가 없다. 이미지 업로드는 동작하지 않는다
       CDN_BASE_URL: ""
+      # 관리자 템플릿 생성의 LLM 이다. 서버 역할로 인증한다 (LLM 문서 4.2절)
+      BEDROCK_MODEL_ID: "${bedrock_model_id}"
+      BEDROCK_REGION: "${region}"
       APP_NAME: "${project}-dev"
       APP_INSTANCE_ID: "dev"
       TRACE_SAMPLE_RATE: "0"

@@ -28,6 +28,9 @@ data "aws_route53_zone" "main" {
 locals {
   ssm_prefix = "/${var.project}"
   name       = "${var.project}-dev"
+
+  # 추론 프로필 앞의 지역 접두어를 뗀 모델 ID 다. 프로필이 가리키는 모델 ARN 에 쓴다
+  bedrock_base_model = replace(var.bedrock_model_id, "/^(global|apac|us|eu|jp|au|ca)\\./", "")
 }
 
 /*
@@ -175,6 +178,18 @@ data "aws_iam_policy_document" "dev" {
     }
   }
 
+  # 관리자 템플릿 생성의 LLM 이다. 운영과 같이 추론 프로필과 그것이 가리키는 모델만 연다 (LLM 문서 4.1절)
+  statement {
+    sid     = "InvokeTemplateModel"
+    effect  = "Allow"
+    actions = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
+    resources = [
+      "arn:aws:bedrock:${var.region}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.bedrock_model_id}",
+      "arn:aws:bedrock:::foundation-model/${local.bedrock_base_model}",
+      "arn:aws:bedrock:*::foundation-model/${local.bedrock_base_model}",
+    ]
+  }
+
   # 계정 단위 호출이라 저장소를 좁히지 못한다. 실제로 받는 곳은 아래 문장이 정한다.
   statement {
     sid       = "EcrAuth"
@@ -216,6 +231,8 @@ locals {
     image               = data.aws_ecr_repository.dev.repository_url
     frontend_origins    = join(",", var.frontend_origins)
     kakao_callback_host = trimprefix(var.frontend_origins[0], "https://")
+    bedrock_model_id    = var.bedrock_model_id
+    region              = var.region
   })
 
   user_data = templatefile("${path.module}/templates/user-data.sh.tftpl", {

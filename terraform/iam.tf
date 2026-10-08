@@ -12,7 +12,7 @@ locals {
 
   # 역할별로 필요한 것이 달라 하나로 묶지 않는다
   instance_roles = {
-    app        = "app. read parameters and access media bucket"
+    app        = "app. read parameters, access media bucket, invoke bedrock"
     monitoring = "monitoring. read parameters and CloudWatch metrics"
     batch      = "batch. read parameters"
     loadtest   = "load test. read parameters"
@@ -235,4 +235,31 @@ resource "aws_iam_role_policy" "ec2_discovery" {
   name   = "ec2-discovery"
   role   = aws_iam_role.instance["monitoring"].id
   policy = data.aws_iam_policy_document.ec2_discovery.json
+}
+
+/*
+ * 관리자 템플릿 생성이 LLM 을 부른다 (LLM 문서 4.1절). 템플릿 API 는 앱 서버만 받아 배치에는 주지 않는다.
+ * 추론 프로필과 그것이 가리키는 모델 둘(리전 없는 global, 리전별)을 모두 적어야 호출이 통과한다.
+ * 모델을 넓히지 않는다. 서버가 털려도 정한 모델 하나만 부를 수 있다.
+ */
+locals {
+  bedrock_base_model = replace(var.bedrock_model_id, "/^(global|apac|us|eu|jp|au|ca)\\./", "")
+}
+
+data "aws_iam_policy_document" "bedrock" {
+  statement {
+    effect  = "Allow"
+    actions = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
+    resources = [
+      "arn:aws:bedrock:${var.region}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.bedrock_model_id}",
+      "arn:aws:bedrock:::foundation-model/${local.bedrock_base_model}",
+      "arn:aws:bedrock:*::foundation-model/${local.bedrock_base_model}",
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "bedrock" {
+  name   = "bedrock-invoke"
+  role   = aws_iam_role.instance["app"].id
+  policy = data.aws_iam_policy_document.bedrock.json
 }
