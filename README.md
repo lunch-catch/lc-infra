@@ -13,6 +13,7 @@ lunch-catch 백엔드의 인프라다. Terraform 으로 AWS 를 만들고, `main
 | 배포가 어떻게 도는지 | 같은 문서 |
 | 왜 이렇게 정했는지 | [`docs/system-design/`](docs/system-design/) |
 | 개발 서버 | [`docs/system-design/런치캐치_개발서버.md`](docs/system-design/런치캐치_개발서버.md). `./scripts/dev-up.sh`, `./scripts/dev-down.sh` |
+| LLM 연동(Bedrock) | [`docs/system-design/런치캐치_LLM_Bedrock.md`](docs/system-design/런치캐치_LLM_Bedrock.md) |
 | 도메인과 프론트(Vercel) | [`docs/system-design/런치캐치_프론트엔드_배포와_도메인.md`](docs/system-design/런치캐치_프론트엔드_배포와_도메인.md) |
 | 코드가 결정과 맞는지 본다 | [`docs/infra-review/`](docs/infra-review/) |
 
