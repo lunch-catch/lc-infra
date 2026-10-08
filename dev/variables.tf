@@ -66,3 +66,13 @@ variable "vpc_cidr" {
   type        = string
   default     = "10.10.0.0/16"
 }
+
+/*
+ * 관리자 템플릿 생성이 부르는 Bedrock 추론 프로필이다 (LLM 문서 2.1절).
+ * 서버 역할의 호출 권한도 이 값으로 좁힌다. 모델을 바꾸면 이 값만 고친다.
+ */
+variable "bedrock_model_id" {
+  description = "Bedrock 추론 프로필 ID"
+  type        = string
+  default     = "global.openai.gpt-6-sol"
+}

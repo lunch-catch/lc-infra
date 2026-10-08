@@ -46,6 +46,9 @@ services:
       # 앱의 cdn.base-url 이 이 값을 읽는다 (lc-backend #66).
       # 이미지 URL 앞에 붙는 주소이고, 이름을 그 설정 키에 맞춰 두었다.
       CDN_BASE_URL: "https://$${CDN_DOMAIN}"
+      # 관리자 템플릿 생성의 LLM 이다 (LLM 문서 4.2절). 키는 넘기지 않는다. 서버 역할로 인증한다
+      BEDROCK_MODEL_ID: "${bedrock_model_id}"
+      BEDROCK_REGION: "${region}"
       APP_NAME: "${project}"
       APP_INSTANCE_ID: "$${APP_INSTANCE_ID}"
 %{ if role == "batch" ~}

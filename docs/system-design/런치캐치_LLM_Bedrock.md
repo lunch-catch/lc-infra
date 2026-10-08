@@ -92,9 +92,9 @@ aws bedrock-runtime converse --model-id global.openai.gpt-6-sol --region ap-nort
 
 ---
 
-## 4. 인프라가 할 일 (계획)
+## 4. 인프라 쪽 (반영함, 2026-10-08)
 
-접근이 풀리기 전에 넣어 두어도 된다. 모델 ID 를 변수로 두므로 나중에 모델을 바꾸면 변수만 고친다.
+접근이 풀리기 전에 넣었다. 모델 ID 는 변수 `bedrock_model_id` 라 모델을 바꾸면 그 값만 고친다. 권한이 그 값을 따라 좁아진다.
 
 ### 4.1 권한
 
@@ -123,7 +123,7 @@ arn:aws:bedrock:*::foundation-model/openai.gpt-6-sol
 | `BEDROCK_MODEL_ID` | `global.openai.gpt-6-sol` | 같음 |
 | `BEDROCK_REGION` | `ap-northeast-2` | 같음 |
 
-값은 `terraform/variables.tf`, `dev/variables.tf` 의 변수에서 오고 compose 템플릿이 넘긴다. 이름은 백엔드의 설정 키와 맞춘다. 백엔드가 다른 이름을 정하면 이쪽을 바꾼다.
+값은 `terraform/variables.tf`, `dev/variables.tf` 의 `bedrock_model_id` 와 `region` 에서 오고 compose 템플릿이 넘긴다. 이름은 백엔드의 설정 키와 맞춘다. 백엔드가 다른 이름을 정하면 이쪽을 바꾼다.
 
 ### 4.3 네트워크
 
@@ -136,7 +136,18 @@ arn:aws:bedrock:*::foundation-model/openai.gpt-6-sol
 
 ### 4.4 개발 서버 반영
 
-개발 서버는 user-data 변경을 무시한다 (개발 서버 문서 7장). 환경변수는 compose 템플릿을 고친 뒤 서버를 교체하거나, 떠 있는 서버의 compose 파일에 같은 줄을 넣고 재시작한다. 권한은 역할 정책이라 apply 만으로 바로 붙는다.
+개발 서버는 user-data 변경을 무시한다 (개발 서버 문서 7장). 템플릿을 고치고, 떠 있는 서버의 compose 파일에도 같은 두 줄을 넣고 재시작했다. 권한은 역할 정책이라 apply 만으로 붙었다.
+
+운영은 시작 템플릿에 들어갔다. 앱 서버는 다음 배포로 교체될 때 환경변수를 받는다. 권한은 이미 붙었다.
+
+### 4.5 권한 확인
+
+개발 서버의 역할로 직접 불러 보았다.
+
+| 호출 | 결과 | 뜻 |
+|---|---|---|
+| `global.openai.gpt-6-sol` | `not available for this account` | IAM 은 통과했고 3절의 계정 제한에서 멈췄다 |
+| `apac.anthropic.claude-3-haiku...` | `not authorized to perform: bedrock:InvokeModel` | 정한 모델 밖은 IAM 이 막는다 |
 
 ---
 
@@ -158,6 +169,6 @@ arn:aws:bedrock:*::foundation-model/openai.gpt-6-sol
 | 할 일 | 누가 | 상태 |
 |---|---|---|
 | AWS Support 답변 받기 | 사람 | 대기 |
-| 권한과 환경변수 넣기 (4절) | 인프라 | 대기 |
+| 권한과 환경변수 넣기 (4절) | 인프라 | 완료 |
 | 백엔드 호출 구현 | 백엔드 | 대기 |
 | 풀린 뒤 호출과 응답 시간 확인 (3.3절) | 인프라 | 대기 |
