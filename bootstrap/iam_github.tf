@@ -313,6 +313,8 @@ data "aws_iam_policy_document" "deploy" {
       "ecr:UploadLayerPart",
       "ecr:CompleteLayerUpload",
       "ecr:PutImage",
+      # 재실행 때 같은 SHA 가 이미 있는지 본다. 있으면 push 를 건너뛴다
+      "ecr:DescribeImages",
     ]
 
     /*
