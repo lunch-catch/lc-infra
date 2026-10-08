@@ -78,12 +78,19 @@ jobs:
       # 저장소가 IMMUTABLE 이라 같은 SHA 로 다시 밀면 push 가 거부된다.
       # 재실행으로 이미지가 바뀌는 일이 없어야 태그가 버전의 근거가 된다.
       #
+      # 그래서 이미 있으면 push 를 건너뛴다. 사전 점검에서 멈춘 배포를 재실행하면 이미지는 이미 올라가 있다.
+      #
       # 식 값은 run 에 직접 끼우지 않고 env 로 넘긴다. 셸이 값을 코드로 읽지 않게 한다.
       - name: 이미지 push
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
           SHA: ${{ github.sha }}
         run: |
+          if aws ecr describe-images --repository-name lunchcatch \
+               --image-ids imageTag="$SHA" > /dev/null 2>&1; then
+            echo "이미 올린 이미지다. push 를 건너뛴다"
+            exit 0
+          fi
           IMAGE="$REGISTRY/lunchcatch:$SHA"
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
