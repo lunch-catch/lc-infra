@@ -92,10 +92,13 @@ locals {
   app_image    = "${local.ecr_registry}/${var.project}"
 
   compose_args = {
-    project     = var.project
-    app_image   = local.app_image
-    db_name     = var.db_name
-    db_username = var.db_username
+    project            = var.project
+    app_image          = local.app_image
+    db_name            = var.db_name
+    db_username        = var.db_username
+    cors_origins       = join(",", var.frontend_origins)
+    cookie_secure      = local.has_domain ? "true" : "false"
+    kakao_redirect_uri = var.kakao_redirect_uri
   }
 
   app_user_data = templatefile("${path.module}/templates/app-user-data.sh.tftpl", {

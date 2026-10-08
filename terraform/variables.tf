@@ -420,3 +420,29 @@ variable "github_infra_repo_id" {
   type        = string
   default     = "1379931905"
 }
+
+/*
+ * 운영 프론트 주소다. 운영 API 의 CORS 허용 출처가 된다 (프론트엔드 배포 문서 6장).
+ * www 는 루트로 리다이렉트해 실제로 API 를 부르지 않지만 리다이렉트 전 요청을 막지 않으려고 둔다.
+ * 개발 프론트(dev.)는 넣지 않는다. 개발 화면은 개발 API 만 부른다.
+ */
+variable "frontend_origins" {
+  description = "운영 API 가 받는 출처"
+  type        = list(string)
+  default = [
+    "https://lunchcatch.com",
+    "https://www.lunchcatch.com",
+    "https://owner.lunchcatch.com",
+    "https://admin.lunchcatch.com",
+  ]
+}
+
+/*
+ * 카카오가 인가 코드를 돌려줄 주소다. 사용자 앱의 /oauth/callback (KakaoCallbackPage) 이다.
+ * 카카오 개발자 콘솔의 Redirect URI 목록에 같은 값이 있어야 한다. 없으면 카카오가 KOE006 으로 거절한다.
+ */
+variable "kakao_redirect_uri" {
+  description = "카카오 로그인 리다이렉트 주소"
+  type        = string
+  default     = "https://lunchcatch.com/oauth/callback"
+}

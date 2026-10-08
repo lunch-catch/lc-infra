@@ -212,9 +212,10 @@ locals {
   })
 
   compose = templatefile("${path.module}/templates/compose.yaml.tftpl", {
-    project          = var.project
-    image            = data.aws_ecr_repository.dev.repository_url
-    frontend_origins = join(",", var.frontend_origins)
+    project             = var.project
+    image               = data.aws_ecr_repository.dev.repository_url
+    frontend_origins    = join(",", var.frontend_origins)
+    kakao_callback_host = trimprefix(var.frontend_origins[0], "https://")
   })
 
   user_data = templatefile("${path.module}/templates/user-data.sh.tftpl", {

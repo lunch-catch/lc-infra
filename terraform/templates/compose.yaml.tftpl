@@ -31,6 +31,14 @@ services:
       KAKAO_CLIENT_SECRET: "$${KAKAO_CLIENT_SECRET}"
       KAKAO_APP_ID: "$${KAKAO_APP_ID}"
       KAKAO_ADMIN_KEY: "$${KAKAO_ADMIN_KEY}"
+      # 프론트와 잇는 셋이다 (프론트엔드 배포 문서 6장). 없으면 앱의 로컬 기본값이 운영에 실린다.
+      #
+      # 프론트(lunchcatch.com 등)와 API(api.lunchcatch.com)는 출처가 달라 브라우저가 CORS 를 본다.
+      CORS_ALLOWED_ORIGINS: "${cors_origins}"
+      # HTTPS 일 때만 true 다. 도메인 없이 HTTP 로 올렸을 때 true 면 브라우저가 쿠키를 저장하지 않아 로그인이 안 된다.
+      JWT_COOKIE_SECURE: "${cookie_secure}"
+      # 카카오가 인가 코드를 돌려줄 사용자 앱 주소다. 카카오 개발자 콘솔의 Redirect URI 에도 같은 값이 있어야 한다.
+      KAKAO_REDIRECT_URI: "${kakao_redirect_uri}"
       # 이름을 앱에 맞춘다. 앱은 로컬 compose 와 같은 변수를 써야 해서 VALKEY_HOST 로 정했다.
       # 값은 SSM cache-endpoint 에서 온다. 복원으로 주소가 바뀌면 refresh-env 가 따라잡는다.
       VALKEY_HOST: "$${CACHE_ENDPOINT}"
