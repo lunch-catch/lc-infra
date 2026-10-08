@@ -102,8 +102,13 @@ else
 fi
 
 # PRE-1-06 외부에서 서비스에 닿는가
+#
+# healthy 가 0 이면 밖에서 닿지 않는 것이 당연하다. PRE-1-04 와 같은 이유로 막지 않는다.
+# 막으면 재구축 직후의 첫 배포가 ALB 502 에 걸려 영원히 불가능해진다.
 hc=$(aws route53 list-health-checks --query 'length(HealthChecks)' --output text 2>/dev/null || echo 0)
-if [ "$hc" != "0" ]; then
+if [ "${healthy:-}" = "0" ]; then
+  printf '  SKIP  %-12s %s\n' PRE-1-06 "healthy 0. 밖에서 닿을 대상이 없다"
+elif [ "$hc" != "0" ]; then
   hc_id=$(aws route53 list-health-checks --query 'HealthChecks[0].Id' --output text)
   hc_status=$(aws route53 get-health-check-status --health-check-id "$hc_id" \
     --query 'HealthCheckObservations[0].StatusReport.Status' --output text)
