@@ -77,6 +77,32 @@ log "0. 사전 점검"
 # 1. 이미지는 워크플로가 이미 ECR 에 올렸다. 여기서는 존재만 전제한다.
 log "1. 이미지 태그 $SHA"
 
+# 실패하면 current-sha 를 앞 값으로 되돌린다. 9번 전까지는 구 버전이 서비스 중인데 SSM 만 새 SHA 면,
+# ASG 가 교체로 띄우는 인스턴스가 검증 안 된 새 버전으로 뜬다.
+# 9번부터는 앱이 이미 새 버전이라 되돌리지 않는다.
+prev_sha=$(aws ssm get-parameter --name "/$PROJECT/current-sha" --region "$REGION" \
+  --query 'Parameter.Value' --output text 2>/dev/null || true)
+app_switched=0
+alarm_suspended=0
+
+resume_alarms() {
+  [ "$alarm_suspended" = 1 ] || return 0
+  aws autoscaling resume-processes --auto-scaling-group-name "$ASG" \
+    --scaling-processes AlarmNotification --region "$REGION" || log "스케일링 알람 재개 실패. 손으로 resume-processes 를 돌려라"
+  alarm_suspended=0
+}
+
+on_exit() {
+  rc=$?
+  resume_alarms
+  if [ "$rc" != 0 ] && [ "$app_switched" = 0 ] && [ -n "$prev_sha" ] && [ "$prev_sha" != "$SHA" ]; then
+    log "current-sha 를 $prev_sha 로 되돌린다"
+    aws ssm put-parameter --name "/$PROJECT/current-sha" --value "$prev_sha" \
+      --type String --overwrite --region "$REGION" > /dev/null || log "되돌리기 실패. 손으로 고쳐라"
+  fi
+}
+trap on_exit EXIT
+
 # 2. SSM 을 먼저 갱신한다.
 #    교체보다 먼저여야 신규 인스턴스가 새 버전으로 뜬다. 순서가 뒤바뀌면 구 버전이 올라온다.
 log "2. SSM current-sha 갱신"
@@ -92,6 +118,14 @@ desired=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-name
   --region "$REGION" --query 'AutoScalingGroups[0].DesiredCapacity' --output text)
 
 # 4. desired 를 하나 올린다. 신규는 2번에서 갱신한 SHA 로 뜬다.
+#
+#    그 전에 스케일링 알람을 멈춘다. 트래픽이 적으면 대상 추적의 스케일 인 알람이 늘 ALARM 이라,
+#    올린 desired 를 정책이 곧바로 min 으로 되돌려 신규가 뜨지 않는다 (2026-10-08 실제로 그랬다).
+#    9번에서 desired 를 원래대로 돌린 뒤 재개한다. 실패로 끝나도 on_exit 가 재개한다.
+aws autoscaling suspend-processes --auto-scaling-group-name "$ASG" \
+  --scaling-processes AlarmNotification --region "$REGION"
+alarm_suspended=1
+
 log "4. desired $desired -> $((desired + 1))"
 aws autoscaling set-desired-capacity --auto-scaling-group-name "$ASG" \
   --desired-capacity "$((desired + 1))" --region "$REGION"
@@ -183,6 +217,7 @@ curl -fsS --max-time 10 "$smoke_url" > /dev/null
 #    그때 뜬 교체분은 2번에서 current-sha 를 갱신한 뒤에 부팅했으므로 이미 새 이미지다.
 #    지울 이유가 없고, 남은 일은 4번에서 올린 desired 를 되돌리는 것뿐이다.
 #    이것을 실패로 두면 앱이 멀쩡한데 배포만 실패로 보고된다.
+app_switched=1
 for id in $old_ids; do
   log "9. 구 인스턴스 종료 $id"
   aws autoscaling terminate-instance-in-auto-scaling-group --instance-id "$id" \
@@ -192,6 +227,8 @@ for id in $old_ids; do
   aws autoscaling set-desired-capacity --auto-scaling-group-name "$ASG" \
     --desired-capacity "$desired" --region "$REGION" > /dev/null
 done
+
+resume_alarms
 
 # 10. 배치 인스턴스를 교체한다.
 #

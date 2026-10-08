@@ -223,6 +223,9 @@ data "aws_iam_policy_document" "deploy" {
 
     actions = [
       "autoscaling:SetDesiredCapacity",
+      # 배포 동안 스케일링 알람을 멈춘다. 저부하면 스케일 인이 올린 desired 를 바로 되돌린다 (deploy.sh 4번)
+      "autoscaling:SuspendProcesses",
+      "autoscaling:ResumeProcesses",
     ]
 
     resources = ["*"]
