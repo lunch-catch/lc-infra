@@ -56,10 +56,12 @@ services:
       TRACE_SAMPLE_RATE: "0.1"
       # MaxRAMPercentage 는 컨테이너 한도 기준이다.
       # DNS TTL 이 결정적이다. 이것이 빠지면 페일오버 후 옛 주소를 계속 찾는다.
+      # user.timezone 이 빠지면 DB 시각이 9시간 밀려 저장된다. Hibernate 가 JVM 시간대(UTC)로 넘기고 드라이버가 세션 시간대(Asia/Seoul)로 다시 바꾼다.
       JAVA_TOOL_OPTIONS: >-
         -XX:MaxRAMPercentage=70
         -Dnetworkaddress.cache.ttl=5
         -Dnetworkaddress.cache.negative.ttl=1
+        -Duser.timezone=Asia/Seoul
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health/liveness"]
       interval: 10s
