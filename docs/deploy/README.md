@@ -589,6 +589,36 @@ aws ssm start-session --target <monitoring-id> \
 
 **k6 버전을 회차 기록에 함께 적어라.** 아래 메모리 실측이 1.7.1 기준이고 apt 는 최신을 깐다.
 
+## 테스트 관리자
+
+관리자는 최고 관리자(SUPER_ADMIN)가 `POST /v1/admin/admins` 로 발급한다. 그래서 첫 최고 관리자 한 명만 밖에서 넣는다. 운영 DB 는 `destroy.sh` 마다 사라지므로 손으로 넣지 않고 스크립트가 넣는다.
+
+| 언제 | 누가 |
+|---|---|
+| 운영 배포가 끝날 때 | `deploy.sh` 마지막에 `seed-admin.sh prod`. 배치 서버 하나에서 RDS 에 넣는다 |
+| 개발 서버를 올릴 때 | `dev-up.sh` 마지막에 `seed-admin.sh dev`. MySQL 컨테이너에 넣는다 |
+
+이미 그 아이디가 있으면 건너뛴다. 실패해도 배포를 실패로 만들지 않고 경고만 남긴다. 앱은 관리자 없이도 돈다.
+
+**값은 SSM String 이다.** 테스트 계정이라 노출을 허용했다 (2026-10-12 결정). 실제 운영 계정을 둘 때는 이 방식을 쓰지 않는다.
+
+| 파라미터 | 값 |
+|---|---|
+| `/lunchcatch/test-admin-login-id` | `super.admin` |
+| `/lunchcatch/test-admin-name` | `최고관리자` |
+| `/lunchcatch/test-admin-password` | 사람이 로그인에 쓰는 평문 |
+| `/lunchcatch/test-admin-password-hash` | 위 평문의 BCrypt 해시. DB 에 들어가는 값 |
+
+비밀번호를 보려면 이렇게 한다.
+
+```bash
+aws ssm get-parameter --name /lunchcatch/test-admin-password --query Parameter.Value --output text
+```
+
+**비밀번호를 바꿀 때**는 평문과 해시를 함께 바꾸고, DB 의 그 행을 지운 뒤 스크립트를 다시 돌린다. 스크립트는 이미 있는 아이디를 고치지 않는다. 해시는 `htpasswd -nbBC 10 "" '<비밀번호>' | tr -d ':\n' | sed 's/^\$2y\$/$2a$/'` 로 만든다.
+
+**문자셋을 `utf8mb4` 로 고정한다.** 빼면 mysql 클라이언트가 latin1 로 보내 이름이 깨져 저장된다. 2026-10-12 개발 서버에서 실제로 그랬다.
+
 ## 전부 지운다
 
 오래 안 쓸 때 쓴다.

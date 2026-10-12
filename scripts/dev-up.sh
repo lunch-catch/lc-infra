@@ -111,3 +111,6 @@ until curl -fsS --max-time 5 "https://$API_HOST/v3/api-docs" > /dev/null 2>&1; d
   sleep 10
 done
 log "   응답한다. https://$API_HOST"
+
+# 테스트 관리자를 넣는다. 서버를 새로 만들면 DB 가 비어 있다. 있으면 건너뛴다
+"$ROOT/scripts/seed-admin.sh" dev

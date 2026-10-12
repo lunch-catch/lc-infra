@@ -337,3 +337,6 @@ left=$(old_in_service)
 [ -z "$left" ] || die "구 버전 인스턴스가 서비스 중이다: $left"
 log "11. 최종 healthy $(healthy_count) / desired $(current_desired). 구 버전 0대"
 log "배포 완료 $SHA"
+
+# 테스트 관리자를 넣는다. 재구축 직후 빈 DB 에 첫 최고 관리자가 생긴다. 있으면 건너뛰고, 실패해도 배포 결과를 바꾸지 않는다
+"$(dirname "$0")/seed-admin.sh" prod
