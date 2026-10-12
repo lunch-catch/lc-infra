@@ -74,5 +74,5 @@ variable "vpc_cidr" {
 variable "bedrock_model_id" {
   description = "Bedrock 추론 프로필 ID"
   type        = string
-  default     = "global.anthropic.claude-sonnet-5-5"
+  default     = "global.openai.gpt-5.6-sol"
 }

@@ -12,8 +12,8 @@
 
 | 항목 | 결정 |
 |---|---|
-| 모델 | Anthropic Claude Sonnet 5.5 (2026-10-12 변경. 처음에는 OpenAI `gpt-6-sol`) |
-| 호출 ID | 추론 프로필 `global.anthropic.claude-sonnet-5-5` |
+| 모델 | OpenAI `gpt-5.6-sol` (2026-10-12. `gpt-6-sol` -> Claude Sonnet 5.5 -> 이것. Claude 는 Anthropic 신청서가 한 단계 더 있어 뺐다) |
+| 호출 ID | 추론 프로필 `global.openai.gpt-5.6-sol` |
 | 호출 리전 | `ap-northeast-2`. 처리는 AWS 가 고른 리전에서 될 수 있다 (2.1절) |
 | 환경 | 운영과 개발 둘 다 |
 | 인증 | 서버 역할(인스턴스 프로필). 키를 앱에 넣지 않는다 |
@@ -27,26 +27,19 @@
 
 ### 2.1 추론 프로필을 쓰는 이유
 
-Claude Sonnet 5.5 는 서울 리전에서 모델 ID 로 바로 부를 수 없고(`INFERENCE_PROFILE` 전용), 추론 프로필로만 부른다. `apac.` 프로필은 없고 `global.` 만 있다. 프로필이 가리키는 모델은 둘이다.
+`gpt-5.6-sol` 은 서울 리전에서 모델 ID 로 바로 부를 수 없고(`INFERENCE_PROFILE` 전용), 추론 프로필로만 부른다. 프로필이 가리키는 모델은 둘이다.
 
 ```
-global.anthropic.claude-sonnet-5-5
-  -> arn:aws:bedrock:::foundation-model/anthropic.claude-sonnet-5-5               (리전 없음, global)
-  -> arn:aws:bedrock:ap-northeast-2::foundation-model/anthropic.claude-sonnet-5-5
+global.openai.gpt-5.6-sol
+  -> arn:aws:bedrock:::foundation-model/openai.gpt-5.6-sol               (리전 없음, global)
+  -> arn:aws:bedrock:ap-northeast-2::foundation-model/openai.gpt-5.6-sol
 ```
 
 **`global.` 프로필은 요청을 한국 밖 리전에서 처리할 수 있다.** 템플릿 요청 문장에는 개인정보가 들어가지 않으므로 받아들인다. 개인정보가 들어가는 용도에 같은 프로필을 쓰려면 다시 판단한다.
 
 ### 2.2 비용
 
-Marketplace 판매 조건(offer)의 global standard 값이다. 단위는 100만 토큰당 USD 로 읽었다. 처음 고른 `gpt-6-sol` 과 입력, 출력 단가가 같다.
-
-| 항목 | 단가 (standard) |
-|---|---|
-| 입력 | 2 |
-| 출력 | 10 |
-| 캐시 읽기 | 0.1 |
-| 캐시 쓰기 | 2.5 |
+단가는 구독할 때 Marketplace 판매 조건(offer)에서 확인한다. 참고로 `gpt-6-sol` 과 Claude Sonnet 5.5 는 100만 토큰당 입력 2, 출력 10 USD 였다.
 
 템플릿 한 번에 입력 1천, 출력 2천 토큰이면 약 0.02 USD 다. 템플릿은 10개 상한이고(`POSTER-003`) 관리자만 만든다. 월 수백 건이어도 수 USD 다.
 
@@ -85,7 +78,7 @@ AWS Support 에 케이스를 열었다 (2026-10-08, Account and billing, Service
 **풀리면 확인할 것.** 호출이 되는지, 그리고 템플릿 크기의 요청이 30초(`POSTER-004`) 안에 끝나는지 잰다.
 
 ```
-aws bedrock-runtime converse --model-id global.anthropic.claude-sonnet-5-5 --region ap-northeast-2 \
+aws bedrock-runtime converse --model-id global.openai.gpt-5.6-sol --region ap-northeast-2 \
   --messages '[{"role":"user","content":[{"text":"Reply with exactly: OK"}]}]'
 ```
 
@@ -112,9 +105,9 @@ aws bedrock-runtime converse --model-id global.anthropic.claude-sonnet-5-5 --reg
 **리소스는 셋 모두 적어야 한다.** 하나라도 빠지면 AccessDenied 다.
 
 ```
-arn:aws:bedrock:ap-northeast-2:762794225116:inference-profile/global.anthropic.claude-sonnet-5-5
-arn:aws:bedrock:::foundation-model/anthropic.claude-sonnet-5-5
-arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-5-5
+arn:aws:bedrock:ap-northeast-2:762794225116:inference-profile/global.openai.gpt-5.6-sol
+arn:aws:bedrock:::foundation-model/openai.gpt-5.6-sol
+arn:aws:bedrock:*::foundation-model/openai.gpt-5.6-sol
 ```
 
 `bedrock:*` 나 모든 모델로 넓히지 않는다. 앱 서버가 털리면 비싼 모델을 마음대로 부를 수 있다.
@@ -123,7 +116,7 @@ arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-5-5
 
 | 이름 | 운영 | 개발 |
 |---|---|---|
-| `BEDROCK_MODEL_ID` | `global.anthropic.claude-sonnet-5-5` | 같음 |
+| `BEDROCK_MODEL_ID` | `global.openai.gpt-5.6-sol` | 같음 |
 | `BEDROCK_REGION` | `ap-northeast-2` | 같음 |
 
 값은 `terraform/variables.tf`, `dev/variables.tf` 의 `bedrock_model_id` 와 `region` 에서 오고 compose 템플릿이 넘긴다. 이름은 백엔드의 설정 키와 맞춘다. 백엔드가 다른 이름을 정하면 이쪽을 바꾼다.
@@ -149,7 +142,7 @@ arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-5-5
 
 | 호출 | 결과 | 뜻 |
 |---|---|---|
-| `global.anthropic.claude-sonnet-5-5` | `not available for this account` | IAM 은 통과했고 3절의 계정 제한에서 멈췄다 (2026-10-12) |
+| `global.openai.gpt-5.6-sol` | (구독 전) | 구독하고 계정 제한이 풀리면 확인한다 |
 | `apac.anthropic.claude-3-haiku...` | `not authorized to perform: bedrock:InvokeModel` | 정한 모델 밖은 IAM 이 막는다 |
 
 ---
