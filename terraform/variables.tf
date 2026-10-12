@@ -454,5 +454,5 @@ variable "kakao_redirect_uri" {
 variable "bedrock_model_id" {
   description = "Bedrock 추론 프로필 ID"
   type        = string
-  default     = "global.openai.gpt-6-sol"
+  default     = "global.anthropic.claude-sonnet-5-5"
 }
