@@ -604,7 +604,7 @@ aws ssm start-session --target <monitoring-id> \
 
 | 파라미터 | 값 |
 |---|---|
-| `/lunchcatch/test-admin-login-id` | `super.admin` |
+| `/lunchcatch/test-admin-login-id` | `superadmin` |
 | `/lunchcatch/test-admin-name` | `최고관리자` |
 | `/lunchcatch/test-admin-password` | 사람이 로그인에 쓰는 평문 |
 | `/lunchcatch/test-admin-password-hash` | 위 평문의 BCrypt 해시. DB 에 들어가는 값 |

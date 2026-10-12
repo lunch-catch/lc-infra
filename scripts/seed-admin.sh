@@ -55,8 +55,8 @@ p() { aws ssm get-parameter --region $REGION --name "/$PROJECT/test-admin-\$1" -
 L=\$(p login-id); H=\$(p password-hash); N=\$(p name)
 $sql_cmd <<SQL
 SET time_zone = '+09:00';
-INSERT INTO admin (login_id, password_hash, name, role, status, created_at, updated_at)
-SELECT '\$L', '\$H', '\$N', 'SUPER_ADMIN', 'ACTIVE', NOW(6), NOW(6) FROM DUAL
+INSERT INTO admin (login_id, password_hash, name, role, status, refresh_token_issuance_version, created_at, updated_at)
+SELECT '\$L', '\$H', '\$N', 'SUPER_ADMIN', 'ACTIVE', 0, NOW(6), NOW(6) FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM admin WHERE login_id = '\$L');
 SELECT CONCAT('rows=', ROW_COUNT());
 SQL
