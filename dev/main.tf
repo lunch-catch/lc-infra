@@ -186,11 +186,16 @@ data "aws_iam_policy_document" "dev" {
     sid     = "InvokeTemplateModel"
     effect  = "Allow"
     actions = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
-    resources = [
-      "arn:aws:bedrock:${var.region}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.bedrock_model_id}",
-      "arn:aws:bedrock:::foundation-model/${local.bedrock_base_model}",
-      "arn:aws:bedrock:*::foundation-model/${local.bedrock_base_model}",
-    ]
+    resources = concat(
+      # 추론 프로필(global., apac. 등)로 부를 때만 프로필 ARN 이 필요하다
+      local.bedrock_base_model == var.bedrock_model_id ? [] : [
+        "arn:aws:bedrock:${var.bedrock_region}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.bedrock_model_id}",
+      ],
+      [
+        "arn:aws:bedrock:::foundation-model/${local.bedrock_base_model}",
+        "arn:aws:bedrock:*::foundation-model/${local.bedrock_base_model}",
+      ],
+    )
   }
 
   # 계정 단위 호출이라 저장소를 좁히지 못한다. 실제로 받는 곳은 아래 문장이 정한다.
@@ -235,7 +240,7 @@ locals {
     frontend_origins    = join(",", var.frontend_origins)
     kakao_callback_host = trimprefix(var.frontend_origins[0], "https://")
     bedrock_model_id    = var.bedrock_model_id
-    region              = var.region
+    bedrock_region      = var.bedrock_region
   })
 
   user_data = templatefile("${path.module}/templates/user-data.sh.tftpl", {

@@ -12,42 +12,65 @@
 
 | 항목 | 결정 |
 |---|---|
-| 모델 | OpenAI `gpt-5.6-sol` (2026-10-12. `gpt-6-sol` -> Claude Sonnet 5.5 -> 이것. Claude 는 Anthropic 신청서가 한 단계 더 있어 뺐다) |
-| 호출 ID | 추론 프로필 `global.openai.gpt-5.6-sol` |
-| 호출 리전 | `ap-northeast-2`. 처리는 AWS 가 고른 리전에서 될 수 있다 (2.1절) |
+| 모델 | OpenAI `gpt-oss-120b` (2026-10-12. `gpt-6-sol` -> Claude Sonnet 5.5 -> `gpt-5.6-sol` -> 이것. 앞의 셋은 계정 제한으로 호출되지 않았다, 3절) |
+| 호출 ID | 모델 ID `openai.gpt-oss-120b-1:0` (추론 프로필 아님) |
+| 호출 리전 | **`ap-northeast-1` (도쿄).** 서울에 없다. 인프라 리전과 따로 둔다 (2.1절) |
 | 환경 | 운영과 개발 둘 다 |
 | 인증 | 서버 역할(인스턴스 프로필). 키를 앱에 넣지 않는다 |
 | 경로 | 운영은 NAT, 개발은 퍼블릭 서브넷에서 바로. VPC 엔드포인트는 두지 않는다 (4절) |
 | 나눔 | 인프라는 권한과 환경변수, 백엔드는 호출 코드 |
-| 상태 | **계정이 이 모델을 호출하지 못한다. AWS Support 케이스로 요청했다** (3절) |
+| 상태 | **호출된다.** 템플릿 한 건 7 ~ 11초, 슬롯 5개를 지킨다 (2.3절) |
 
 ---
 
 ## 2. 모델과 비용
 
-### 2.1 추론 프로필을 쓰는 이유
+### 2.1 도쿄에서 부르는 이유
 
-`gpt-5.6-sol` 은 서울 리전에서 모델 ID 로 바로 부를 수 없고(`INFERENCE_PROFILE` 전용), 추론 프로필로만 부른다. 프로필이 가리키는 모델은 둘이다.
+`gpt-oss-120b` 는 서울(`ap-northeast-2`)에 없다. 2026-10-12 에 리전별로 확인했다.
 
-```
-global.openai.gpt-5.6-sol
-  -> arn:aws:bedrock:::foundation-model/openai.gpt-5.6-sol               (리전 없음, global)
-  -> arn:aws:bedrock:ap-northeast-2::foundation-model/openai.gpt-5.6-sol
-```
+| 리전 | `openai.gpt-oss-120b-1:0` |
+|---|---|
+| 서울 `ap-northeast-2` | 없음 |
+| 도쿄 `ap-northeast-1` | **있음.** 가장 가깝다 |
+| 싱가포르 `ap-southeast-1` | 없음 |
+| 시드니, 뭄바이, 버지니아, 오리건, 프랑크푸르트 | 있음 |
 
-**`global.` 프로필은 요청을 한국 밖 리전에서 처리할 수 있다.** 템플릿 요청 문장에는 개인정보가 들어가지 않으므로 받아들인다. 개인정보가 들어가는 용도에 같은 프로필을 쓰려면 다시 판단한다.
+추론 프로필이 없는 모델이라 모델 ID 로 리전을 지정해 부른다. 요청은 도쿄에서 처리된다.
+**템플릿 요청 문장에는 개인정보가 들어가지 않으므로 받아들인다.** 개인정보가 들어가는 용도에 쓰려면 다시 판단한다.
+
+인프라 리전(서울)과 따로 두려고 변수 `bedrock_region` 을 두었다. 모델을 서울에 있는 것으로 바꾸면 이 값도 함께 바꾼다.
+
+**처음 도쿄를 부를 때 "계정 확인 중" 으로 한 번 막혔다.** `Your account is currently being verified. Verification normally takes less than 2 hours.`
+새 리전을 처음 쓸 때 AWS 가 하는 확인이고, 2시간 안에 풀렸다. 그 뒤로 막히지 않는다.
 
 ### 2.2 비용
 
-단가는 구독할 때 Marketplace 판매 조건(offer)에서 확인한다. 참고로 `gpt-6-sol` 과 Claude Sonnet 5.5 는 100만 토큰당 입력 2, 출력 10 USD 였다.
+`gpt-oss-120b` 는 공개 가중치 모델이라 `gpt-6-sol`(100만 토큰당 입력 2, 출력 10 USD)보다 훨씬 싸다. 단가는 Bedrock 요금표에서 확인한다.
 
-템플릿 한 번에 입력 1천, 출력 2천 토큰이면 약 0.02 USD 다. 템플릿은 10개 상한이고(`POSTER-003`) 관리자만 만든다. 월 수백 건이어도 수 USD 다.
+템플릿 한 번에 입력 200, 출력 1,300 ~ 2,100 토큰이었다(2.3절). 앞의 모델 단가로 쳐도 약 0.02 USD 다. 템플릿은 10개 상한이고(`POSTER-003`) 관리자만 만든다. 월 수백 건이어도 수 USD 다.
 
-**청구는 Organization 관리 계정(497949018820)이 받는다.** 통합 결제라 이 계정의 비용이 그쪽 청구서로 간다. 외부 회사 모델이라 항목은 "AWS Marketplace" 로 따로 찍힌다. AWS 크레딧이 이 항목에 적용되는지는 크레딧 조건마다 달라 관리 계정에서 확인한다.
+**청구는 Organization 관리 계정(497949018820)이 받는다.** 통합 결제라 이 계정의 비용이 그쪽 청구서로 간다. AWS 크레딧이 적용되는지는 크레딧 조건마다 달라 관리 계정에서 확인한다.
+
+### 2.3 시험 결과 (2026-10-12)
+
+관리자 템플릿과 같은 크기의 요청(포스터 HTML, 슬롯 5개)을 도쿄로 세 번 보냈다.
+
+| 회차 | 응답 시간 | 출력 토큰 | 슬롯 | 스크립트 |
+|---|---|---|---|---|
+| 1 | 7.0초 | 1,349 | 5/5 | 없음 |
+| 2 | 6.8초 | 1,376 | 5/5 | 없음 |
+| 3 | 11.1초 | 2,099 | 5/5 | 없음 |
+
+30초 상한(`POSTER-004`) 안에 들어온다. 응답은 출력 토큰 수에 비례해 늘어나므로 최대 출력 토큰을 정해 둔다(5절).
+
+**응답에 생각 과정 블록이 먼저 온다.** `content` 가 `reasoningContent` 다음 `text` 순서다. 첫 블록을 HTML 로 읽으면 안 된다. `text` 블록만 모은다.
 
 ---
 
-## 3. 지금 막혀 있는 것
+## 3. 처음 고른 모델이 막힌 기록
+
+`gpt-oss-120b` 로 바꾸기 전, 최신 모델들이 계정 단위로 막혀 있던 기록이다. 그 모델로 돌아갈 때 이 절을 본다.
 
 ### 3.1 증상
 
@@ -102,12 +125,12 @@ aws bedrock-runtime converse --model-id global.openai.gpt-5.6-sol --region ap-no
 
 허용 동작은 `bedrock:InvokeModel` 과 `bedrock:InvokeModelWithResponseStream` 이다. Converse API 도 이 둘로 판정된다.
 
-**리소스는 셋 모두 적어야 한다.** 하나라도 빠지면 AccessDenied 다.
+**리소스는 모델 ARN 이다.** 추론 프로필(`global.`, `apac.` 등)로 부를 때는 프로필 ARN 도 함께 있어야 해서, 모델 ID 에 접두어가 있으면 그것을 더한다.
 
 ```
-arn:aws:bedrock:ap-northeast-2:762794225116:inference-profile/global.openai.gpt-5.6-sol
-arn:aws:bedrock:::foundation-model/openai.gpt-5.6-sol
-arn:aws:bedrock:*::foundation-model/openai.gpt-5.6-sol
+arn:aws:bedrock:::foundation-model/openai.gpt-oss-120b-1:0
+arn:aws:bedrock:*::foundation-model/openai.gpt-oss-120b-1:0
+(추론 프로필일 때만) arn:aws:bedrock:<bedrock_region>:762794225116:inference-profile/<모델 ID>
 ```
 
 `bedrock:*` 나 모든 모델로 넓히지 않는다. 앱 서버가 털리면 비싼 모델을 마음대로 부를 수 있다.
@@ -116,16 +139,16 @@ arn:aws:bedrock:*::foundation-model/openai.gpt-5.6-sol
 
 | 이름 | 운영 | 개발 |
 |---|---|---|
-| `BEDROCK_MODEL_ID` | `global.openai.gpt-5.6-sol` | 같음 |
-| `BEDROCK_REGION` | `ap-northeast-2` | 같음 |
+| `BEDROCK_MODEL_ID` | `openai.gpt-oss-120b-1:0` | 같음 |
+| `BEDROCK_REGION` | `ap-northeast-1` | 같음 |
 
-값은 `terraform/variables.tf`, `dev/variables.tf` 의 `bedrock_model_id` 와 `region` 에서 오고 compose 템플릿이 넘긴다. 이름은 백엔드의 설정 키와 맞춘다. 백엔드가 다른 이름을 정하면 이쪽을 바꾼다.
+값은 `terraform/variables.tf`, `dev/variables.tf` 의 `bedrock_model_id` 와 `bedrock_region` 에서 오고 compose 템플릿이 넘긴다. 이름은 백엔드의 설정 키와 맞춘다. 백엔드가 다른 이름을 정하면 이쪽을 바꾼다.
 
 ### 4.3 네트워크
 
 | 환경 | 경로 |
 |---|---|
-| 운영 | 프라이빗 서브넷 -> NAT -> `bedrock-runtime.ap-northeast-2.amazonaws.com` |
+| 운영 | 프라이빗 서브넷 -> NAT -> `bedrock-runtime.ap-northeast-1.amazonaws.com` (도쿄) |
 | 개발 | 퍼블릭 서브넷에서 바로 |
 
 **VPC 엔드포인트를 두지 않는다.** 인터페이스 엔드포인트는 서울에서 AZ 하나에 월 약 10 USD 라 두 AZ 면 월 20 USD 남짓이다(데이터 처리료 별도). 관리자 템플릿 생성 몇 건을 위해 들일 값이 아니다. NAT 는 이미 있다.
@@ -142,7 +165,8 @@ arn:aws:bedrock:*::foundation-model/openai.gpt-5.6-sol
 
 | 호출 | 결과 | 뜻 |
 |---|---|---|
-| `global.openai.gpt-5.6-sol` | (구독 전) | 구독하고 계정 제한이 풀리면 확인한다 |
+| `openai.gpt-oss-120b-1:0` (도쿄) | 응답함 | 정한 모델은 통과한다 (2026-10-12) |
+| `openai.gpt-oss-20b-1:0` (도쿄) | `not authorized` | 같은 회사의 다른 모델도 IAM 이 막는다 |
 | `apac.anthropic.claude-3-haiku...` | `not authorized to perform: bedrock:InvokeModel` | 정한 모델 밖은 IAM 이 막는다 |
 
 ---
@@ -153,6 +177,8 @@ arn:aws:bedrock:*::foundation-model/openai.gpt-5.6-sol
 |---|---|
 | SDK | AWS SDK for Java v2 `bedrockruntime`. 이미 `software.amazon.awssdk:bom` 을 쓴다 |
 | API | `Converse`. 모델마다 다른 요청 본문을 쓰지 않아도 된다 |
+| 응답 읽기 | `content` 에서 `text` 블록만 모은다. 앞에 `reasoningContent` 블록이 온다 (2.3절) |
+| 최대 출력 토큰 | 4,000 정도. 시험에서 2,100 까지 썼다. 너무 작으면 HTML 이 잘린다(`stopReason` 이 `max_tokens`) |
 | 인증 | 기본 자격증명 체인. 서버에서는 인스턴스 프로필이 잡힌다. 키를 설정에 넣지 않는다 |
 | 설정 | `BEDROCK_MODEL_ID`, `BEDROCK_REGION` |
 | 시간 상한 | 30초 (`POSTER-004`). SDK 의 API 호출 타임아웃도 30초 안으로 건다 |
@@ -164,7 +190,7 @@ arn:aws:bedrock:*::foundation-model/openai.gpt-5.6-sol
 
 | 할 일 | 누가 | 상태 |
 |---|---|---|
-| AWS Support 답변 받기 | 사람 | 대기 |
+| AWS Support 답변 받기 (`gpt-6-sol` 등 최신 모델) | 사람 | 대기. 지금 모델에는 필요 없다 |
 | 권한과 환경변수 넣기 (4절) | 인프라 | 완료 |
 | 백엔드 호출 구현 | 백엔드 | 대기 |
-| 풀린 뒤 호출과 응답 시간 확인 (3.3절) | 인프라 | 대기 |
+| 호출과 응답 시간 확인 | 인프라 | 완료 (2.3절) |

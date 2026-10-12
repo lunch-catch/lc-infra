@@ -100,7 +100,7 @@ locals {
     cookie_secure      = local.has_domain ? "true" : "false"
     kakao_redirect_uri = var.kakao_redirect_uri
     bedrock_model_id   = var.bedrock_model_id
-    region             = var.region
+    bedrock_region     = var.bedrock_region
   }
 
   app_user_data = templatefile("${path.module}/templates/app-user-data.sh.tftpl", {

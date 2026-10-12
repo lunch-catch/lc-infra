@@ -250,11 +250,16 @@ data "aws_iam_policy_document" "bedrock" {
   statement {
     effect  = "Allow"
     actions = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
-    resources = [
-      "arn:aws:bedrock:${var.region}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.bedrock_model_id}",
-      "arn:aws:bedrock:::foundation-model/${local.bedrock_base_model}",
-      "arn:aws:bedrock:*::foundation-model/${local.bedrock_base_model}",
-    ]
+    resources = concat(
+      # 추론 프로필(global., apac. 등)로 부를 때만 프로필 ARN 이 필요하다
+      local.bedrock_base_model == var.bedrock_model_id ? [] : [
+        "arn:aws:bedrock:${var.bedrock_region}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.bedrock_model_id}",
+      ],
+      [
+        "arn:aws:bedrock:::foundation-model/${local.bedrock_base_model}",
+        "arn:aws:bedrock:*::foundation-model/${local.bedrock_base_model}",
+      ],
+    )
   }
 }
 
