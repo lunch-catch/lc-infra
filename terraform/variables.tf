@@ -454,12 +454,12 @@ variable "kakao_redirect_uri" {
 variable "bedrock_model_id" {
   description = "Bedrock 모델 ID 또는 추론 프로필 ID"
   type        = string
-  default     = "anthropic.claude-sonnet-5"
+  default     = "openai.gpt-oss-120b-1:0"
 }
 
-# 모델이 서울에 없으면 다른 리전을 적는다 (LLM 문서 2.1절). 인프라 리전과 따로 둔다.
+# gpt-oss 는 서울 리전에 없다. 가장 가까운 도쿄에서 부른다 (LLM 문서 2.1절). 인프라 리전과 따로 둔다.
 variable "bedrock_region" {
   description = "Bedrock 을 부르는 리전"
   type        = string
-  default     = "ap-northeast-2"
+  default     = "ap-northeast-1"
 }
