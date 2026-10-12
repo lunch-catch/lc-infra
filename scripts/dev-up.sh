@@ -64,8 +64,10 @@ if [ "$state" = "stopped" ]; then
   log "3. 켠다 $instance_id"
   aws ec2 start-instances --instance-ids "$instance_id" --region "$REGION" > /dev/null
   aws ec2 wait instance-running --instance-ids "$instance_id" --region "$REGION"
+  restarted=1
 else
   log "3. $instance_id 가 $state 다"
+  restarted=0
 fi
 
 # 4. 응답을 기다린다. 처음 만들 때는 Docker 설치, 인증서 발급, 이미지 pull 까지 몇 분 걸린다
@@ -75,6 +77,26 @@ if [ -z "$sha" ]; then
   log "4. develop 배포 기록이 없어 앱이 뜨지 않는다"
   log "   lc-backend 에서 deploy-dev 워크플로를 한 번 돌려라. 이미지를 올리고 이 서버에 띄운다"
   exit 0
+fi
+
+# 멈춰 있던 서버는 디스크의 옛 .env 로 컨테이너를 다시 띄운다. 그동안 develop 에 병합된 것이 빠진다.
+# refresh 가 SSM 을 다시 읽어 current-sha 로 맞춘다. 2026-10-12 에 옛 이미지로 뜬 것을 보고 넣었다.
+if [ "$restarted" = 1 ]; then
+  log "4. 최신 develop 으로 맞춘다 ($sha)"
+  for _ in $(seq 1 30); do
+    online=$(aws ssm describe-instance-information --region "$REGION" \
+      --filters "Key=InstanceIds,Values=$instance_id" \
+      --query 'InstanceInformationList[0].PingStatus' --output text 2>/dev/null || echo None)
+    [ "$online" = "Online" ] && break
+    sleep 5
+  done
+  [ "$online" = "Online" ] || die "SSM 에이전트가 붙지 않았다. 손으로 lunchcatch-dev-refresh 를 돌려라"
+  cmd_id=$(aws ssm send-command --instance-ids "$instance_id" --region "$REGION" \
+    --document-name AWS-RunShellScript \
+    --parameters "commands=[\"/usr/local/bin/$PROJECT-dev-refresh\"]" \
+    --query 'Command.CommandId' --output text)
+  aws ssm wait command-executed --command-id "$cmd_id" --instance-id "$instance_id" --region "$REGION" \
+    || die "refresh 가 실패했다. aws ssm get-command-invocation --command-id $cmd_id --instance-id $instance_id"
 fi
 
 log "4. https://$API_HOST 대기 (상한 600초, 이미지 $sha)"
