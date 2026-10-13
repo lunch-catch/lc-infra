@@ -49,14 +49,23 @@ instance_id=$(aws ec2 describe-instances --region "$REGION" \
 # 문자셋을 utf8mb4 로 고정한다. 빼면 클라이언트가 latin1 로 보내 이름(최고관리자)이 깨져 저장된다.
 # admin 테이블은 앱이 기동하며 Flyway 로 만든다. 없으면 앱이 아직 안 뜬 것이라 실패로 끝난다.
 # SSM Run Command 는 sh(dash) 로 돈다. pipefail 이 없다.
+#
+# refresh_token_issuance_version 은 admin V2 마이그레이션이 더한 컬럼이다. 운영(main)과 개발(develop)의 스키마가
+# 다를 수 있어, 있을 때만 넣는다. 2026-10-13 운영이 V2 이전이라 이 컬럼에서 실패했다.
 remote=$(cat <<EOF
 set -eu
 p() { aws ssm get-parameter --region $REGION --name "/$PROJECT/test-admin-\$1" --query Parameter.Value --output text; }
 L=\$(p login-id); H=\$(p password-hash); N=\$(p name)
+has_ver=\$($sql_cmd <<SQL | grep -o 'col=[0-9]*' | cut -d= -f2
+SELECT CONCAT('col=', COUNT(*)) FROM information_schema.columns
+WHERE table_schema = DATABASE() AND table_name = 'admin' AND column_name = 'refresh_token_issuance_version';
+SQL
+)
+if [ "\$has_ver" = 1 ]; then VER_COL=', refresh_token_issuance_version'; VER_VAL=', 0'; else VER_COL=''; VER_VAL=''; fi
 $sql_cmd <<SQL
 SET time_zone = '+09:00';
-INSERT INTO admin (login_id, password_hash, name, role, status, refresh_token_issuance_version, created_at, updated_at)
-SELECT '\$L', '\$H', '\$N', 'SUPER_ADMIN', 'ACTIVE', 0, NOW(6), NOW(6) FROM DUAL
+INSERT INTO admin (login_id, password_hash, name, role, status\$VER_COL, created_at, updated_at)
+SELECT '\$L', '\$H', '\$N', 'SUPER_ADMIN', 'ACTIVE'\$VER_VAL, NOW(6), NOW(6) FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM admin WHERE login_id = '\$L');
 SELECT CONCAT('rows=', ROW_COUNT());
 SQL
