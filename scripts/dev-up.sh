@@ -79,24 +79,42 @@ if [ -z "$sha" ]; then
   exit 0
 fi
 
-# 멈춰 있던 서버는 디스크의 옛 .env 로 컨테이너를 다시 띄운다. 그동안 develop 에 병합된 것이 빠진다.
-# refresh 가 SSM 을 다시 읽어 current-sha 로 맞춘다. 2026-10-12 에 옛 이미지로 뜬 것을 보고 넣었다.
-if [ "$restarted" = 1 ]; then
-  log "4. 최신 develop 으로 맞춘다 ($sha)"
-  for _ in $(seq 1 30); do
-    online=$(aws ssm describe-instance-information --region "$REGION" \
-      --filters "Key=InstanceIds,Values=$instance_id" \
-      --query 'InstanceInformationList[0].PingStatus' --output text 2>/dev/null || echo None)
-    [ "$online" = "Online" ] && break
+# 실행 중인 이미지가 current-sha 와 다르면 맞춘다.
+# 멈춰 있던 서버는 디스크의 옛 .env 로 컨테이너를 다시 띄워, 그동안 develop 에 병합된 것이 빠진다 (2026-10-12).
+# 켜 둔 채 이 스크립트를 다시 돌린 경우도 같은 검사를 한다. 맞추는 도중 끊긴 뒤 다시 돌리면
+# 서버는 이미 running 이라 켜는 단계를 건너뛰는데, 그때도 옛 이미지가 남아 있을 수 있다 (2026-10-14).
+for _ in $(seq 1 30); do
+  online=$(aws ssm describe-instance-information --region "$REGION" \
+    --filters "Key=InstanceIds,Values=$instance_id" \
+    --query 'InstanceInformationList[0].PingStatus' --output text 2>/dev/null || echo None)
+  [ "$online" = "Online" ] && break
+  sleep 5
+done
+[ "$online" = "Online" ] || die "SSM 에이전트가 붙지 않았다. 손으로 $PROJECT-dev-refresh 를 돌려라"
+
+# SSM 명령의 끝을 기다린다. aws ssm wait 은 100초에서 포기하는데, 이미지 pull 과 재시작은 그보다 길 수 있다.
+run_on_server() {
+  local cmd_id st
+  cmd_id=$(aws ssm send-command --instance-ids "$instance_id" --region "$REGION" \
+    --document-name AWS-RunShellScript --parameters "commands=[\"$1\"]" \
+    --query 'Command.CommandId' --output text)
+  for _ in $(seq 1 60); do
+    st=$(aws ssm get-command-invocation --command-id "$cmd_id" --instance-id "$instance_id" --region "$REGION" \
+      --query Status --output text 2>/dev/null || echo Pending)
+    case "$st" in Success|Failed|Cancelled|TimedOut) break ;; esac
     sleep 5
   done
-  [ "$online" = "Online" ] || die "SSM 에이전트가 붙지 않았다. 손으로 lunchcatch-dev-refresh 를 돌려라"
-  cmd_id=$(aws ssm send-command --instance-ids "$instance_id" --region "$REGION" \
-    --document-name AWS-RunShellScript \
-    --parameters "commands=[\"/usr/local/bin/$PROJECT-dev-refresh\"]" \
-    --query 'Command.CommandId' --output text)
-  aws ssm wait command-executed --command-id "$cmd_id" --instance-id "$instance_id" --region "$REGION" \
-    || die "refresh 가 실패했다. aws ssm get-command-invocation --command-id $cmd_id --instance-id $instance_id"
+  [ "$st" = "Success" ] || die "서버 명령이 실패했다 ($st). aws ssm get-command-invocation --command-id $cmd_id --instance-id $instance_id"
+  aws ssm get-command-invocation --command-id "$cmd_id" --instance-id "$instance_id" --region "$REGION" \
+    --query StandardOutputContent --output text
+}
+
+running=$(run_on_server "docker inspect $PROJECT --format {{.Config.Image}} 2>/dev/null | sed s/.*://" | tr -d '[:space:]')
+if [ "$restarted" = 1 ] || [ "$running" != "$sha" ]; then
+  log "4. 최신 develop 으로 맞춘다 (${running:-없음} -> $sha)"
+  run_on_server "/usr/local/bin/$PROJECT-dev-refresh" > /dev/null
+else
+  log "4. 이미 최신이다 ($sha)"
 fi
 
 log "4. https://$API_HOST 대기 (상한 600초, 이미지 $sha)"
