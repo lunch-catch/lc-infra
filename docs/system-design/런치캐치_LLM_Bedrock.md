@@ -207,11 +207,11 @@ arn:aws:bedrock:*::foundation-model/openai.gpt-oss-120b-1:0
 
 ### 5.1 로컬에서 직접 부를 때
 
-로컬은 기본으로 가짜 구현을 쓴다. 프롬프트를 빠르게 고쳐 보려고 로컬에서 진짜 모델을 불러야 할 때만 담당자 전용 키를 쓴다 (`bootstrap/bedrock_local.tf`).
+로컬은 기본으로 가짜 구현을 쓰고, 진짜 호출은 개발 서버에서 확인한다. 로컬에서 진짜 모델을 불러야 할 때만 담당자 전용 키를 만든다 (`bootstrap/bedrock_local.tf` 의 `bedrock_local_users` 에 아이디를 넣고 apply).
 
 | 항목 | 값 |
 |---|---|
-| IAM 사용자 | `lunchcatch-bedrock-local-<GitHub 아이디>`. 사람마다 따로 둔다 (지금 `yongmaru789`) |
+| IAM 사용자 | `lunchcatch-bedrock-local-<GitHub 아이디>`. 사람마다 따로 둔다. **지금은 없다** (2026-10-14 `yongmaru789` 용으로 만들었다가 담당자가 개발 서버에서 시험하기로 해 키와 사용자를 지웠다) |
 | 권한 | `bedrock_local_model_id` 모델의 호출만. 콘솔 로그인, S3, SSM, 다른 모델은 막힌다 (2026-10-14 확인) |
 | 키 발급 | Terraform 이 아니라 `aws iam create-access-key`. 상태 파일에 비밀 키를 남기지 않는다 |
 | 전달 | 채팅, 이슈, 슬랙 평문으로 보내지 않는다 |

@@ -10,10 +10,11 @@
  * 사람마다 사용자를 따로 둔다. 키를 돌려쓰면 누가 썼는지와 언제 끌지가 흐려진다.
  */
 
+# 2026-10-14 yongmaru789 용으로 만들었다가, 담당자가 개발 서버에서 시험하기로 해 비웠다. 필요할 때 아이디를 넣고 apply 한다.
 variable "bedrock_local_users" {
   description = "로컬 Bedrock 호출용 IAM 사용자를 만들 GitHub 아이디"
   type        = list(string)
-  default     = ["yongmaru789"]
+  default     = []
 }
 
 # terraform/ 의 bedrock_model_id 와 같은 값이어야 한다. 루트가 달라 변수를 공유하지 못한다.
