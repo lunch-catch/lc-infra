@@ -205,6 +205,24 @@ arn:aws:bedrock:*::foundation-model/openai.gpt-oss-120b-1:0
 
 ---
 
+### 5.1 로컬에서 직접 부를 때
+
+로컬은 기본으로 가짜 구현을 쓴다. 프롬프트를 빠르게 고쳐 보려고 로컬에서 진짜 모델을 불러야 할 때만 담당자 전용 키를 쓴다 (`bootstrap/bedrock_local.tf`).
+
+| 항목 | 값 |
+|---|---|
+| IAM 사용자 | `lunchcatch-bedrock-local-<GitHub 아이디>`. 사람마다 따로 둔다 (지금 `yongmaru789`) |
+| 권한 | `bedrock_local_model_id` 모델의 호출만. 콘솔 로그인, S3, SSM, 다른 모델은 막힌다 (2026-10-14 확인) |
+| 키 발급 | Terraform 이 아니라 `aws iam create-access-key`. 상태 파일에 비밀 키를 남기지 않는다 |
+| 전달 | 채팅, 이슈, 슬랙 평문으로 보내지 않는다 |
+| 담당자 PC | `~/.aws/credentials` 의 `[lunchcatch-bedrock]` 프로필. 실행할 때 `AWS_PROFILE=lunchcatch-bedrock` 만 준다. `application-local.yml` 에 키를 넣지 않는다 |
+| 정리 | 시험이 끝나면 `aws iam update-access-key --status Inactive` 로 끄거나 사용자를 지운다 |
+
+**로컬 모델(Ollama 등)을 쓰지 않은 이유.** 지금 모델 `gpt-oss-120b` 는 메모리 65 GB 이상이 필요해 노트북에서 돌지 않는다.
+`gpt-oss-20b` 는 돌지만 서버와 다른 모델이고, 노트북에서 템플릿 한 건이 30초 상한을 넘을 수 있으며, API 형식이 달라 로컬 전용 구현이 하나 더 생긴다.
+
+**모델을 바꾸면 `bootstrap/` 의 `bedrock_local_model_id` 도 함께 바꾼다.** `terraform/` 과 루트가 달라 변수를 공유하지 못한다.
+
 ## 6. 남은 일
 
 | 할 일 | 누가 | 상태 |
