@@ -208,6 +208,14 @@ data "aws_iam_policy_document" "dev" {
     )
   }
 
+  # presigned URL 발급과 이미지 삭제에 쓴다. 운영과 같이 버킷 나열은 주지 않는다
+  statement {
+    sid       = "MediaObjects"
+    effect    = "Allow"
+    actions   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
+    resources = ["arn:aws:s3:::${var.media_bucket}/*"]
+  }
+
   # 앱 컨테이너 로그를 CloudWatch Logs 로 보낸다 (awslogs 드라이버). 이 그룹 하나에만 쓴다
   statement {
     sid       = "WriteAppLogs"
@@ -261,6 +269,8 @@ locals {
     region              = var.region
     log_group           = aws_cloudwatch_log_group.app.name
     bedrock_region      = var.bedrock_region
+    media_bucket        = var.media_bucket
+    cdn_base_url        = var.cdn_base_url
   })
 
   user_data = templatefile("${path.module}/templates/user-data.sh.tftpl", {

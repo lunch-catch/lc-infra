@@ -45,8 +45,10 @@ services:
       CORS_ALLOWED_ORIGINS: "${frontend_origins}"
       # 개발 사용자 앱의 콜백이다. 카카오 개발자 콘솔의 Redirect URI 에도 있어야 한다
       KAKAO_REDIRECT_URI: "https://${kakao_callback_host}/oauth/callback"
-      # 개발 서버에는 이미지 저장소가 없다. 이미지 업로드는 동작하지 않는다
-      CDN_BASE_URL: ""
+      # 개발 이미지 저장소다. 버킷과 CDN 은 bootstrap/dev_media.tf 가 갖는다
+      CDN_BASE_URL: "${cdn_base_url}"
+      S3_MEDIA_BUCKET: "${media_bucket}"
+      S3_REGION: "${region}"
       # 관리자 템플릿 생성의 LLM 이다. 서버 역할로 인증한다 (LLM 문서 4.2절)
       BEDROCK_MODEL_ID: "${bedrock_model_id}"
       BEDROCK_REGION: "${bedrock_region}"

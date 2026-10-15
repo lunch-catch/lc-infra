@@ -60,9 +60,53 @@ resource "aws_cloudfront_origin_access_control" "media" {
   signing_protocol                  = "sigv4"
 }
 
+/*
+ * 이미지 주소를 cdn.<도메인> 로 고정한다.
+ * CloudFront 기본 주소는 재구축마다 바뀌는데, 스냅샷 컬럼(ad_candidate.store_image_url 등)은 전체 URL 을 저장한다.
+ * 주소가 바뀌면 복원한 DB 의 그 행들이 깨진 이미지를 가리킨다 (이미지저장소 설계 6.2절).
+ */
+locals {
+  cdn_host = local.has_domain ? "cdn.${local.zone_name}" : ""
+}
+
+# CloudFront 인증서는 us-east-1 에만 둘 수 있다
+resource "aws_acm_certificate" "cdn" {
+  count    = local.has_domain ? 1 : 0
+  provider = aws.us_east_1
+
+  domain_name       = local.cdn_host
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_route53_record" "cdn_validation" {
+  for_each = local.has_domain ? {
+    for o in aws_acm_certificate.cdn[0].domain_validation_options : o.domain_name => o
+  } : {}
+
+  zone_id         = data.aws_route53_zone.main[0].zone_id
+  name            = each.value.resource_record_name
+  type            = each.value.resource_record_type
+  records         = [each.value.resource_record_value]
+  ttl             = 60
+  allow_overwrite = true
+}
+
+resource "aws_acm_certificate_validation" "cdn" {
+  count    = local.has_domain ? 1 : 0
+  provider = aws.us_east_1
+
+  certificate_arn         = aws_acm_certificate.cdn[0].arn
+  validation_record_fqdns = [for r in aws_route53_record.cdn_validation : r.fqdn]
+}
+
 resource "aws_cloudfront_distribution" "media" {
   enabled = true
   comment = "${var.project} media"
+  aliases = local.has_domain ? [local.cdn_host] : []
 
   origin {
     domain_name              = aws_s3_bucket.media.bucket_regional_domain_name
@@ -93,8 +137,12 @@ resource "aws_cloudfront_distribution" "media" {
     }
   }
 
+  # sni-only 다. dedicated IP 방식은 월 600 USD 가 붙는다
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = !local.has_domain
+    acm_certificate_arn            = local.has_domain ? aws_acm_certificate_validation.cdn[0].certificate_arn : null
+    ssl_support_method             = local.has_domain ? "sni-only" : null
+    minimum_protocol_version       = local.has_domain ? "TLSv1.2_2021" : null
   }
 
   tags = {
@@ -128,4 +176,18 @@ resource "aws_s3_bucket_policy" "media" {
 
   # 정책이 공개 판정을 받으면 block_public_policy 가 거부한다. 순서를 고정한다.
   depends_on = [aws_s3_bucket_public_access_block.media]
+}
+
+resource "aws_route53_record" "cdn" {
+  for_each = local.has_domain ? toset(["A"]) : toset([])
+
+  zone_id = data.aws_route53_zone.main[0].zone_id
+  name    = local.cdn_host
+  type    = each.key
+
+  alias {
+    name                   = aws_cloudfront_distribution.media.domain_name
+    zone_id                = aws_cloudfront_distribution.media.hosted_zone_id
+    evaluate_target_health = false
+  }
 }

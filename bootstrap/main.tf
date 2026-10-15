@@ -37,6 +37,22 @@ provider "aws" {
   }
 }
 
+# CloudFront 인증서는 us-east-1 에만 둘 수 있다. 개발 이미지 CDN 하나 때문에 둔다 (dev_media.tf).
+provider "aws" {
+  alias               = "us_east_1"
+  region              = "us-east-1"
+  profile             = var.aws_profile != "" ? var.aws_profile : null
+  allowed_account_ids = var.allowed_account_ids
+
+  default_tags {
+    tags = {
+      Project   = var.project
+      ManagedBy = "terraform"
+      Component = "bootstrap"
+    }
+  }
+}
+
 variable "project" {
   description = "모든 리소스 이름의 접두사"
   type        = string

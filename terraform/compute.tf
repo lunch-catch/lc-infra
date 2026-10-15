@@ -101,6 +101,8 @@ locals {
     kakao_redirect_uri = var.kakao_redirect_uri
     bedrock_model_id   = var.bedrock_model_id
     bedrock_region     = var.bedrock_region
+    media_bucket       = local.media_bucket
+    region             = var.region
   }
 
   app_user_data = templatefile("${path.module}/templates/app-user-data.sh.tftpl", {

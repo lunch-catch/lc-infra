@@ -57,7 +57,7 @@ resource "aws_ssm_parameter" "cdn_domain" {
   name        = "${local.ssm_prefix}/cdn-domain"
   description = "CloudFront domain for image URLs"
   type        = "String"
-  value       = aws_cloudfront_distribution.media.domain_name
+  value       = local.has_domain ? local.cdn_host : aws_cloudfront_distribution.media.domain_name
 
   lifecycle {
     ignore_changes = [value]

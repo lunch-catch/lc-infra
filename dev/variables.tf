@@ -83,3 +83,19 @@ variable "bedrock_region" {
   type        = string
   default     = "ap-northeast-1"
 }
+
+/*
+ * 개발 이미지 저장소다. 버킷과 CDN 은 bootstrap/dev_media.tf 가 갖는다 (서버를 내려도 이미지가 남는다).
+ * 여기서는 앱에 넘길 값과 서버 권한만 정한다.
+ */
+variable "media_bucket" {
+  description = "개발 이미지 버킷 이름"
+  type        = string
+  default     = "lunchcatch-dev-media"
+}
+
+variable "cdn_base_url" {
+  description = "개발 이미지 주소. 앱이 이미지 key 앞에 붙인다"
+  type        = string
+  default     = "https://cdn.dev.lunchcatch.com"
+}

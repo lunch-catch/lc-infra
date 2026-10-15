@@ -60,8 +60,8 @@ output "media_bucket" {
 }
 
 output "cdn_domain" {
-  description = "앱의 cdn.base-url 에 넣을 값"
-  value       = aws_cloudfront_distribution.media.domain_name
+  description = "앱의 cdn.base-url 에 넣을 값. 도메인이 있으면 고정 주소다"
+  value       = local.has_domain ? local.cdn_host : aws_cloudfront_distribution.media.domain_name
 }
 
 /*
