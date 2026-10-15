@@ -42,6 +42,8 @@ ensure() {
 ensure "/$PROJECT/dev/jwt-signing-key" "$(openssl rand -base64 48)"
 # MySQL 비밀번호는 41자를 넘지 않게 hex 32자로 만든다
 ensure "/$PROJECT/dev/db-password" "$(openssl rand -hex 16)"
+# 팀원이 SSM 포트 포워딩으로 쓰는 MySQL 계정(team)의 비밀번호다. 팀원 IAM 이 이 하나만 읽는다
+ensure "/$PROJECT/dev/team-db-password" "$(openssl rand -hex 16)"
 
 # 카카오 넷은 운영과 같은 값을 쓴다. 운영 apply.sh 가 만든다. 비어 있으면 앱이 안 뜬다
 for k in kakao-client-id kakao-client-secret kakao-app-id kakao-admin-key; do

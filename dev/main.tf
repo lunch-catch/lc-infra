@@ -143,6 +143,16 @@ data "aws_iam_policy_document" "assume_ec2" {
   }
 }
 
+/*
+ * 앱 로그를 둔다. 배포마다 컨테이너를 새로 만들어 docker logs 는 그때마다 사라진다.
+ * 2026-10-15 회원 탈퇴 오류를 찾으려 했는데 그 전 컨테이너의 로그가 이미 없었다.
+ * 팀원은 scripts/dev-logs.sh 로 본다 (bootstrap/dev_team.tf 가 읽기 권한을 준다).
+ */
+resource "aws_cloudwatch_log_group" "app" {
+  name              = "/${var.project}/dev/app"
+  retention_in_days = 14
+}
+
 resource "aws_iam_role" "dev" {
   name               = "${local.name}-server"
   assume_role_policy = data.aws_iam_policy_document.assume_ec2.json
@@ -198,6 +208,14 @@ data "aws_iam_policy_document" "dev" {
     )
   }
 
+  # 앱 컨테이너 로그를 CloudWatch Logs 로 보낸다 (awslogs 드라이버). 이 그룹 하나에만 쓴다
+  statement {
+    sid       = "WriteAppLogs"
+    effect    = "Allow"
+    actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = ["${aws_cloudwatch_log_group.app.arn}:*"]
+  }
+
   # 계정 단위 호출이라 저장소를 좁히지 못한다. 실제로 받는 곳은 아래 문장이 정한다.
   statement {
     sid       = "EcrAuth"
@@ -240,6 +258,8 @@ locals {
     frontend_origins    = join(",", var.frontend_origins)
     kakao_callback_host = trimprefix(var.frontend_origins[0], "https://")
     bedrock_model_id    = var.bedrock_model_id
+    region              = var.region
+    log_group           = aws_cloudwatch_log_group.app.name
     bedrock_region      = var.bedrock_region
   })
 
