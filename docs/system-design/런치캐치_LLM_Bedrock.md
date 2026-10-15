@@ -12,18 +12,34 @@
 
 | 항목 | 결정 |
 |---|---|
-| 모델 | OpenAI `gpt-oss-120b` (2026-10-12. 막힌 모델을 거쳐 지금 호출되는 것 중에서 골랐다. 후보 비교는 2.4절) |
-| 호출 ID | 모델 ID `openai.gpt-oss-120b-1:0` (추론 프로필 아님) |
-| 호출 리전 | **`ap-northeast-1` (도쿄).** 서울에 없다. 인프라 리전과 따로 둔다 (2.1절) |
+| 모델 | Anthropic `Claude Sonnet 4.6` (2026-10-15. 사용 사례 양식을 내고 열렸다. 그 전에 쓰던 `gpt-oss-120b` 는 2.1절) |
+| 호출 ID | 추론 프로필 `jp.anthropic.claude-sonnet-4-6` |
+| 호출 리전 | **`ap-northeast-1` (도쿄).** jp 프로필이라 요청이 일본(도쿄, 오사카) 안에서만 돈다. 인프라 리전과 따로 둔다 (2.1절) |
 | 환경 | 운영과 개발 둘 다 |
 | 인증 | 서버 역할(인스턴스 프로필). 키를 앱에 넣지 않는다 |
 | 경로 | 운영은 NAT, 개발은 퍼블릭 서브넷에서 바로. VPC 엔드포인트는 두지 않는다 (4절) |
 | 나눔 | 인프라는 권한과 환경변수, 백엔드는 호출 코드 |
-| 상태 | **호출된다.** 템플릿 한 건 7 ~ 11초, 슬롯 5개를 지킨다 (2.3절) |
+| 상태 | **호출된다.** 템플릿 크기 출력(약 2,600 토큰)에 약 19초. 백엔드 상한 30초 안이다 (2.0절) |
 
 ---
 
 ## 2. 모델과 비용
+
+### 2.0 Claude Sonnet 4.6 으로 바꿈 (2026-10-15)
+
+Anthropic 모델은 계정 단위의 사용 사례 양식을 내야 열린다. 내기 전에는 `Model use case details have not been submitted for this account` 로 막힌다.
+양식을 내기 전 도쿄 `jp.` 프로필이 두 번 응답한 적이 있으나 곧 다시 막혔다. 한두 번 된다고 바꾸지 않고, 연속 호출로 확인한 뒤 바꾼다.
+양식을 낸 뒤 약 15분 만에 열렸고, 연속 5번 모두 응답했다.
+
+| 모델 (도쿄) | 출력 토큰 | 응답 시간 |
+|---|---|---|
+| `jp.anthropic.claude-sonnet-4-6` | 2,620 ~ 2,690 | 18.5 ~ 18.8초 |
+| `openai.gpt-oss-120b-1:0` (이전) | 1,428 ~ 1,635 | 8.3 ~ 10.6초 |
+
+같은 요청(쿠폰 광고 HTML 카드)을 두 번씩 보낸 값이다. Sonnet 은 출력이 길어 두 배쯤 느리다. 백엔드의 호출 상한(30초)에 걸리면 `max_tokens` 나 프롬프트를 줄인다.
+단가는 100만 토큰당 입력 약 3, 출력 약 15 USD 로 gpt-oss 의 20배 남짓이다. 템플릿은 관리자만 만들고 10개 상한이라 월 수 USD 수준이다.
+
+`global.` 프로필과 서울 리전은 고르지 않았다. jp 프로필이면 요청이 일본 밖으로 나가지 않는다. 아래 2.1 ~ 2.4절은 gpt-oss 를 쓰던 때의 기록이다.
 
 ### 2.1 도쿄에서 부르는 이유
 
@@ -147,9 +163,9 @@ aws bedrock-runtime converse --model-id global.openai.gpt-5.6-sol --region ap-no
 **리소스는 모델 ARN 이다.** 추론 프로필(`global.`, `apac.` 등)로 부를 때는 프로필 ARN 도 함께 있어야 해서, 모델 ID 에 접두어가 있으면 그것을 더한다.
 
 ```
-arn:aws:bedrock:::foundation-model/openai.gpt-oss-120b-1:0
-arn:aws:bedrock:*::foundation-model/openai.gpt-oss-120b-1:0
-(추론 프로필일 때만) arn:aws:bedrock:<bedrock_region>:762794225116:inference-profile/<모델 ID>
+arn:aws:bedrock:::foundation-model/anthropic.claude-sonnet-4-6
+arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-6
+(추론 프로필일 때만) arn:aws:bedrock:ap-northeast-1:762794225116:inference-profile/jp.anthropic.claude-sonnet-4-6
 ```
 
 `bedrock:*` 나 모든 모델로 넓히지 않는다. 앱 서버가 털리면 비싼 모델을 마음대로 부를 수 있다.
@@ -158,7 +174,7 @@ arn:aws:bedrock:*::foundation-model/openai.gpt-oss-120b-1:0
 
 | 이름 | 운영 | 개발 |
 |---|---|---|
-| `BEDROCK_MODEL_ID` | `openai.gpt-oss-120b-1:0` | 같음 |
+| `BEDROCK_MODEL_ID` | `jp.anthropic.claude-sonnet-4-6` | 같음 |
 | `BEDROCK_REGION` | `ap-northeast-1` | 같음 |
 
 값은 `terraform/variables.tf`, `dev/variables.tf` 의 `bedrock_model_id` 와 `bedrock_region` 에서 오고 compose 템플릿이 넘긴다. 이름은 백엔드의 설정 키와 맞춘다. 백엔드가 다른 이름을 정하면 이쪽을 바꾼다.
@@ -184,7 +200,8 @@ arn:aws:bedrock:*::foundation-model/openai.gpt-oss-120b-1:0
 
 | 호출 | 결과 | 뜻 |
 |---|---|---|
-| `openai.gpt-oss-120b-1:0` (도쿄) | 응답함 | 정한 모델은 통과한다 (2026-10-12) |
+| `jp.anthropic.claude-sonnet-4-6` (도쿄) | 응답함 | 정한 모델은 통과한다 (2026-10-15) |
+| `openai.gpt-oss-120b-1:0` (도쿄) | 응답함 | 바꾸기 전 모델 (2026-10-12) |
 | `openai.gpt-oss-20b-1:0` (도쿄) | `not authorized` | 같은 회사의 다른 모델도 IAM 이 막는다 |
 | `apac.anthropic.claude-3-haiku...` | `not authorized to perform: bedrock:InvokeModel` | 정한 모델 밖은 IAM 이 막는다 |
 

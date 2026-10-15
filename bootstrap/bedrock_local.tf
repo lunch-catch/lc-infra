@@ -21,7 +21,7 @@ variable "bedrock_local_users" {
 variable "bedrock_local_model_id" {
   description = "로컬에서 허용할 Bedrock 모델 ID"
   type        = string
-  default     = "openai.gpt-oss-120b-1:0"
+  default     = "jp.anthropic.claude-sonnet-4-6"
 }
 
 resource "aws_iam_user" "bedrock_local" {
