@@ -49,6 +49,8 @@ services:
       CDN_BASE_URL: "${cdn_base_url}"
       S3_MEDIA_BUCKET: "${media_bucket}"
       S3_REGION: "${region}"
+      # 시험 데이터(lc-backend db/seed)를 넣는다. 비밀번호는 공개 기본값(lunchcatch1234!)을 그대로 쓴다 (2026-10-16 결정)
+      SEED_ENABLED: "true"
       # 관리자 템플릿 생성의 LLM 이다. 서버 역할로 인증한다 (LLM 문서 4.2절)
       BEDROCK_MODEL_ID: "${bedrock_model_id}"
       BEDROCK_REGION: "${bedrock_region}"
