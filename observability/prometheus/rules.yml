@@ -163,6 +163,74 @@ groups:
         annotations:
           description: "배치 {{ $labels.instance }} 의 {{ $labels.scheduler }} 가 주기를 넘겨 성공하지 못했다"
 
+  # 광고 서빙이 장애 때 막지 않고 통과시키거나 버린 횟수다 (lc-infra #4).
+  #
+  # 넷 다 정상 운영에서는 0 이어야 하는 값이다. Valkey 가 아예 죽은 것은 CacheConnectionFailed 가 알리고,
+  # 여기서는 Valkey 는 살아 있는데 명령이 실패하거나 시간이 초과된 경우까지 잡는다.
+  #
+  # 한 번 튄 실패로는 울리지 않는다. increase[5m] 는 실패 한 건에도 5분 동안 양수라서
+  # for 를 10분으로 두면 실패가 5분 넘게 이어질 때만 울린다.
+  - name: adserving
+    rules:
+      # use 별로 따로 알린다. 어느 규칙이 빠졌는지 알림만 보고 안다.
+      #   feed_rate_limit   요청 제한이 풀린다
+      #   daily_exclusion   넘긴 카드가 다시 보인다
+      #   serve_frequency, impression_count   노출 상한이 늦게 걸린다
+      #   serve_record      그동안의 노출이 무효가 되어 과금되지 않는다
+      - alert: AdservingCacheBypass
+        expr: |
+          sum by (use) (increase(adserving_cache_bypass_total[5m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          description: "광고 서빙이 {{ $labels.use }} 규칙을 10분 넘게 건너뛰고 있다. Valkey 명령 실패를 확인하라"
+
+      # 예산을 넘긴 캠페인도 피드에 나간다. 정산의 예산 진행률 조회를 확인한다.
+      - alert: AdservingBudgetUnavailable
+        expr: |
+          sum(increase(adserving_budget_unavailable_total[5m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          description: "예산 진행률을 읽지 못해 예산 규칙 없이 피드를 내보내고 있다. 예산을 넘긴 캠페인도 노출된다"
+
+      # 서빙 로그 유실률. 목표가 0.1% 미만이다 (lc-backend docs/design/adserving/feed-api-design.md).
+      #
+      # 버린 것과 쓰기에 실패한 것을 합쳐 내려준 카드 수로 나눈다. 카운터는 처음 오를 때 생기므로
+      # 한쪽이 아직 없으면 0 으로 채운다. 그러지 않으면 덧셈 결과가 비어 알람이 영영 서지 않는다.
+      # 내려준 카드가 0 이면 분모를 비워 0 으로 나누지 않는다.
+      - alert: AdservingServeLogLossHigh
+        expr: |
+          (
+            (sum(increase(adserving_serve_log_dropped_total[10m])) or vector(0))
+            +
+            (sum(increase(adserving_serve_log_failed_total[10m])) or vector(0))
+          )
+          /
+          (sum(increase(adserving_served_cards_total[10m])) > 0)
+          > 0.001
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          description: "서빙 로그 유실률이 {{ $value | humanizePercentage }} 다. 목표는 0.1% 미만이다. 관리자 진단에 기록 없음이 는다"
+
+      # 추천 인원(FR-042)이 줄 수 있다. 분모로 삼을 지표가 없어 0 을 넘는지만 본다.
+      - alert: AdservingFeedVisitWriteFailed
+        expr: |
+          sum(increase(adserving_feed_visit_failed_total[5m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          description: "feed_visit_daily 쓰기가 10분 넘게 실패하고 있다. 추천 인원이 줄 수 있다"
+
+      # adserving_impression_campaign_mismatch_total 은 알람을 두지 않는다.
+      # 클라이언트 버그나 조작된 요청이고 판정은 serve 기록으로 하므로 서비스는 맞게 돈다.
+      # 대시보드 06 의 패널로 본다.
+
   # 임계값이 정해지지 않은 알람들. 부하 시험 후 채운다.
   #
   # - alert: FiveZeroTwo            502 발생. (미정) 초과
