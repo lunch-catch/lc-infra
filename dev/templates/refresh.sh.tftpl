@@ -13,6 +13,23 @@ sec() { aws ssm get-parameter --name "$1" --region "$R" --with-decryption --quer
 # 배포할 SHA 다. develop 배포가 한 번도 없으면 비어 있다. 그때는 app 을 빼고 올린다.
 GIT_SHA=$(aws ssm get-parameter --name "$P/dev/current-sha" --region "$R" --query 'Parameter.Value' --output text 2>/dev/null || true)
 
+# 시험 데이터(lc-backend 의 db/seed)를 넣을지 정한다. 시드 계정의 비밀번호 해시가 SSM 에 있을 때만 켠다.
+# lc-backend 의 기본 해시는 그 저장소에 공개돼 있고 저장소가 PUBLIC 이다. 그 값으로 켜면 누구나
+# 개발 서버의 시드 점주와 관리자로 로그인한다. 해시가 없으면 켜지 않고 이유를 남긴다.
+SEED_PASSWORD_HASH=$(sec "$P/dev/seed-password-hash" 2>/dev/null || true)
+if [ -n "$SEED_PASSWORD_HASH" ]; then
+  SEED_ENABLED=true
+else
+  SEED_ENABLED=false
+  echo "SSM $P/dev/seed-password-hash 가 없다. 시험 데이터를 넣지 않는다"
+fi
+
+# BCrypt 해시의 달러를 두 번 적는다. compose 가 .env 의 값을 보간해서 $2a$10$MRk... 의 $MRk 를
+# 변수로 읽고 지운다. 한 번 적으면 깨진 해시가 들어가고 아무도 로그인하지 못한다.
+# 치환문에 달러 둘을 그대로 쓰면 셸이 그것을 PID 로 바꾸므로 변수에 담아 쓴다.
+DOLLAR='$'
+SEED_PASSWORD_HASH_ESCAPED=$(printf '%s' "$SEED_PASSWORD_HASH" | sed "s/[$]/$DOLLAR$DOLLAR/g")
+
 install -d -m 0755 "$DIR"
 umask 077
 cat > "$DIR/.env" <<ENV
@@ -23,6 +40,8 @@ KAKAO_CLIENT_ID=$(sec "$P/kakao-client-id")
 KAKAO_CLIENT_SECRET=$(sec "$P/kakao-client-secret")
 KAKAO_APP_ID=$(sec "$P/kakao-app-id")
 KAKAO_ADMIN_KEY=$(sec "$P/kakao-admin-key")
+SEED_ENABLED=$SEED_ENABLED
+SEED_PASSWORD_HASH=$SEED_PASSWORD_HASH_ESCAPED
 ENV
 umask 022
 
