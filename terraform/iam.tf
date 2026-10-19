@@ -187,6 +187,31 @@ resource "aws_iam_role_policy" "media" {
 }
 
 /*
+ * 포스터 자동 검수가 업로드 이미지 속 글자 영역을 잰다 (명세서 57행, lc-backend #535).
+ * 검수는 캠페인 활성화 API 에서 돌아 앱 서버에만 준다. 이미지는 위 media 권한으로 읽힌다.
+ * DetectText 는 리소스로 좁힐 수 없어 "*" 로 두고 리전으로 좁힌다.
+ */
+data "aws_iam_policy_document" "moderation" {
+  statement {
+    effect    = "Allow"
+    actions   = ["rekognition:DetectText"]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [var.region]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "moderation" {
+  name   = "poster-moderation"
+  role   = aws_iam_role.instance["app"].id
+  policy = data.aws_iam_policy_document.moderation.json
+}
+
+/*
  * cloudwatch_exporter 가 관리형 서비스의 호스트 지표를 긁는다.
  * RDS 와 ElastiCache 는 OS 레벨 접근이 안 되므로 이 경로가 유일하다.
  */
