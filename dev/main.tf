@@ -216,6 +216,23 @@ data "aws_iam_policy_document" "dev" {
     resources = ["arn:aws:s3:::${var.media_bucket}/*"]
   }
 
+  /*
+   * 포스터 자동 검수가 업로드 이미지 속 글자 영역을 잰다 (명세서 57행, lc-backend #535).
+   * DetectText 는 리소스로 좁힐 수 없어 "*" 로 두고 리전으로 좁힌다. 이미지는 위 MediaObjects 권한으로 읽힌다.
+   */
+  statement {
+    sid       = "DetectPosterText"
+    effect    = "Allow"
+    actions   = ["rekognition:DetectText"]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [var.region]
+    }
+  }
+
   # 앱 컨테이너 로그를 CloudWatch Logs 로 보낸다 (awslogs 드라이버). 이 그룹 하나에만 쓴다
   statement {
     sid       = "WriteAppLogs"
