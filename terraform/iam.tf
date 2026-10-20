@@ -159,7 +159,7 @@ data "aws_iam_policy_document" "pull_image" {
       "ecr:BatchGetImage",
       "ecr:GetDownloadUrlForLayer",
     ]
-    resources = [aws_ecr_repository.app.arn]
+    resources = [local.app_image_repository_arn]
   }
 }
 

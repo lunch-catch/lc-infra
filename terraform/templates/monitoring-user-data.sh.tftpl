@@ -6,7 +6,12 @@ ${common_bootstrap}
 # 고친 뒤에는 이 인스턴스에서 git pull 하고 reload 한다 (OPS-2-18).
 GITHUB_TOKEN=$(aws ssm get-parameter --name "/${project}/github-token" --region ${region} --with-decryption --query 'Parameter.Value' --output text)
 install -d -m 0755 /opt/${project}
-git clone --depth 1 "https://x-access-token:$GITHUB_TOKEN@github.com/${github_org}/${infra_repo}.git" /opt/${project}/infra
+# 저장소가 PUBLIC 이라 토큰이 없어도 받는다. 팀원 부하 시험 환경은 none 을 넣는다 (#11)
+if [ "$GITHUB_TOKEN" = "none" ]; then
+  git clone --depth 1 "https://github.com/${github_org}/${infra_repo}.git" /opt/${project}/infra
+else
+  git clone --depth 1 "https://x-access-token:$GITHUB_TOKEN@github.com/${github_org}/${infra_repo}.git" /opt/${project}/infra
+fi
 
 # SSM 조회와 .env 생성을 스크립트로 빼 둔다.
 # 엔드포인트가 바뀌면 다시 돌려야 하므로 여기 인라인으로 두지 않는다.
