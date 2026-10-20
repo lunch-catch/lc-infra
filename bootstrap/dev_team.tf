@@ -1,8 +1,9 @@
 /*
  * 백엔드 팀원이 개발 서버의 로그와 DB 를 직접 보는 IAM 사용자다 (docs/system-design/런치캐치_개발서버.md 10장).
  *
- * 허용하는 것은 셋뿐이다.
+ * 허용하는 것은 넷뿐이다.
  *   개발 서버 MySQL 로의 SSM 포트 포워딩 (셸 접속은 안 된다)
+ *   템플릿 생성 Bedrock 모델 호출 (서버와 같은 모델 하나)
  *   개발 앱 로그 읽기 (CloudWatch Logs /<project>/dev/app)
  *   팀 DB 계정 비밀번호 읽기 (SSM /<project>/dev/team-db-password)
  * 운영, S3, 다른 비밀값, 서버 셸은 모두 막힌다.
@@ -19,6 +20,26 @@ variable "dev_team_members" {
 
 resource "aws_iam_group" "dev_team" {
   name = "${var.project}-dev-team"
+}
+
+/*
+ * 로컬 백엔드가 부를 Bedrock 모델이다 (런치캐치_LLM_Bedrock.md 5.1절).
+ * terraform/ 과 dev/ 의 bedrock_model_id 와 같은 값이어야 한다. 루트가 달라 변수를 공유하지 못한다.
+ */
+variable "dev_team_bedrock_model_id" {
+  description = "팀원이 로컬에서 부를 수 있는 Bedrock 모델 ID 또는 추론 프로필 ID"
+  type        = string
+  default     = "jp.anthropic.claude-sonnet-4-6"
+}
+
+variable "dev_team_bedrock_region" {
+  description = "팀원이 Bedrock 을 부르는 리전"
+  type        = string
+  default     = "ap-northeast-1"
+}
+
+locals {
+  dev_team_bedrock_base_model = replace(var.dev_team_bedrock_model_id, "/^(global|apac|us|eu|jp|au|ca)\\./", "")
 }
 
 data "aws_iam_policy_document" "dev_team" {
@@ -118,6 +139,25 @@ data "aws_iam_policy_document" "dev_team" {
       "logs:GetLogRecord",
     ]
     resources = ["*"]
+  }
+
+  /*
+   * 로컬 백엔드에서 템플릿 생성을 진짜 모델로 확인한다. 서버와 같은 모델 하나만 연다.
+   * 추론 프로필로 부르면 프로필 ARN 과 그것이 가리키는 모델 ARN 이 함께 있어야 한다.
+   */
+  statement {
+    sid     = "InvokeTemplateModel"
+    effect  = "Allow"
+    actions = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
+    resources = concat(
+      local.dev_team_bedrock_base_model == var.dev_team_bedrock_model_id ? [] : [
+        "arn:aws:bedrock:${var.dev_team_bedrock_region}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.dev_team_bedrock_model_id}",
+      ],
+      [
+        "arn:aws:bedrock:::foundation-model/${local.dev_team_bedrock_base_model}",
+        "arn:aws:bedrock:*::foundation-model/${local.dev_team_bedrock_base_model}",
+      ],
+    )
   }
 
   statement {

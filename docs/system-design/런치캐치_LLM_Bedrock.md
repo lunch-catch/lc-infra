@@ -218,27 +218,43 @@ arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-6
 | 인증 | 기본 자격증명 체인. 서버에서는 인스턴스 프로필이 잡힌다. 키를 설정에 넣지 않는다 |
 | 설정 | `BEDROCK_MODEL_ID`, `BEDROCK_REGION` |
 | 시간 상한 | 30초 (`POSTER-004`). SDK 의 API 호출 타임아웃도 30초 안으로 건다 |
-| 로컬 개발 | Bedrock 을 부르지 않는다. 지금의 가짜 구현을 로컬 프로필에서 계속 쓴다 |
+| 로컬 개발 | 기본은 가짜 구현이다. 진짜 모델은 개발 팀 역할로 부른다 (5.1절) |
 
 ---
 
 ### 5.1 로컬에서 직접 부를 때
 
-로컬은 기본으로 가짜 구현을 쓰고, 진짜 호출은 개발 서버에서 확인한다. 로컬에서 진짜 모델을 불러야 할 때만 담당자 전용 키를 만든다 (`bootstrap/bedrock_local.tf` 의 `bedrock_local_users` 에 아이디를 넣고 apply).
+로컬은 기본으로 가짜 구현을 쓴다. 진짜 모델로 프롬프트를 빠르게 고쳐 보려면 개발 팀 역할(`lunchcatch-dev-team`, `bootstrap/dev_team.tf`)로 부른다 (2026-10-20). 키를 나눠 주지 않는다.
 
 | 항목 | 값 |
 |---|---|
-| IAM 사용자 | `lunchcatch-bedrock-local-<GitHub 아이디>`. 사람마다 따로 둔다. **지금은 없다** (2026-10-14 `yongmaru789` 용으로 만들었다가 담당자가 개발 서버에서 시험하기로 해 키와 사용자를 지웠다) |
-| 권한 | `bedrock_local_model_id` 모델의 호출만. 콘솔 로그인, S3, SSM, 다른 모델은 막힌다 (2026-10-14 확인) |
-| 키 발급 | Terraform 이 아니라 `aws iam create-access-key`. 상태 파일에 비밀 키를 남기지 않는다 |
-| 전달 | 채팅, 이슈, 슬랙 평문으로 보내지 않는다 |
-| 담당자 PC | `~/.aws/credentials` 의 `[lunchcatch-bedrock]` 프로필. 실행할 때 `AWS_PROFILE=lunchcatch-bedrock` 만 준다. `application-local.yml` 에 키를 넣지 않는다 |
-| 정리 | 시험이 끝나면 `aws iam update-access-key --status Inactive` 로 끄거나 사용자를 지운다 |
+| 누가 | 개발 팀 역할로 넘어오는 팀원 전원 (`런치캐치_개발서버.md` 10장의 준비를 마친 사람) |
+| 권한 | `dev_team_bedrock_model_id` 모델 하나의 호출만. 서버와 같은 `jp.anthropic.claude-sonnet-4-6`, 도쿄 |
+| 자격 증명 | 역할의 임시 자격 증명. 최대 4시간 |
+| 비용 | 템플릿 한 건에 약 0.04 USD (출력 약 2,600 토큰) |
+
+백엔드에 AWS SDK 의 `sts` 모듈이 없어서 `AWS_PROFILE=lunchcatch-dev` 만으로는 SDK 가 역할 프로필을 읽지 못한다. 임시 자격 증명을 환경변수로 넘긴다. 만료되면 첫 줄만 다시 실행한다.
+
+```bash
+# macOS
+eval "$(aws configure export-credentials --profile lunchcatch-dev --format env)"
+BEDROCK_MODEL_ID=jp.anthropic.claude-sonnet-4-6 BEDROCK_REGION=ap-northeast-1 ./gradlew bootRun
+```
+
+```powershell
+# Windows
+aws configure export-credentials --profile lunchcatch-dev --format powershell | Invoke-Expression
+$env:BEDROCK_MODEL_ID="jp.anthropic.claude-sonnet-4-6"; $env:BEDROCK_REGION="ap-northeast-1"; ./gradlew bootRun
+```
+
+`BEDROCK_MODEL_ID` 가 있으면 가짜 구현 대신 실제 Bedrock 구현이 뜬다. `application-local.yml` 에 키를 넣지 않는다.
+
+처음에는 담당자 전용 IAM 사용자와 액세스 키를 두었다(`bootstrap/bedrock_local.tf`, 2026-10-14). 역할 방식으로 바꾸며 지웠다.
 
 **로컬 모델(Ollama 등)을 쓰지 않은 이유.** 지금 모델 `gpt-oss-120b` 는 메모리 65 GB 이상이 필요해 노트북에서 돌지 않는다.
 `gpt-oss-20b` 는 돌지만 서버와 다른 모델이고, 노트북에서 템플릿 한 건이 30초 상한을 넘을 수 있으며, API 형식이 달라 로컬 전용 구현이 하나 더 생긴다.
 
-**모델을 바꾸면 `bootstrap/` 의 `bedrock_local_model_id` 도 함께 바꾼다.** `terraform/` 과 루트가 달라 변수를 공유하지 못한다.
+**모델을 바꾸면 `bootstrap/` 의 `dev_team_bedrock_model_id` 도 함께 바꾼다.** `terraform/` 과 루트가 달라 변수를 공유하지 못한다.
 
 ## 6. 남은 일
 
