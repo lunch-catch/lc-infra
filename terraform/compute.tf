@@ -88,8 +88,16 @@ locals {
    *
    * 주소 형식은 AWS 가 정한 것이라 계정과 리전과 이름만 있으면 결정된다. 셋 다 알려진 값이다.
    */
-  ecr_registry = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com"
-  app_image    = "${local.ecr_registry}/${var.project}"
+  ecr_registry = var.app_image_repository != "" ? split("/", var.app_image_repository)[0] : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com"
+  app_image    = var.app_image_repository != "" ? var.app_image_repository : "${local.ecr_registry}/${var.project}"
+
+  # 다른 계정의 저장소를 쓸 때 pull 권한이 가리킬 ARN 이다. 주소에서 계정과 이름을 뽑는다
+  app_image_repository_arn = var.app_image_repository != "" ? format(
+    "arn:aws:ecr:%s:%s:repository/%s",
+    var.region,
+    split(".", split("/", var.app_image_repository)[0])[0],
+    join("/", slice(split("/", var.app_image_repository), 1, length(split("/", var.app_image_repository)))),
+  ) : aws_ecr_repository.app.arn
 
   compose_args = {
     project            = var.project

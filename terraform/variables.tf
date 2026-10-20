@@ -463,3 +463,15 @@ variable "bedrock_region" {
   type        = string
   default     = "ap-northeast-1"
 }
+
+/*
+ * 앱 이미지를 받을 저장소다. 비우면 이 계정의 ECR(var.project)을 쓴다. 운영은 비운다.
+ *
+ * 팀원 계정의 부하 시험 환경(scripts/member-env.sh, #11)이 우리 계정의 개발 ECR 을 가리킬 때 쓴다.
+ * 운영 ECR 은 운영을 내리면 함께 지워져 그 계정 밖에서 기댈 수 없다.
+ */
+variable "app_image_repository" {
+  description = "앱 이미지 저장소 주소. 예: 762794225116.dkr.ecr.ap-northeast-2.amazonaws.com/lunchcatch-dev"
+  type        = string
+  default     = ""
+}

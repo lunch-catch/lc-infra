@@ -16,6 +16,40 @@ resource "aws_ecr_repository" "dev" {
   force_delete = true
 }
 
+/*
+ * Organization 의 팀원 계정이 부하 시험 환경(scripts/member-env.sh, #11)에서 이 이미지를 받아 간다.
+ * 받기만 연다. 올리기와 지우기는 이 계정의 개발 배포 역할만 한다.
+ * 운영 ECR 이 아니라 여기를 여는 것은 운영 ECR 이 운영을 내리면 함께 지워지기 때문이다.
+ */
+data "aws_iam_policy_document" "dev_ecr_org_pull" {
+  statement {
+    sid    = "OrgPull"
+    effect = "Allow"
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:BatchGetImage",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:DescribeImages",
+    ]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:PrincipalOrgID"
+      values   = [var.organization_id]
+    }
+  }
+}
+
+resource "aws_ecr_repository_policy" "dev" {
+  repository = aws_ecr_repository.dev.name
+  policy     = data.aws_iam_policy_document.dev_ecr_org_pull.json
+}
+
 # develop 병합마다 쌓이니 오래된 것을 지운다. 개발 서버가 되돌아갈 일은 드물다.
 resource "aws_ecr_lifecycle_policy" "dev" {
   repository = aws_ecr_repository.dev.name
