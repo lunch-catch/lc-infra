@@ -32,6 +32,16 @@ fi
 # 1 로 두면 stop/start 한 번에 이중화가 조용히 풀린다. AZ 하나를 잃으면 서비스가 멈춘다.
 DESIRED="${DESIRED:-2}"
 
+# 우리 계정에 부하 시험 한 벌(lunchcatch-lt, scripts/member-env.sh)이 떠 있으면 올리지 않는다.
+# 계정 vCPU 한도를 나눠 쓰고, 두 Prometheus 가 서로의 서버를 긁어 운영 경보가 시험 부하로 울린다.
+lt_vms=$(aws ec2 describe-instances --region "$REGION" --filters "Name=tag:Project,Values=$PROJECT-lt" \
+  "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+  --query 'length(Reservations[].Instances[])' --output text)
+if [ "$lt_vms" != "0" ]; then
+  printf 'ERROR: 부하 시험 환경 %s-lt 의 서버 %s 대가 떠 있다. ./scripts/member-env.sh down 뒤에 올린다\n' "$PROJECT" "$lt_vms" >&2
+  exit 1
+fi
+
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 
 # stop.sh 가 disable-alarm-actions 로 꺼 둔 것을 되돌린다.

@@ -422,7 +422,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "{container=\"lunchcatch\", role=\"app\"} |~ \"event=FEED_[A-Z_]*(FAILED|UNAVAILABLE)\""
+          "expr": "{container=~\"lunchcatch.*\", role=\"app\"} |~ \"event=FEED_[A-Z_]*(FAILED|UNAVAILABLE)\""
         }
       ]
     }
