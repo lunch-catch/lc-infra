@@ -1,6 +1,6 @@
 ﻿<#
  개발 서버 앱 로그를 본다 (docs/system-design/런치캐치_개발서버.md 10장). dev-logs.sh 의 Windows 판이다.
- CloudWatch Logs /lunchcatch/dev/app 를 읽는다. 배포로 컨테이너가 바뀌어도 14일 남는다.
+ CloudWatch Logs /lunchcatch/dev/app 를 읽는다. 배포로 컨테이너가 바뀌어도 30일 남는다.
 
    .\scripts\dev-logs.ps1                       최근 10분부터 실시간으로 따라간다
    .\scripts\dev-logs.ps1 2h                    최근 2시간부터

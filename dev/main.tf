@@ -150,7 +150,7 @@ data "aws_iam_policy_document" "assume_ec2" {
  */
 resource "aws_cloudwatch_log_group" "app" {
   name              = "/${var.project}/dev/app"
-  retention_in_days = 14
+  retention_in_days = 30
 }
 
 resource "aws_iam_role" "dev" {
