@@ -7,6 +7,7 @@
 #   AWS_PROFILE=me ./scripts/member-env.sh up --sha <sha>  개발 ECR 의 그 커밋 이미지로 띄운다
 #   AWS_PROFILE=me ./scripts/member-env.sh status          떠 있는 것과 정리 시각
 #   AWS_PROFILE=me ./scripts/member-env.sh down            전부 지운다
+#   AWS_PROFILE=lunchcatch ./scripts/member-env.sh up      우리 계정이면 lunchcatch-lt 로 띄운다
 #
 # MEMBER_ALERT_EMAIL 을 주면 예산 알림과 경보를 그 메일로 받는다. 처음 받는 확인 메일의 링크를 누른다.
 #
@@ -16,16 +17,20 @@
 # 차이(도메인 없음, 삭제 보호 해제, 자동 정리)만 사본에 얹는다. 그래서 운영 코드가 바뀌면
 # git pull 하고 up 하는 것만으로 팀원 환경에도 들어간다.
 #
-# 우리 계정(762794225116)에서는 돌지 않는다. 운영과 이름이 같아 부딪힌다.
+# 우리 계정(762794225116)에서는 접두사를 lunchcatch-lt 로 바꿔 띄운다. 운영과 이름이 같으면 부딪히기 때문이다.
+# 계정 한도와 관측(Prometheus 가 계정의 서버를 모두 찾는다)을 나눠 쓰므로 운영이 떠 있으면 멈춘다.
 set -euo pipefail
 
 CMD="${1:-}"
 shift || true
 
 PROJECT="lunchcatch"
+PROD_PROJECT="lunchcatch"
 REGION="ap-northeast-2"
 OUR_ACCOUNT="762794225116"
-APP_IMAGE_REPOSITORY="$OUR_ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$PROJECT-dev"
+# 개발 ECR 이다. 접두사를 바꿔 띄워도 이미지는 같은 저장소에서 받는다
+DEV_ECR="$PROD_PROJECT-dev"
+APP_IMAGE_REPOSITORY="$OUR_ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$DEV_ECR"
 HOURS="${MEMBER_HOURS:-4}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -42,7 +47,7 @@ done
 
 case "$CMD" in
   up|status|down) ;;
-  *) sed -n '3,9p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  *) sed -n '3,10p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
 
 for c in aws terraform git; do
@@ -51,9 +56,22 @@ done
 
 [ -n "${AWS_PROFILE:-}${AWS_ACCESS_KEY_ID:-}" ] || die "AWS_PROFILE 을 준다. 자기 계정의 관리자 프로필이다. 예: AWS_PROFILE=me"
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text) || die "자격 증명을 확인한다"
-[ "$ACCOUNT" != "$OUR_ACCOUNT" ] || die "우리 계정($OUR_ACCOUNT)이다. 운영과 부딪힌다. 자기 계정 프로필을 쓴다"
-
 WORK="$HOME/.lunchcatch-member/$ACCOUNT"
+if [ "$ACCOUNT" = "$OUR_ACCOUNT" ]; then
+  PROJECT="$PROD_PROJECT-lt"
+  WORK="$HOME/.lunchcatch-member/$ACCOUNT-lt"
+  # 운영이 조금이라도 남아 있으면 띄우지 않는다. down 과 status 는 막지 않는다
+  if [ "$CMD" = "up" ]; then
+    prod_db=$(aws rds describe-db-instances --db-instance-identifier "$PROD_PROJECT-db" \
+      --query 'DBInstances[0].DBInstanceStatus' --output text 2> /dev/null || true)
+    # 개발 서버도 Project 태그가 lunchcatch 라 Role 로 뺀다
+    prod_vms=$(aws ec2 describe-instances --filters "Name=tag:Project,Values=$PROD_PROJECT" \
+      "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+      --query "length(Reservations[].Instances[] | [?Tags[?Key=='Role'].Value | [0] != 'dev-server'])" --output text)
+    [ -z "$prod_db" ] && [ "$prod_vms" = "0" ] \
+      || die "우리 계정에 운영이 떠 있다 (DB ${prod_db:-없음}, 서버 $prod_vms 대). 운영을 내린 뒤 띄운다 (./scripts/destroy.sh)"
+  fi
+fi
 TF="$WORK/terraform"
 STATE_BUCKET="tfstate-$PROJECT-$ACCOUNT"
 export TF_IN_AUTOMATION=1
@@ -97,6 +115,7 @@ aws_profile          = ""
 allowed_account_ids  = ["$ACCOUNT"]
 domain_name          = ""
 alert_email          = "${MEMBER_ALERT_EMAIL:-}"
+project              = "$PROJECT"
 media_bucket_name    = "$PROJECT-media-$ACCOUNT"
 app_image_repository = "$APP_IMAGE_REPOSITORY"
 load_test_enabled    = true
@@ -172,7 +191,7 @@ check_fresh() {
 }
 
 latest_sha() {
-  aws ecr describe-images --region "$REGION" --registry-id "$OUR_ACCOUNT" --repository-name "$PROJECT-dev" \
+  aws ecr describe-images --region "$REGION" --registry-id "$OUR_ACCOUNT" --repository-name "$DEV_ECR" \
     --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text
 }
 
@@ -210,7 +229,7 @@ up)
   done
   [ -n "$ok" ] || log "   10분 안에 응답하지 않았다. status 와 앱 로그를 본다"
 
-  LT=$(aws ec2 describe-instances --filters "Name=tag:Role,Values=load-test" "Name=instance-state-name,Values=running" \
+  LT=$(aws ec2 describe-instances --filters "Name=tag:Project,Values=$PROJECT" "Name=tag:Role,Values=load-test" "Name=instance-state-name,Values=running" \
     --query 'Reservations[0].Instances[0].InstanceId' --output text)
   cat <<EOF
 
@@ -231,9 +250,9 @@ status)
   printf '이미지        %s\n' "$(aws ssm get-parameter --name "/$PROJECT/current-sha" --query Parameter.Value --output text 2> /dev/null || echo 없음)"
   printf '운영 모드     %s\n' "$(run_mode)"
   printf '\n떠 있는 인스턴스\n'
-  aws ec2 describe-instances --filters "Name=instance-state-name,Values=running,pending" \
+  aws ec2 describe-instances --filters "Name=tag:Project,Values=$PROJECT" "Name=instance-state-name,Values=running,pending" \
     --query 'Reservations[].Instances[].[Tags[?Key==`Name`]|[0].Value,InstanceId,InstanceType]' --output text | sed 's/^/  /'
-  MON=$(aws ec2 describe-instances --filters "Name=tag:Role,Values=monitoring" "Name=instance-state-name,Values=running" \
+  MON=$(aws ec2 describe-instances --filters "Name=tag:Project,Values=$PROJECT" "Name=tag:Role,Values=monitoring" "Name=instance-state-name,Values=running" \
     --query 'Reservations[0].Instances[0].InstanceId' --output text)
   if [ "$MON" != "None" ]; then
     cat <<EOF
@@ -251,13 +270,14 @@ down)
   tf_init
   # 정리 시각은 상관없다. 변수만 채운다
   terraform -chdir="$TF" destroy -auto-approve -input=false
-  log "2. 남은 것"
+  # 이 환경 것만 센다. 우리 계정에는 운영 흔적과 개발 서버가 함께 있다
+  log "2. 남은 것 ($PROJECT)"
   printf '  EC2 %s, RDS %s, ALB %s, NAT %s, EIP %s\n' \
-    "$(aws ec2 describe-instances --filters 'Name=instance-state-name,Values=running,pending,stopping,stopped' --query 'length(Reservations[].Instances[])' --output text)" \
-    "$(aws rds describe-db-instances --query 'length(DBInstances)' --output text)" \
-    "$(aws elbv2 describe-load-balancers --query 'length(LoadBalancers)' --output text)" \
-    "$(aws ec2 describe-nat-gateways --filter Name=state,Values=available,pending --query 'length(NatGateways)' --output text)" \
-    "$(aws ec2 describe-addresses --query 'length(Addresses)' --output text)"
+    "$(aws ec2 describe-instances --filters "Name=tag:Project,Values=$PROJECT" 'Name=instance-state-name,Values=running,pending,stopping,stopped' --query 'length(Reservations[].Instances[])' --output text)" \
+    "$(aws rds describe-db-instances --query "length(DBInstances[?DBInstanceIdentifier=='$PROJECT-db'])" --output text)" \
+    "$(aws elbv2 describe-load-balancers --query "length(LoadBalancers[?LoadBalancerName=='$PROJECT-alb'])" --output text)" \
+    "$(aws ec2 describe-nat-gateways --filter Name=state,Values=available,pending "Name=tag:Project,Values=$PROJECT" --query 'length(NatGateways)' --output text)" \
+    "$(aws ec2 describe-addresses --filters "Name=tag:Project,Values=$PROJECT" --query 'length(Addresses)' --output text)"
   log "끝. 시크릿(SSM)과 상태 버킷은 다음 up 을 위해 남긴다. 돈은 들지 않는다"
   ;;
 esac
