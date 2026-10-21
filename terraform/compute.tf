@@ -88,6 +88,10 @@ locals {
    *
    * 주소 형식은 AWS 가 정한 것이라 계정과 리전과 이름만 있으면 결정된다. 셋 다 알려진 값이다.
    */
+  # 스프링 프로필이다. 운영은 extra_spring_profiles 가 비어 prod, prod,batch 그대로다
+  app_profiles   = join(",", compact(concat(["prod"], split(",", var.extra_spring_profiles))))
+  batch_profiles = join(",", compact(concat(["prod", "batch"], split(",", var.extra_spring_profiles))))
+
   ecr_registry = var.app_image_repository != "" ? split("/", var.app_image_repository)[0] : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com"
   app_image    = var.app_image_repository != "" ? var.app_image_repository : "${local.ecr_registry}/${var.project}"
 
@@ -120,8 +124,8 @@ locals {
     github_org       = var.github_org
     refresh_env      = local.refresh_env
     alloy            = local.alloy_config
-    compose          = templatefile("${path.module}/templates/compose.yaml.tftpl", merge(local.compose_args, { profiles = "prod", role = "app" }))
-    unit             = templatefile("${path.module}/templates/systemd.service.tftpl", { project = var.project, profiles = "prod" })
+    compose          = templatefile("${path.module}/templates/compose.yaml.tftpl", merge(local.compose_args, { profiles = local.app_profiles, role = "app" }))
+    unit             = templatefile("${path.module}/templates/systemd.service.tftpl", { project = var.project, profiles = local.app_profiles })
   })
 
   batch_user_data = templatefile("${path.module}/templates/app-user-data.sh.tftpl", {
@@ -131,8 +135,8 @@ locals {
     github_org       = var.github_org
     refresh_env      = local.refresh_env
     alloy            = local.alloy_config
-    compose          = templatefile("${path.module}/templates/compose.yaml.tftpl", merge(local.compose_args, { profiles = "prod,batch", role = "batch" }))
-    unit             = templatefile("${path.module}/templates/systemd.service.tftpl", { project = var.project, profiles = "prod,batch" })
+    compose          = templatefile("${path.module}/templates/compose.yaml.tftpl", merge(local.compose_args, { profiles = local.batch_profiles, role = "batch" }))
+    unit             = templatefile("${path.module}/templates/systemd.service.tftpl", { project = var.project, profiles = local.batch_profiles })
   })
 }
 

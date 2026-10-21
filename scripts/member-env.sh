@@ -27,6 +27,8 @@ REGION="ap-northeast-2"
 OUR_ACCOUNT="762794225116"
 APP_IMAGE_REPOSITORY="$OUR_ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$PROJECT-dev"
 HOURS="${MEMBER_HOURS:-4}"
+# 부하 시험 환경은 항상 loadtest 로 뜬다. 결제는 토스 대신 목이 받는다 (lc-backend #715)
+EXTRA_PROFILES="loadtest"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
@@ -100,9 +102,22 @@ alert_email          = "${MEMBER_ALERT_EMAIL:-}"
 media_bucket_name    = "$PROJECT-media-$ACCOUNT"
 app_image_repository = "$APP_IMAGE_REPOSITORY"
 load_test_enabled    = true
+extra_spring_profiles = "$EXTRA_PROFILES"
 monthly_budget_usd   = "50"
 member_expires_at    = "$expires"
 EOF
+}
+
+# 앱과 배치가 켜는 스프링 프로필을 한 줄로 보인다. loadtest 가 있으면 결제는 토스 대신 목이다
+run_mode() {
+  local app batch
+  app=$(terraform -chdir="$TF" output -json spring_profiles 2> /dev/null | sed -n 's/.*"app": *"\([^"]*\)".*/\1/p')
+  batch=$(terraform -chdir="$TF" output -json spring_profiles 2> /dev/null | sed -n 's/.*"batch": *"\([^"]*\)".*/\1/p')
+  [ -n "$app" ] || { echo 없음; return; }
+  case ",$app," in
+    *,loadtest,*) echo "앱 $app, 배치 $batch (부하 시험, 결제는 목)" ;;
+    *) echo "앱 $app, 배치 $batch" ;;
+  esac
 }
 
 tf_init() {
@@ -206,6 +221,7 @@ up)
 
 완료. 자동 정리 $EXPIRES (UTC). 그 전에 끝나면 down 을 부른다.
 
+  운영 모드   $(run_mode)
   앱          http://$ALB
   부하 생성기 aws ssm start-session --target $LT
   Grafana     $0 status 가 접속 방법을 보여 준다
@@ -218,6 +234,7 @@ status)
   printf '정리 시각(UTC) %s\n' "$(terraform -chdir="$TF" output -raw member_expires_at 2> /dev/null || echo 없음)"
   printf 'ALB           %s\n' "$(terraform -chdir="$TF" output -raw alb_dns_name 2> /dev/null || echo 없음)"
   printf '이미지        %s\n' "$(aws ssm get-parameter --name "/$PROJECT/current-sha" --query Parameter.Value --output text 2> /dev/null || echo 없음)"
+  printf '운영 모드     %s\n' "$(run_mode)"
   printf '\n떠 있는 인스턴스\n'
   aws ec2 describe-instances --filters "Name=instance-state-name,Values=running,pending" \
     --query 'Reservations[].Instances[].[Tags[?Key==`Name`]|[0].Value,InstanceId,InstanceType]' --output text | sed 's/^/  /'

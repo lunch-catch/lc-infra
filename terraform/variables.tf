@@ -475,3 +475,13 @@ variable "app_image_repository" {
   type        = string
   default     = ""
 }
+
+/*
+ * 앱과 배치에 더 켤 스프링 프로필이다. 쉼표로 여럿을 준다. 운영은 비운다.
+ * 팀원 부하 시험 환경(scripts/member-env.sh, #11)이 loadtest 를 넣는다. 그러면 결제가 토스 대신 목으로 돈다(lc-backend #715).
+ */
+variable "extra_spring_profiles" {
+  description = "앱과 배치에 더 켤 스프링 프로필. 예: loadtest"
+  type        = string
+  default     = ""
+}
