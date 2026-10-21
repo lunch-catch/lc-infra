@@ -1,0 +1,19 @@
+# 개발 서버의 Prometheus 다 (개발 서버 문서 11장). 같은 compose 의 앱만 긁는다.
+# 레이블은 운영(observability/prometheus/prometheus.yml)과 같게 붙인다. 운영 대시보드를 그대로 쓰려는 것이다.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # 개발은 API 와 배치가 한 프로세스라 app 하나로 긁는다
+  - job_name: app
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["app:8081"]
+        labels:
+          instance: lunchcatch-dev
+          instance_id: dev

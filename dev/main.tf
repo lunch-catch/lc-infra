@@ -241,6 +241,37 @@ data "aws_iam_policy_document" "dev" {
     resources = ["${aws_cloudwatch_log_group.app.arn}:*"]
   }
 
+  # 같은 서버의 Grafana 가 앱 로그를 CloudWatch 데이터 소스로 읽는다 (개발 서버 문서 11장)
+  statement {
+    sid    = "GrafanaReadAppLogs"
+    effect = "Allow"
+    actions = [
+      "logs:FilterLogEvents",
+      "logs:GetLogEvents",
+      "logs:DescribeLogStreams",
+      "logs:StartQuery",
+      "logs:GetLogGroupFields",
+    ]
+    resources = [aws_cloudwatch_log_group.app.arn, "${aws_cloudwatch_log_group.app.arn}:*"]
+  }
+
+  # 계정 단위 호출이라 그룹으로 좁히지 못한다. 목록과 쿼리 결과, 데이터 소스 점검만 한다
+  statement {
+    sid    = "GrafanaListLogs"
+    effect = "Allow"
+    actions = [
+      "logs:DescribeLogGroups",
+      "logs:GetQueryResults",
+      "logs:StopQuery",
+      "logs:DescribeQueries",
+      "logs:GetLogRecord",
+      "cloudwatch:ListMetrics",
+      "cloudwatch:GetMetricData",
+      "ec2:DescribeRegions",
+    ]
+    resources = ["*"]
+  }
+
   # 계정 단위 호출이라 저장소를 좁히지 못한다. 실제로 받는 곳은 아래 문장이 정한다.
   statement {
     sid       = "EcrAuth"
@@ -288,6 +319,7 @@ locals {
     bedrock_region      = var.bedrock_region
     media_bucket        = var.media_bucket
     cdn_base_url        = var.cdn_base_url
+    grafana_host        = var.grafana_host
   })
 
   user_data = templatefile("${path.module}/templates/user-data.sh.tftpl", {
@@ -296,7 +328,7 @@ locals {
     api_host         = var.api_host
     refresh          = local.refresh
     compose          = local.compose
-    caddyfile        = templatefile("${path.module}/templates/Caddyfile.tftpl", { api_host = var.api_host })
+    caddyfile        = templatefile("${path.module}/templates/Caddyfile.tftpl", { api_host = var.api_host, grafana_host = var.grafana_host })
   })
 }
 
@@ -351,6 +383,14 @@ resource "aws_eip" "dev" {
 resource "aws_route53_record" "api" {
   zone_id = data.aws_route53_zone.main.zone_id
   name    = var.api_host
+  type    = "A"
+  ttl     = 60
+  records = [aws_eip.dev.public_ip]
+}
+
+resource "aws_route53_record" "grafana" {
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = var.grafana_host
   type    = "A"
   ttl     = 60
   records = [aws_eip.dev.public_ip]

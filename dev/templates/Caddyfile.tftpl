@@ -7,3 +7,9 @@ ${api_host} {
 	encode gzip
 	reverse_proxy app:8080
 }
+
+# 개발 Grafana 다 (개발 서버 문서 11장). 로그인은 Grafana 계정으로 한다. 가입은 막아 두었다
+${grafana_host} {
+	encode gzip
+	reverse_proxy grafana:3000
+}

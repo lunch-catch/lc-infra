@@ -1,0 +1,21 @@
+# 대시보드는 저장소가 갖는다. 화면에서 고친 것은 저장되지 않는다 (운영과 같다).
+apiVersion: 1
+
+providers:
+  # 운영과 같은 대시보드다. 개발에 없는 RDS, ALB, 배치 서버, 호스트 지표 패널은 비어 보인다
+  - name: lunchcatch
+    type: file
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards/common
+
+  # 개발에만 있는 대시보드다
+  - name: lunchcatch-dev
+    type: file
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards/dev

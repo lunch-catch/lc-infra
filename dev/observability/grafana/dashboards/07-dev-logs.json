@@ -1,0 +1,169 @@
+{
+  "uid": "fm-dev-logs",
+  "title": "07 개발 앱 로그",
+  "description": "개발 서버 앱 로그(CloudWatch Logs /lunchcatch/dev/app)다. 30일 남는다.",
+  "tags": [
+    "lunchcatch",
+    "dev"
+  ],
+  "timezone": "browser",
+  "editable": false,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "레벨별 로그 수 (5분)",
+      "description": "CloudWatch Logs Insights 로 센다. ERROR 가 늘면 아래 로그에서 원인을 본다.",
+      "id": 1,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 7
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Logs",
+          "region": "default",
+          "id": "",
+          "expression": "fields level | filter ispresent(level) | stats count(*) as n by bin(5m), level",
+          "logGroups": [
+            {
+              "arn": "arn:aws:logs:ap-northeast-2:762794225116:log-group:/lunchcatch/dev/app",
+              "name": "/lunchcatch/dev/app"
+            }
+          ],
+          "statsGroups": []
+        }
+      ]
+    },
+    {
+      "type": "logs",
+      "title": "WARN, ERROR 로그",
+      "description": "최근 경고와 오류다. 줄을 펼치면 stack_trace 가 보인다.",
+      "id": 2,
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 24,
+        "h": 12
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Logs",
+          "region": "default",
+          "id": "",
+          "expression": "fields @timestamp, level, logger_name, message, stack_trace | filter level in ['WARN','ERROR'] | sort @timestamp desc | limit 200",
+          "logGroups": [
+            {
+              "arn": "arn:aws:logs:ap-northeast-2:762794225116:log-group:/lunchcatch/dev/app",
+              "name": "/lunchcatch/dev/app"
+            }
+          ],
+          "statsGroups": []
+        }
+      ]
+    },
+    {
+      "type": "logs",
+      "title": "전체 로그",
+      "description": "최근 로그 500줄이다. 위의 검색창 대신 Explore 에서 CloudWatch 를 고르면 쿼리를 바꿔 볼 수 있다.",
+      "id": 3,
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 24,
+        "h": 14
+      },
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "cloudwatch"
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "cloudwatch"
+          },
+          "queryMode": "Logs",
+          "region": "default",
+          "id": "",
+          "expression": "fields @timestamp, level, logger_name, message | sort @timestamp desc | limit 500",
+          "logGroups": [
+            {
+              "arn": "arn:aws:logs:ap-northeast-2:762794225116:log-group:/lunchcatch/dev/app",
+              "name": "/lunchcatch/dev/app"
+            }
+          ],
+          "statsGroups": []
+        }
+      ]
+    }
+  ]
+}

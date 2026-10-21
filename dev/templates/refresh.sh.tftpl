@@ -24,6 +24,7 @@ KAKAO_CLIENT_SECRET=$(sec "$P/kakao-client-secret")
 KAKAO_APP_ID=$(sec "$P/kakao-app-id")
 KAKAO_ADMIN_KEY=$(sec "$P/kakao-admin-key")
 TOSS_SECRET_KEY=$(sec "$P/dev/toss-secret-key" 2>/dev/null || true)
+GRAFANA_ADMIN_PASSWORD=$(sec "$P/dev/grafana-admin-password" 2>/dev/null || true)
 ENV
 umask 022
 
@@ -44,6 +45,45 @@ ensure_team_db_user() {
     GRANT SELECT, INSERT, UPDATE, DELETE ON ${project}.* TO 'team'@'%';"
 }
 
+# Prometheus 와 Grafana 설정, 대시보드는 lc-infra 에 있다. 저장소가 PUBLIC 이라 토큰 없이 받는다.
+# 매번 main 으로 맞추므로 대시보드를 고쳐 병합하면 다음 refresh 에 들어간다
+if [ -d "$DIR/infra/.git" ]; then
+  git -C "$DIR/infra" fetch -q --depth 1 origin main && git -C "$DIR/infra" reset -q --hard origin/main
+else
+  git clone -q --depth 1 https://github.com/lunch-catch/lc-infra.git "$DIR/infra"
+fi
+
+# Grafana 가 인터넷에 열려 있다. 관리자 비밀번호가 없으면 기본값(admin)으로 뜨므로 Grafana 를 빼고 올린다
+SERVICES=""
+if ! grep -q '^GRAFANA_ADMIN_PASSWORD=.' "$DIR/.env"; then
+  echo "SSM $P/dev/grafana-admin-password 가 없다. Grafana 를 빼고 올린다 (dev-up.sh 가 만든다)"
+  SERVICES="caddy app mysql valkey prometheus"
+fi
+
+# 관리자 비밀번호를 SSM 값으로 맞추고 팀 공용 보기 계정(team)을 만든다. 비밀번호는 SSM 에만 있다
+ensure_grafana_team_user() {
+  local admin team id
+  admin=$(sec "$P/dev/grafana-admin-password" 2>/dev/null || true)
+  team=$(sec "$P/dev/grafana-team-password" 2>/dev/null || true)
+  [ -n "$admin" ] || return 0
+  for _ in $(seq 1 60); do
+    curl -fsS http://127.0.0.1:3000/api/health > /dev/null 2>&1 && break
+    sleep 2
+  done
+  # 환경변수의 관리자 비밀번호는 Grafana DB 를 처음 만들 때만 들어간다. 바뀐 값을 매번 다시 넣는다
+  docker compose exec -T grafana grafana cli admin reset-admin-password "$admin" > /dev/null 2>&1 || true
+  [ -n "$team" ] || { echo "SSM $P/dev/grafana-team-password 가 없다. 팀 계정을 건너뛴다"; return 0; }
+  id=$(curl -fsS -u "admin:$admin" "http://127.0.0.1:3000/api/users/lookup?loginOrEmail=team" 2>/dev/null \
+    | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])' 2>/dev/null || true)
+  if [ -z "$id" ]; then
+    curl -fsS -u "admin:$admin" -H 'Content-Type: application/json' http://127.0.0.1:3000/api/admin/users \
+      -d "{\"name\":\"team\",\"login\":\"team\",\"email\":\"team@lunchcatch.local\",\"password\":\"$team\"}" > /dev/null
+  else
+    curl -fsS -u "admin:$admin" -H 'Content-Type: application/json' -X PUT \
+      "http://127.0.0.1:3000/api/admin/users/$id/password" -d "{\"password\":\"$team\"}" > /dev/null
+  fi
+}
+
 cd "$DIR"
 if [ -z "$GIT_SHA" ]; then
   echo "SSM $P/dev/current-sha 가 없다. lc-backend 의 deploy-dev 워크플로를 한 번 돌려라. app 을 빼고 올린다"
@@ -55,8 +95,10 @@ fi
 # 토큰이 12시간짜리라 매번 받는다. 호스트에 둘 자격증명은 없다. 인스턴스 역할이 곧 pull 권한이다
 aws ecr get-login-password --region "$R" | docker login --username AWS --password-stdin ${registry}
 docker compose pull app
-docker compose up -d --remove-orphans
+# SERVICES 를 따옴표 없이 넘긴다. 비어 있으면 전부, 있으면 그 목록만 올린다
+docker compose up -d --remove-orphans $SERVICES
 ensure_team_db_user
+ensure_grafana_team_user
 
 # 디스크가 20 GB 라 지난 이미지를 치운다. 이미지마다 SHA 태그가 붙어 있어 -a 가 없으면 하나도 지워지지 않는다.
 # 2026-10-15 이미지 57개(12 GB)가 쌓여 디스크가 가득 차고 배포가 실패했다. 돌고 있는 컨테이너의 이미지는 남는다
