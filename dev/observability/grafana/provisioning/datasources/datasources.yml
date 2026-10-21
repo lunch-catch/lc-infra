@@ -1,0 +1,23 @@
+# 개발 Grafana 의 데이터 소스다. uid 는 운영과 같게 둔다. 대시보드 JSON 이 uid 로 찾는다.
+# 운영의 Loki 대신 CloudWatch Logs 를 쓴다. 서버 역할로 인증하고 키를 두지 않는다.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+
+  - name: CloudWatch
+    uid: cloudwatch
+    type: cloudwatch
+    editable: false
+    jsonData:
+      authType: default
+      defaultRegion: ap-northeast-2
+      logGroups:
+        - arn: arn:aws:logs:ap-northeast-2:762794225116:log-group:/lunchcatch/dev/app
+          name: /lunchcatch/dev/app

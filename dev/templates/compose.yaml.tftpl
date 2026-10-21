@@ -126,8 +126,51 @@ services:
       - valkey-data:/data
     mem_limit: 128m
 
+  # 앱 지표를 긁는다 (개발 서버 문서 11장). 설정은 refresh 가 받아 두는 lc-infra 사본(./infra)에서 읽는다
+  prometheus:
+    image: prom/prometheus:v3.13.1
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./infra/dev/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    mem_limit: 384m
+
+  # https://${grafana_host} 로 연다. 밖에서는 Caddy 를 거쳐서만 닿는다
+  # 127.0.0.1 에도 여는 것은 refresh 가 팀 계정을 맞출 때 서버 안에서 API 를 부르려는 것이다
+  grafana:
+    image: grafana/grafana:12.4.3
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SERVER_ROOT_URL: "https://${grafana_host}"
+      GF_SECURITY_ADMIN_USER: "admin"
+      GF_SECURITY_ADMIN_PASSWORD: "$${GRAFANA_ADMIN_PASSWORD}"
+      # 인터넷에 열려 있어 가입과 익명 접근을 막는다. 계정은 refresh 가 만든다
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      # CloudWatch 데이터 소스가 서버 역할로 인증한다
+      AWS_REGION: "${region}"
+    volumes:
+      - ./infra/dev/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/observability/grafana/dashboards:/etc/grafana/dashboards/common:ro
+      - ./infra/dev/observability/grafana/dashboards:/etc/grafana/dashboards/dev:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    mem_limit: 256m
+
 volumes:
   caddy-data:
   caddy-config:
   mysql-data:
   valkey-data:
+  prometheus-data:
+  grafana-data:

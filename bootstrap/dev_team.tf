@@ -161,10 +161,14 @@ data "aws_iam_policy_document" "dev_team" {
   }
 
   statement {
-    sid       = "ReadTeamDbPassword"
-    effect    = "Allow"
-    actions   = ["ssm:GetParameter"]
-    resources = ["arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${var.project}/dev/team-db-password"]
+    sid     = "ReadTeamDbPassword"
+    effect  = "Allow"
+    actions = ["ssm:GetParameter"]
+    resources = [
+      "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${var.project}/dev/team-db-password",
+      # 개발 Grafana 의 팀 공용 보기 계정(team) 비밀번호다 (개발 서버 문서 11장)
+      "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${var.project}/dev/grafana-team-password",
+    ]
   }
 
   statement {

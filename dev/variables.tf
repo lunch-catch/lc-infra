@@ -52,12 +52,12 @@ variable "frontend_origins" {
 
 /*
  * 메모리 2 GB 에 앱, MySQL, Valkey, Caddy 를 함께 올린다. 컨테이너마다 상한을 건다 (문서 4장).
- * 부족하면 t3.medium 으로 올린다. 시간당 두 배다.
+ * 2026-10-21 Grafana 와 Prometheus 를 더하며 t3.medium(4 GB)으로 올렸다. t3.small 의 시간당 두 배다.
  */
 variable "instance_type" {
   description = "개발 서버 인스턴스 타입"
   type        = string
-  default     = "t3.small"
+  default     = "t3.medium"
 }
 
 # 운영 VPC(10.0.0.0/16)와 겹치지 않게 둔다. 나중에 둘을 이을 일이 생겨도 충돌하지 않는다.
@@ -98,4 +98,11 @@ variable "cdn_base_url" {
   description = "개발 이미지 주소. 앱이 이미지 key 앞에 붙인다"
   type        = string
   default     = "https://cdn.dev.lunchcatch.com"
+}
+
+# 개발 Grafana 주소다. Caddy 가 인증서를 받고 Grafana 로 넘긴다 (개발 서버 문서 11장)
+variable "grafana_host" {
+  description = "개발 Grafana 도메인"
+  type        = string
+  default     = "grafana.dev.lunchcatch.com"
 }
