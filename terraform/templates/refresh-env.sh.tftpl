@@ -62,6 +62,16 @@ KAKAO_ADMIN_KEY=$(sec kakao-admin-key)
 # 토스페이먼츠 비밀키. 없으면 앱이 키 자리표시자 글자로 인증해 토스가 빈 500 을 준다 (2026-10-21)
 TOSS_SECRET_KEY=$(sec toss-secret-key)
 
+# 운영 모드다. scripts/apply.sh --mode 가 정하고 배포와 재부팅 때마다 여기서 다시 읽는다.
+# loadtest 면 스프링 프로필에 loadtest 가 붙어 결제를 토스 대신 앱 안의 목이 받는다 (lc-backend #715).
+# 값이 없거나 모르는 값이면 loadtest 로 뜬다. 실결제는 live 를 적어 둔 때만 돈다.
+RUN_MODE=$(aws ssm get-parameter --name "$P/run-mode" --region "$R" --query 'Parameter.Value' --output text 2> /dev/null || echo loadtest)
+case "$RUN_MODE" in
+  live) PROFILE_SUFFIX="" ;;
+  loadtest) PROFILE_SUFFIX=",loadtest" ;;
+  *) echo "run-mode 값 $RUN_MODE 을 모른다. loadtest 로 뜬다" >&2; RUN_MODE=loadtest; PROFILE_SUFFIX=",loadtest" ;;
+esac
+
 TOKEN=$(curl -fsS -X PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds: 60')
 INSTANCE_ID=$(curl -fsS -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
 
@@ -92,5 +102,7 @@ KAKAO_ADMIN_KEY=$KAKAO_ADMIN_KEY
 TOSS_SECRET_KEY=$TOSS_SECRET_KEY
 APP_INSTANCE_ID=$INSTANCE_ID
 BATCH_SCHEDULER_ENABLED=$BATCH_SCHEDULER_ENABLED
+RUN_MODE=$RUN_MODE
+PROFILE_SUFFIX=$PROFILE_SUFFIX
 ENV
 chmod 600 /opt/${project}/.env

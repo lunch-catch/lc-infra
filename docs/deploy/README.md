@@ -100,6 +100,15 @@ Terraform 이 값이나 desired 를 건드리면 배포가 깨진다. 그래서 
 ./scripts/deploy.sh       # main 최신을 배포한다. 6~8분
 ```
 
+**운영 모드.** 기본은 `loadtest` 다. 스프링 프로필에 `loadtest` 가 붙어 결제를 토스 대신 앱 안의 목(lc-backend #715)이 받고, 토스 키가 비어 있어도 올라간다. 실결제는 `./scripts/apply.sh --mode live` 로 올린다. 이때만 토스 키를 검사한다.
+
+| 모드 | 앱 / 배치 프로필 | 결제 |
+|---|---|---|
+| `loadtest` (기본) | `prod,loadtest` / `prod,batch,loadtest` | 목. 승인 지연 200ms |
+| `live` | `prod` / `prod,batch` | 토스 |
+
+모드는 SSM `/lunchcatch/run-mode` 에 남고, 서버는 배포와 재부팅 때마다 이 값을 읽는다 (`refresh-env`). `apply.sh` 와 `deploy.sh` 가 끝날 때 `운영 모드` 줄로 보여 준다. `live` 로 돌던 것을 `--mode` 없이 다시 apply 하면 목으로 바뀌어 실결제가 끊기므로 `apply.sh` 가 멈춘다. 그때는 `--mode live` 나 `--mode loadtest` 를 준다.
+
 중간에 **확인 메일의 링크를 눌러야 한다.** SNS 구독이 파괴되고 다시 만들어지므로 그렇고, AWS 가 사람 확인을 요구해 자동화할 수 없다. 재구축마다 남는 유일한 수동 작업이다.
 
 `apply.sh` 는 오래 걸린다. **중간에 끊으면 상태 잠금과 고아 리소스가 남는다.** 그때는 이렇게 푼다.

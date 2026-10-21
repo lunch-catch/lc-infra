@@ -105,6 +105,14 @@ member_expires_at    = "$expires"
 EOF
 }
 
+# 운영 모드를 한 줄로 보인다. 서버는 배포와 재부팅 때 SSM run-mode 를 읽어 프로필을 정한다
+run_mode() {
+  case "$(aws ssm get-parameter --name "/$PROJECT/run-mode" --query Parameter.Value --output text 2> /dev/null)" in
+    live) echo "live (결제는 토스)" ;;
+    *) echo "loadtest (부하 시험, 결제는 목)" ;;
+  esac
+}
+
 tf_init() {
   terraform -chdir="$TF" init -input=false -reconfigure \
     -backend-config="bucket=$STATE_BUCKET" \
@@ -140,6 +148,8 @@ ensure_secrets() {
   put grafana-admin-password "$(openssl rand -hex 12)"
   # 저장소가 PUBLIC 이라 토큰 없이 받는다 (monitoring-user-data)
   put github-token none
+  # 부하 시험 환경은 항상 loadtest 다. 결제는 토스 대신 앱 안의 목이 받는다 (lc-backend #715)
+  aws ssm put-parameter --name "/$PROJECT/run-mode" --value loadtest --type String --overwrite > /dev/null
   for n in critical warning watchdog; do put "slack-webhook-$n" "https://hooks.slack.com/services/none"; done
   # 부하 시험은 카카오를 부르지 않는다. 기동만 되게 채운다
   put kakao-client-id none
@@ -206,6 +216,7 @@ up)
 
 완료. 자동 정리 $EXPIRES (UTC). 그 전에 끝나면 down 을 부른다.
 
+  운영 모드   $(run_mode)
   앱          http://$ALB
   부하 생성기 aws ssm start-session --target $LT
   Grafana     $0 status 가 접속 방법을 보여 준다
@@ -218,6 +229,7 @@ status)
   printf '정리 시각(UTC) %s\n' "$(terraform -chdir="$TF" output -raw member_expires_at 2> /dev/null || echo 없음)"
   printf 'ALB           %s\n' "$(terraform -chdir="$TF" output -raw alb_dns_name 2> /dev/null || echo 없음)"
   printf '이미지        %s\n' "$(aws ssm get-parameter --name "/$PROJECT/current-sha" --query Parameter.Value --output text 2> /dev/null || echo 없음)"
+  printf '운영 모드     %s\n' "$(run_mode)"
   printf '\n떠 있는 인스턴스\n'
   aws ec2 describe-instances --filters "Name=instance-state-name,Values=running,pending" \
     --query 'Reservations[].Instances[].[Tags[?Key==`Name`]|[0].Value,InstanceId,InstanceType]' --output text | sed 's/^/  /'
