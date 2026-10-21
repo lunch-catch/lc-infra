@@ -1,0 +1,44 @@
+# Loki 설정이다. 이미지의 기본 설정(/etc/loki/local-config.yaml)에 보존 기간만 더했다.
+# 지표(Prometheus 15일)와 같이 로그도 15일만 둔다. 기간이 없으면 지우지 않아 모니터링 디스크(20 GB)가 차면 멈춘다.
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+# 보존 기간을 넘긴 로그는 compactor 가 지운다. 이것을 켜지 않으면 retention_period 는 아무것도 지우지 않는다
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true
+  delete_request_store: filesystem
+
+limits_config:
+  retention_period: 360h
+
+ruler:
+  alertmanager_url: http://localhost:9093
+
+# 사용 통계를 Grafana Labs 로 보내지 않는다
+analytics:
+  reporting_enabled: false
