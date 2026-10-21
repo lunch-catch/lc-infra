@@ -35,7 +35,7 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       # 부하 시험 결과를 되짚어 보려면 이 정도가 필요하다.
-      - --storage.tsdb.retention.time=15d
+      - --storage.tsdb.retention.time=30d
       # 설정을 고치고 재기동 없이 반영하는 경로다 (OPS-2-18).
       - --web.enable-lifecycle
       # k6 가 부하 시험 결과를 밀어 넣는다. 기본값은 긁어오기만 하고 받지 않는다.
@@ -106,7 +106,7 @@ services:
       - "3100:3100"
     volumes:
       - loki-data:/loki
-      # 기본 설정 자리에 덮어 쓴다. 보존 기간 15일이 들어 있다
+      # 기본 설정 자리에 덮어 쓴다. 보존 기간 30일이 들어 있다
       - ./loki/config.yaml:/etc/loki/local-config.yaml:ro
 
   alertmanager:
