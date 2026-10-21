@@ -10,6 +10,9 @@
 #
 #   ./deploy.sh              lc-backend main 의 최신 커밋을 배포한다
 #   ./deploy.sh <커밋 SHA>   그 커밋을 배포한다. 롤백도 이 형태다
+#
+# 8번 관찰 구간(기본 300초)에서 신규의 5xx 가 구 버전의 2배를 넘으면 스스로 되돌린다.
+# OBSERVE_SECONDS=0 이면 관찰 없이 지금까지처럼 바로 넘어간다.
 
 set -euo pipefail
 
@@ -206,6 +209,101 @@ else
 fi
 log "7. 스모크 (ALB 경유) $smoke_url"
 curl -fsS --max-time 10 "$smoke_url" > /dev/null
+
+# 8. 관찰 구간. 구 인스턴스를 지우기 전에 신규가 실제 트래픽에서 버티는지 본다 (무중단배포 7절).
+#
+#    신규와 구 버전이 같은 시간에 같은 트래픽을 받는다. 그래서 신규의 5xx 비율을 같은 구간의
+#    구 버전과 견준다. DB 나 외부 서비스가 죽으면 양쪽이 함께 실패해 롤백하지 않는다.
+#    롤백으로 낫는 것은 신규 코드의 문제뿐이라 그것만 잡는다.
+#
+#    이 구간에서 되돌리는 것은 신규만 지우는 일이다. 구 버전이 그대로 서비스 중이라 1~2분이면 된다.
+#    9번을 지나면 구 버전이 없어 rollback.sh(6~8분)로 되돌린다.
+#
+#    지표는 모니터링의 Prometheus 에 묻는다. 러너는 VPC 밖이라 6번처럼 SSM 으로 그 안에서 묻는다.
+#    Prometheus 에 묻지 못하면 막지 않고 넘어간다. 관측 장애로 배포까지 멈추면 안 된다.
+#    대신 그동안에도 신규의 healthy 는 계속 본다.
+OBSERVE_SECONDS="${OBSERVE_SECONDS:-300}"
+# 신규가 이만큼은 받아야 비율을 믿는다. 트래픽이 적은 시간에는 판정 없이 넘어간다
+OBSERVE_MIN_REQUESTS="${OBSERVE_MIN_REQUESTS:-30}"
+# 구 버전이 0% 여도 한두 건으로 롤백하지 않게 바닥을 둔다
+OBSERVE_FLOOR_RATIO="${OBSERVE_FLOOR_RATIO:-0.01}"
+
+mon_id=$(aws ec2 describe-instances --region "$REGION" \
+  --filters "Name=tag:Role,Values=monitoring" "Name=instance-state-name,Values=running" \
+  --query 'Reservations[0].Instances[0].InstanceId' --output text)
+
+# PromQL 하나를 모니터링 안에서 묻고 스칼라 값을 돌려준다. 결과가 없으면 0, 묻지 못하면 빈 값
+prom_value() {
+  local q=$1 enc cmd st out
+  [ -n "$mon_id" ] && [ "$mon_id" != "None" ] || return 0
+  command -v jq > /dev/null || return 0
+  enc=$(jq -rn --arg q "$q" '$q|@uri')
+  cmd=$(aws ssm send-command --instance-ids "$mon_id" --document-name AWS-RunShellScript --region "$REGION" \
+    --parameters "commands=[\"curl -fsS --max-time 5 'http://localhost:9090/api/v1/query?query=$enc'\"]" \
+    --query 'Command.CommandId' --output text 2>/dev/null) || return 0
+  for _ in $(seq 1 10); do
+    sleep 2
+    st=$(aws ssm get-command-invocation --command-id "$cmd" --instance-id "$mon_id" --region "$REGION" \
+      --query 'Status' --output text 2>/dev/null || echo Pending)
+    case "$st" in Success|Failed|TimedOut|Cancelled) break ;; esac
+  done
+  [ "$st" = Success ] || return 0
+  out=$(aws ssm get-command-invocation --command-id "$cmd" --instance-id "$mon_id" --region "$REGION" \
+    --query 'StandardOutputContent' --output text 2>/dev/null) || return 0
+  printf '%s' "$out" | jq -r '.data.result[0].value[1] // "0"' 2>/dev/null || true
+}
+
+rollback_new() {
+  log "8. 롤백. 신규만 종료하고 구 버전을 유지한다: $*"
+  for id in $new_ids; do
+    aws autoscaling terminate-instance-in-auto-scaling-group --instance-id "$id" \
+      --should-decrement-desired-capacity --region "$REGION" > /dev/null || true
+  done
+  # current-sha 는 on_exit 가 앞 값으로 되돌린다 (app_switched 가 아직 0 이다)
+  exit 1
+}
+
+if [ "$OBSERVE_SECONDS" -gt 0 ]; then
+  log "8. 관찰 ${OBSERVE_SECONDS}초. 신규 $(echo $new_ids) 와 구 버전의 5xx 를 견준다"
+  started=$(date +%s)
+  while [ $(( $(date +%s) - started )) -lt "$OBSERVE_SECONDS" ]; do
+    for id in $new_ids; do
+      h=$(aws elbv2 describe-target-health --target-group-arn "$tg_arn" --targets "Id=$id" --region "$REGION" \
+        --query 'TargetHealthDescriptions[0].TargetHealth.State' --output text 2>/dev/null || echo unknown)
+      [ "$h" = healthy ] || rollback_new "신규 $id 가 관찰 중 $h 가 됐다"
+    done
+    sleep 15
+  done
+
+  new_re=$(echo $new_ids | tr ' ' '|')
+  old_re=$(echo $old_ids | tr ' ' '|')
+  win="${OBSERVE_SECONDS}s"
+  sel_new="job=\"app\",instance_id=~\"$new_re\""
+  sel_old="job=\"app\",instance_id=~\"$old_re\""
+  new_total=$(prom_value "sum(increase(http_server_requests_seconds_count{$sel_new}[$win]))")
+  new_err=$(prom_value "sum(increase(http_server_requests_seconds_count{$sel_new,status=~\"5..\"}[$win]))")
+  old_total=$(prom_value "sum(increase(http_server_requests_seconds_count{$sel_old}[$win]))")
+  old_err=$(prom_value "sum(increase(http_server_requests_seconds_count{$sel_old,status=~\"5..\"}[$win]))")
+
+  if [ -z "$new_total" ] || [ -z "$old_total" ]; then
+    log "   Prometheus 에 묻지 못했다. 5xx 판정 없이 넘어간다 (healthy 는 관찰 내내 유지됐다)"
+  else
+    verdict=$(awk -v nt="$new_total" -v ne="${new_err:-0}" -v ot="$old_total" -v oe="${old_err:-0}" \
+      -v min="$OBSERVE_MIN_REQUESTS" -v floor="$OBSERVE_FLOOR_RATIO" 'BEGIN {
+        nr = (nt > 0) ? ne / nt : 0
+        or_ = (ot > 0) ? oe / ot : 0
+        limit = 2 * or_; if (limit < floor) limit = floor
+        printf "%s %.4f %.4f %.4f\n", (nt < min) ? "few" : ((nr > limit) ? "bad" : "ok"), nr, or_, limit
+      }')
+    read -r result new_ratio old_ratio limit <<< "$verdict"
+    log "   신규 요청 ${new_total%.*}건 5xx ${new_ratio}, 구 버전 요청 ${old_total%.*}건 5xx ${old_ratio}, 한도 ${limit}"
+    case "$result" in
+      bad) rollback_new "신규 5xx 비율 $new_ratio 가 한도 $limit 을 넘었다 (구 버전의 2배, 바닥 $OBSERVE_FLOOR_RATIO)" ;;
+      few) log "   신규 요청이 ${OBSERVE_MIN_REQUESTS}건 미만이라 비율로 판정하지 않는다" ;;
+      ok) log "   통과" ;;
+    esac
+  fi
+fi
 
 # 9. 3번에서 기록한 구 인스턴스만 종료한다.
 #    desired 를 함께 줄여 원래 대수로 돌아간다.
