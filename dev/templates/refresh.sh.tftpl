@@ -23,6 +23,7 @@ KAKAO_CLIENT_ID=$(sec "$P/kakao-client-id")
 KAKAO_CLIENT_SECRET=$(sec "$P/kakao-client-secret")
 KAKAO_APP_ID=$(sec "$P/kakao-app-id")
 KAKAO_ADMIN_KEY=$(sec "$P/kakao-admin-key")
+TOSS_SECRET_KEY=$(sec "$P/dev/toss-secret-key" 2>/dev/null || true)
 ENV
 umask 022
 

@@ -54,7 +54,7 @@ bootstrap 상태 파일이 없는데 버킷 tfstate-$PROJECT 은 이미 있다.
   cd bootstrap
   terraform import aws_s3_bucket.tfstate tfstate-$PROJECT
 
-시크릿 11개는 Terraform 이 관리하지 않으므로 import 하지 않는다.
+시크릿 12개는 Terraform 이 관리하지 않으므로 import 하지 않는다.
 아래 3단계가 없는 것만 다시 만든다.
 EOF
 )"
@@ -88,6 +88,7 @@ kakao-client-id|Kakao OAuth REST API key
 kakao-client-secret|Kakao OAuth client secret
 kakao-app-id|Kakao app id. unlink webhook 이 소유자 확인에 쓴다
 kakao-admin-key|Kakao admin key. 로그아웃과 연결 해제에 쓴다
+toss-secret-key|Toss Payments secret key. 결제 승인과 조회에 쓴다
 SECRETS
 
 # 3. 시크릿이 다 찼는지 본다.
