@@ -1,5 +1,5 @@
 # Loki 설정이다. 이미지의 기본 설정(/etc/loki/local-config.yaml)에 보존 기간만 더했다.
-# 지표(Prometheus 15일)와 같이 로그도 15일만 둔다. 기간이 없으면 지우지 않아 모니터링 디스크(20 GB)가 차면 멈춘다.
+# 지표(Prometheus 30일)와 같이 로그도 30일만 둔다. 기간이 없으면 지우지 않아 모니터링 디스크(20 GB)가 차면 멈춘다.
 auth_enabled: false
 
 server:
@@ -34,7 +34,7 @@ compactor:
   delete_request_store: filesystem
 
 limits_config:
-  retention_period: 360h
+  retention_period: 720h
 
 ruler:
   alertmanager_url: http://localhost:9093
