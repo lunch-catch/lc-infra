@@ -146,6 +146,8 @@ ensure_secrets() {
   put kakao-client-secret none
   put kakao-app-id 0
   put kakao-admin-key none
+  # 부하 시험은 결제를 부르지 않는다. 비어 있으면 앱이 뜨지 않아 자리만 채운다
+  put toss-secret-key none
 }
 
 # 띄우기 전에 코드가 원격과 같은지 본다. 뒤처진 코드로 띄우면 운영 변경이 빠진다
