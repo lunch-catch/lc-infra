@@ -27,8 +27,6 @@ REGION="ap-northeast-2"
 OUR_ACCOUNT="762794225116"
 APP_IMAGE_REPOSITORY="$OUR_ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$PROJECT-dev"
 HOURS="${MEMBER_HOURS:-4}"
-# 부하 시험 환경은 항상 loadtest 로 뜬다. 결제는 토스 대신 목이 받는다 (lc-backend #715)
-EXTRA_PROFILES="loadtest"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
@@ -102,21 +100,16 @@ alert_email          = "${MEMBER_ALERT_EMAIL:-}"
 media_bucket_name    = "$PROJECT-media-$ACCOUNT"
 app_image_repository = "$APP_IMAGE_REPOSITORY"
 load_test_enabled    = true
-extra_spring_profiles = "$EXTRA_PROFILES"
 monthly_budget_usd   = "50"
 member_expires_at    = "$expires"
 EOF
 }
 
-# 앱과 배치가 켜는 스프링 프로필을 한 줄로 보인다. loadtest 가 있으면 결제는 토스 대신 목이다
+# 운영 모드를 한 줄로 보인다. 서버는 배포와 재부팅 때 SSM run-mode 를 읽어 프로필을 정한다
 run_mode() {
-  local app batch
-  app=$(terraform -chdir="$TF" output -json spring_profiles 2> /dev/null | sed -n 's/.*"app": *"\([^"]*\)".*/\1/p')
-  batch=$(terraform -chdir="$TF" output -json spring_profiles 2> /dev/null | sed -n 's/.*"batch": *"\([^"]*\)".*/\1/p')
-  [ -n "$app" ] || { echo 없음; return; }
-  case ",$app," in
-    *,loadtest,*) echo "앱 $app, 배치 $batch (부하 시험, 결제는 목)" ;;
-    *) echo "앱 $app, 배치 $batch" ;;
+  case "$(aws ssm get-parameter --name "/$PROJECT/run-mode" --query Parameter.Value --output text 2> /dev/null)" in
+    live) echo "live (결제는 토스)" ;;
+    *) echo "loadtest (부하 시험, 결제는 목)" ;;
   esac
 }
 
@@ -155,6 +148,8 @@ ensure_secrets() {
   put grafana-admin-password "$(openssl rand -hex 12)"
   # 저장소가 PUBLIC 이라 토큰 없이 받는다 (monitoring-user-data)
   put github-token none
+  # 부하 시험 환경은 항상 loadtest 다. 결제는 토스 대신 앱 안의 목이 받는다 (lc-backend #715)
+  aws ssm put-parameter --name "/$PROJECT/run-mode" --value loadtest --type String --overwrite > /dev/null
   for n in critical warning watchdog; do put "slack-webhook-$n" "https://hooks.slack.com/services/none"; done
   # 부하 시험은 카카오를 부르지 않는다. 기동만 되게 채운다
   put kakao-client-id none

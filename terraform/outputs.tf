@@ -78,8 +78,3 @@ output "monitoring_public_ip" {
   description = "모니터링 인스턴스 고정 IP. DuckDNS 를 쓸 때만 값이 생긴다"
   value       = local.has_duckdns ? aws_eip.monitoring[0].public_ip : ""
 }
-
-output "spring_profiles" {
-  description = "앱과 배치가 켜는 스프링 프로필"
-  value       = { app = local.app_profiles, batch = local.batch_profiles }
-}

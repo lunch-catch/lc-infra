@@ -38,6 +38,32 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
+# 운영 모드다. loadtest 는 결제를 앱 안의 목이 받고 live 는 토스로 결제한다. 나머지 인자는 terraform 에 그대로 넘긴다.
+MODE=""
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --mode) [ $# -ge 2 ] || die "--mode 뒤에 loadtest 나 live 를 준다"; MODE=$2; shift 2 ;;
+    --mode=*) MODE=${1#--mode=}; shift ;;
+    *) args+=("$1"); shift ;;
+  esac
+done
+set -- ${args[@]+"${args[@]}"}
+case "$MODE" in
+  "" | loadtest | live) ;;
+  *) die "--mode 는 loadtest 나 live 다" ;;
+esac
+
+# 기본은 loadtest 다. 다만 live 로 돌던 것을 옵션을 빠뜨려 목으로 바꾸면 실결제가 끊기므로 그때는 멈춘다
+cur_mode=$(aws ssm get-parameter --name "/$PROJECT/run-mode" --region "$REGION" \
+  --query 'Parameter.Value' --output text 2> /dev/null || true)
+if [ -z "$MODE" ]; then
+  [ "$cur_mode" != "live" ] || die "지금 운영 모드가 live 다. 유지하려면 --mode live, 목으로 바꾸려면 --mode loadtest 를 준다"
+  MODE=loadtest
+fi
+mode_note() { [ "$1" = "live" ] && echo "live (결제는 토스)" || echo "loadtest (부하 시험, 결제는 목)"; }
+log "운영 모드 $(mode_note "$MODE")"
+
 # 1. bootstrap. 상태 버킷을 만든다.
 log "1. bootstrap"
 cd "$ROOT/bootstrap"
@@ -103,6 +129,11 @@ log "3. 시크릿 확인"
 unset_names=$(aws ssm get-parameters-by-path --path "/$PROJECT" --region "$REGION" \
   --with-decryption --query 'Parameters[?Value==`unset` && Type==`SecureString`].Name' --output text)
 
+# loadtest 는 토스를 부르지 않아 토스 키가 비어 있어도 된다
+if [ "$MODE" = "loadtest" ]; then
+  unset_names=$(printf '%s\n' $unset_names | grep -vx "/$PROJECT/toss-secret-key" | paste -s -d '\t' - || true)
+fi
+
 if [ -n "$unset_names" ]; then
   printf '아직 값이 없는 시크릿이 있다.\n\n'
   for n in $unset_names; do printf '  %s\n' "$n"; done
@@ -113,6 +144,11 @@ if [ -n "$unset_names" ]; then
   printf "  --value \"\$(openssl rand -base64 48)\"\n"
   exit 1
 fi
+
+# 서버는 배포와 재부팅 때 이 값을 읽어 프로필을 정한다 (refresh-env). 7단계 배포가 새 값으로 다시 띄운다
+aws ssm put-parameter --name "/$PROJECT/run-mode" --value "$MODE" --type String --overwrite \
+  --description "운영 모드. loadtest 는 결제 목, live 는 토스" --region "$REGION" > /dev/null
+log "   운영 모드 $MODE 기록"
 
 # 4. 본 구성. 여기부터 과금이 시작된다.
 #
@@ -195,6 +231,7 @@ else
 fi
 
 echo
+log "운영 모드 $(mode_note "$MODE"). 바꾸려면 --mode 를 주고 다시 돌린다"
 log "완료. 남은 것은 하나다"
 log "  확인 메일의 링크를 누른다. 구독이 다시 만들어져 CloudWatch 알람이 갈 곳이 없다"
 log ""

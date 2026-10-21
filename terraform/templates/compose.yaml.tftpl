@@ -8,7 +8,8 @@ services:
       - "8080:8080"
       - "8081:8081"
     environment:
-      SPRING_PROFILES_ACTIVE: "${profiles}"
+      # 운영 모드(SSM run-mode)가 loadtest 면 refresh-env 가 PROFILE_SUFFIX 에 ,loadtest 를 넣는다. 결제를 목이 받는다
+      SPRING_PROFILES_ACTIVE: "${profiles}$${PROFILE_SUFFIX}"
       #
       # 어디에 붙는지만 준다. 드라이버 옵션은 백엔드의 data-source-properties 가 갖는다.
       #
