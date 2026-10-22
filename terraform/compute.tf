@@ -146,7 +146,8 @@ resource "aws_launch_template" "app" {
   }
 
   vpc_security_group_ids = [aws_security_group.app.id]
-  user_data              = base64encode(local.app_user_data)
+  # EC2 는 user-data 를 16KB 까지만 받는다. 한글 주석이 많아 넘으므로 gzip 으로 줄인다. cloud-init 이 풀어서 돈다
+  user_data = base64gzip(local.app_user_data)
 
   block_device_mappings {
     device_name = "/dev/sda1"
@@ -330,7 +331,8 @@ resource "aws_launch_template" "batch" {
   }
 
   vpc_security_group_ids = [aws_security_group.batch.id]
-  user_data              = base64encode(local.batch_user_data)
+  # EC2 는 user-data 를 16KB 까지만 받는다. 한글 주석이 많아 넘으므로 gzip 으로 줄인다. cloud-init 이 풀어서 돈다
+  user_data = base64gzip(local.batch_user_data)
 
   block_device_mappings {
     device_name = "/dev/sda1"

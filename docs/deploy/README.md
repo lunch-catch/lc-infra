@@ -598,35 +598,18 @@ aws ssm start-session --target <monitoring-id> \
 
 **k6 버전을 회차 기록에 함께 적어라.** 아래 메모리 실측이 1.7.1 기준이고 apt 는 최신을 깐다.
 
-## 테스트 관리자
+## 첫 최고 관리자
 
-관리자는 최고 관리자(SUPER_ADMIN)가 `POST /v1/admin/admins` 로 발급한다. 그래서 첫 최고 관리자 한 명만 밖에서 넣는다. 운영 DB 는 `destroy.sh` 마다 사라지므로 손으로 넣지 않고 스크립트가 넣는다.
+관리자는 최고 관리자(SUPER_ADMIN)가 `POST /v1/admin/admins` 로 발급한다. 첫 `superadmin` 은 기본 세계가 넣는다(위 "기본 세계와 기본 계정"). 빈 DB 로 다시 세우면 앱이 기동하며 SSM `account-superadmin-password-hash` 로 넣는다.
 
-| 언제 | 누가 |
-|---|---|
-| 운영 배포가 끝날 때 | `deploy.sh` 마지막에 `seed-admin.sh prod`. 배치 서버 하나에서 RDS 에 넣는다 |
-| 개발 서버를 올릴 때 | `dev-up.sh` 마지막에 `seed-admin.sh dev`. MySQL 컨테이너에 넣는다 |
-
-이미 그 아이디가 있으면 건너뛴다. 실패해도 배포를 실패로 만들지 않고 경고만 남긴다. 앱은 관리자 없이도 돈다.
-
-**값은 SSM String 이다.** 테스트 계정이라 노출을 허용했다 (2026-10-12 결정). 실제 운영 계정을 둘 때는 이 방식을 쓰지 않는다.
-
-| 파라미터 | 값 |
-|---|---|
-| `/lunchcatch/test-admin-login-id` | `superadmin` |
-| `/lunchcatch/test-admin-name` | `최고관리자` |
-| `/lunchcatch/test-admin-password` | 사람이 로그인에 쓰는 평문 |
-| `/lunchcatch/test-admin-password-hash` | 위 평문의 BCrypt 해시. DB 에 들어가는 값 |
-
-비밀번호를 보려면 이렇게 한다.
+**이미 있는 superadmin 은 기본 세계가 건너뛴다.** 예전 `seed-admin.sh` 가 넣은 행이 그렇다. 그때는 아래로 비밀번호를 SSM 값에 맞춘다. 비밀번호를 바꿀 때도 같다. 관리자 비밀번호를 바꾸는 API 는 없다.
 
 ```bash
-aws ssm get-parameter --name /lunchcatch/test-admin-password --query Parameter.Value --output text
+./scripts/superadmin-password.sh prod    # 배치 서버에서 RDS 의 superadmin 을 고친다
+./scripts/superadmin-password.sh dev     # 개발 서버 MySQL 에서 고친다
 ```
 
-**비밀번호를 바꿀 때**는 평문과 해시를 함께 바꾸고, DB 의 그 행을 지운 뒤 스크립트를 다시 돌린다. 스크립트는 이미 있는 아이디를 고치지 않는다. 해시는 `htpasswd -nbBC 10 "" '<비밀번호>' | tr -d ':\n' | sed 's/^\$2y\$/$2a$/'` 로 만든다.
-
-**문자셋을 `utf8mb4` 로 고정한다.** 빼면 mysql 클라이언트가 latin1 로 보내 이름이 깨져 저장된다. 2026-10-12 개발 서버에서 실제로 그랬다.
+바꾸기 전에 SSM 의 평문과 해시를 함께 바꾼다. 해시는 `htpasswd -nbBC 10 "" '<비밀번호>' | tr -d ':\n' | sed 's/^\$2y\$/$2a$/'` 로 만든다. 스크립트는 토큰 발급 세대를 올려 이전 비밀번호로 받은 관리자 토큰을 끊는다.
 
 ## 전부 지운다
 

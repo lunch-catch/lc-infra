@@ -130,7 +130,6 @@ resource "aws_vpc_security_group_egress_rule" "all" {
  *
  *   /<project>/dev/*         개발 전용 JWT 키, DB 비밀번호, 배포할 SHA
  *   /<project>/kakao-*       운영과 같은 카카오 앱
- *   /<project>/test-admin-*  테스트 관리자 (seed-admin.sh)
  */
 data "aws_iam_policy_document" "assume_ec2" {
   statement {
@@ -173,8 +172,6 @@ data "aws_iam_policy_document" "dev" {
     resources = [
       "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_prefix}/dev/*",
       "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_prefix}/kakao-*",
-      # 테스트 관리자. seed-admin.sh 가 서버에서 읽는다
-      "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_prefix}/test-admin-*",
     ]
   }
 
