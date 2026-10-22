@@ -228,26 +228,12 @@ arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-6
 
 | 항목 | 값 |
 |---|---|
-| 누가 | 개발 팀 역할로 넘어오는 팀원 전원 (`런치캐치_개발서버.md` 10장의 준비를 마친 사람) |
+| 누가 | 개발 팀 역할로 넘어오는 팀원 전원 (`docs/wiki/팀원-개발서버-접근.md` 1절의 준비를 마친 사람) |
 | 권한 | `dev_team_bedrock_model_id` 모델 하나의 호출만. 서버와 같은 `jp.anthropic.claude-sonnet-4-6`, 도쿄 |
 | 자격 증명 | 역할의 임시 자격 증명. 최대 4시간 |
 | 비용 | 템플릿 한 건에 약 0.04 USD (출력 약 2,600 토큰) |
 
-백엔드에 AWS SDK 의 `sts` 모듈이 없어서 `AWS_PROFILE=lunchcatch-dev` 만으로는 SDK 가 역할 프로필을 읽지 못한다. 임시 자격 증명을 환경변수로 넘긴다. 만료되면 첫 줄만 다시 실행한다.
-
-```bash
-# macOS
-eval "$(aws configure export-credentials --profile lunchcatch-dev --format env)"
-BEDROCK_MODEL_ID=jp.anthropic.claude-sonnet-4-6 BEDROCK_REGION=ap-northeast-1 ./gradlew bootRun
-```
-
-```powershell
-# Windows
-aws configure export-credentials --profile lunchcatch-dev --format powershell | Invoke-Expression
-$env:BEDROCK_MODEL_ID="jp.anthropic.claude-sonnet-4-6"; $env:BEDROCK_REGION="ap-northeast-1"; ./gradlew bootRun
-```
-
-`BEDROCK_MODEL_ID` 가 있으면 가짜 구현 대신 실제 Bedrock 구현이 뜬다. `application-local.yml` 에 키를 넣지 않는다.
+**쓰는 법은 위키에 있다** (`docs/wiki/팀원-로컬-Bedrock.md`). 설계만 적는다. 백엔드에 AWS SDK 의 `sts` 모듈이 없어 `AWS_PROFILE=lunchcatch-dev` 만으로는 SDK 가 역할 프로필을 읽지 못한다. 그래서 `aws configure export-credentials` 로 임시 자격 증명을 환경변수로 넘긴다. `BEDROCK_MODEL_ID` 가 있으면 가짜 구현 대신 실제 Bedrock 구현이 뜨고, `application-local.yml` 에 키를 넣지 않는다.
 
 처음에는 담당자 전용 IAM 사용자와 액세스 키를 두었다(`bootstrap/bedrock_local.tf`, 2026-10-14). 역할 방식으로 바꾸며 지웠다.
 
