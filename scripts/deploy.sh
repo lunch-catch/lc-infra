@@ -340,6 +340,3 @@ log "배포 완료 $SHA"
 # 서버가 방금 읽은 운영 모드다. 바꾸는 것은 scripts/apply.sh --mode 다
 mode=$(aws ssm get-parameter --name "/$PROJECT/run-mode" --region "$REGION" --query 'Parameter.Value' --output text 2> /dev/null || echo loadtest)
 [ "$mode" = "live" ] && log "운영 모드 live (결제는 토스)" || log "운영 모드 loadtest (부하 시험, 결제는 목)"
-
-# 테스트 관리자를 넣는다. 재구축 직후 빈 DB 에 첫 최고 관리자가 생긴다. 있으면 건너뛰고, 실패해도 배포 결과를 바꾸지 않는다
-"$(dirname "$0")/seed-admin.sh" prod
