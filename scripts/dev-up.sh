@@ -47,6 +47,8 @@ ensure "/$PROJECT/dev/team-db-password" "$(openssl rand -hex 16)"
 # 개발 Grafana 의 관리자와 팀 공용 보기 계정(team) 비밀번호다. 팀원 IAM 은 team 것만 읽는다
 ensure "/$PROJECT/dev/grafana-admin-password" "$(openssl rand -hex 16)"
 ensure "/$PROJECT/dev/grafana-team-password" "$(openssl rand -hex 12)"
+# 기본 계정(superadmin, demo-admin, 시연 점주, 시나리오) 비밀번호와 해시다. 기본 세계를 켜면 앱이 이 해시로 넣는다
+"$ROOT/scripts/account-passwords.sh" "/$PROJECT/dev"
 
 # 카카오 넷은 운영과 같은 값을 쓴다. 운영 apply.sh 가 만든다. 비어 있으면 앱이 안 뜬다
 for k in kakao-client-id kakao-client-secret kakao-app-id kakao-admin-key; do

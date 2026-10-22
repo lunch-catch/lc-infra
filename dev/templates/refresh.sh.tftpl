@@ -9,6 +9,8 @@ R=${region}
 DIR=/opt/${project}-dev
 
 sec() { aws ssm get-parameter --name "$1" --region "$R" --with-decryption --query 'Parameter.Value' --output text; }
+# 없어도 되는 개발 값이다. 기본 세계(lc-backend db/base) 스위치와 기준일, 기본 계정 비밀번호 해시를 읽는다 (lc-infra #29)
+opt() { aws ssm get-parameter --name "$P/dev/$1" --region "$R" --query 'Parameter.Value' --output text 2>/dev/null || true; }
 
 # 배포할 SHA 다. develop 배포가 한 번도 없으면 비어 있다. 그때는 app 을 빼고 올린다.
 GIT_SHA=$(aws ssm get-parameter --name "$P/dev/current-sha" --region "$R" --query 'Parameter.Value' --output text 2>/dev/null || true)
@@ -25,6 +27,12 @@ KAKAO_APP_ID=$(sec "$P/kakao-app-id")
 KAKAO_ADMIN_KEY=$(sec "$P/kakao-admin-key")
 TOSS_SECRET_KEY=$(sec "$P/dev/toss-secret-key" 2>/dev/null || true)
 GRAFANA_ADMIN_PASSWORD=$(sec "$P/dev/grafana-admin-password" 2>/dev/null || true)
+BASE_ENABLED=$(opt base-enabled | grep -x true || echo false)
+BASE_DATE=$(opt base-date)
+ACCOUNT_SUPERADMIN_PASSWORD_HASH='$(opt account-superadmin-password-hash)'
+ACCOUNT_DEMO_ADMIN_PASSWORD_HASH='$(opt account-demo-admin-password-hash)'
+ACCOUNT_DEMO_OWNER_PASSWORD_HASH='$(opt account-demo-owner-password-hash)'
+ACCOUNT_SCENARIO_PASSWORD_HASH='$(opt account-scenario-password-hash)'
 ENV
 umask 022
 

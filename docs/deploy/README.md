@@ -628,6 +628,37 @@ aws ssm get-parameter --name /lunchcatch/test-admin-password --query Parameter.V
 
 **문자셋을 `utf8mb4` 로 고정한다.** 빼면 mysql 클라이언트가 latin1 로 보내 이름이 깨져 저장된다. 2026-10-12 개발 서버에서 실제로 그랬다.
 
+## 기본 세계와 기본 계정
+
+lc-backend 의 기본 세계(`db/base`, lc-backend #741)는 기본 계정과 시나리오 데이터(점주 300, 가게 288, 캠페인 568 등)를 마이그레이션으로 넣는다. 인프라는 스위치와 기준일, 비밀번호 해시만 넘긴다 (lc-infra #29).
+
+| 파라미터 | 운영 | 개발 | 값 |
+|---|---|---|---|
+| 스위치 | `/lunchcatch/base-enabled` | `/lunchcatch/dev/base-enabled` | `true` 면 넣는다. 없거나 다른 값이면 넣지 않는다. `apply.sh` 가 운영에 `false` 로 만든다 |
+| 기준일 | `/lunchcatch/base-date` | `/lunchcatch/dev/base-date` | `YYYY-MM-DD`. 없으면 앱이 도는 날(KST)이다 |
+| 비밀번호 | `/lunchcatch/account-<계정>-password` | `/lunchcatch/dev/account-<계정>-password` | 사람이 로그인에 쓰는 평문. SecureString |
+| 해시 | `...-password-hash` | `...-password-hash` | 위 평문의 BCrypt 해시. 서버가 `.env` 로 앱에 넘긴다 |
+
+계정은 `superadmin`, `demo-admin`, `demo-owner`(시연 점주), `scenario`(시나리오 점주와 관리자) 넷이다. 비밀번호는 `scripts/account-passwords.sh` 가 없을 때만 무작위로 만든다. 운영은 `apply.sh`, 개발은 `dev-up.sh` 가 부른다.
+
+```bash
+aws ssm get-parameter --name /lunchcatch/account-demo-owner-password --with-decryption --query Parameter.Value --output text
+```
+
+**켜면 한 번만 돈다.** 버전 마이그레이션이라 그 DB 에 한 번 들어가면 다시 돌지 않는다. 날짜도 그때의 기준일로 고정된다. 다른 날 기준으로 다시 넣으려면 DB 를 새로 만든다.
+
+**운영은 시연 전날(10-27) 낮에 켠다.** 기준일은 `2026-10-28` 이다. 기본 세계가 그날의 00:00 배치를 성공으로 넣어 두므로 10-28 00:00 배치가 데이터를 덮지 않는다. 10-27 에는 사용자 피드가 비어 있다(근거는 lc-infra #29).
+
+```bash
+aws ssm put-parameter --name /lunchcatch/base-date --value 2026-10-28 --type String --overwrite
+aws ssm put-parameter --name /lunchcatch/base-enabled --value true --type String --overwrite
+./scripts/deploy.sh <main 의 SHA>     # 서버가 refresh-env 로 새 값을 읽고 다시 뜬다
+```
+
+**이미 있는 계정은 건너뛴다.** 운영과 개발의 `superadmin` 은 아래 테스트 관리자로 이미 있어 그 비밀번호가 남는다. 새 값으로 맞추려면 앱에서 비밀번호를 바꾼다.
+
+**사진은 미리 올려 둔다.** 기본 세계의 사진 키(`world/stores/...`, `world/campaigns/...`) 1,636장은 개발과 운영 미디어 버킷에 있다. `destroy.sh` 가 운영 버킷을 비우므로 다시 세우면 다시 올린다 (lc-infra #29 댓글에 출처와 만드는 법).
+
 ## 전부 지운다
 
 오래 안 쓸 때 쓴다.

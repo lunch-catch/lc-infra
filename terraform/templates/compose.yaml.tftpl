@@ -33,6 +33,14 @@ services:
       KAKAO_APP_ID: "$${KAKAO_APP_ID}"
       KAKAO_ADMIN_KEY: "$${KAKAO_ADMIN_KEY}"
       TOSS_SECRET_KEY: "$${TOSS_SECRET_KEY}"
+      # 기본 세계(lc-backend db/base) 스위치와 기준일이다. 켜면 앱이 기동하며 기본 계정과 시나리오 데이터를 한 번 넣는다 (lc-infra #29)
+      BASE_ENABLED: "$${BASE_ENABLED}"
+      BASE_DATE: "$${BASE_DATE}"
+      # 기본 계정 비밀번호의 BCrypt 해시다. .env 에서 작은따옴표로 감싸 $ 가 변수로 읽히지 않는다
+      ACCOUNT_SUPERADMIN_PASSWORD_HASH: "$${ACCOUNT_SUPERADMIN_PASSWORD_HASH}"
+      ACCOUNT_DEMO_ADMIN_PASSWORD_HASH: "$${ACCOUNT_DEMO_ADMIN_PASSWORD_HASH}"
+      ACCOUNT_DEMO_OWNER_PASSWORD_HASH: "$${ACCOUNT_DEMO_OWNER_PASSWORD_HASH}"
+      ACCOUNT_SCENARIO_PASSWORD_HASH: "$${ACCOUNT_SCENARIO_PASSWORD_HASH}"
       # 프론트와 잇는 셋이다 (프론트엔드 배포 문서 6장). 없으면 앱의 로컬 기본값이 운영에 실린다.
       #
       # 프론트(lunchcatch.com 등)와 API(api.lunchcatch.com)는 출처가 달라 브라우저가 CORS 를 본다.

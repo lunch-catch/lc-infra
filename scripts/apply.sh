@@ -127,6 +127,14 @@ kakao-admin-key|Kakao admin key. 로그아웃과 연결 해제에 쓴다
 toss-secret-key|Toss Payments secret key. 결제 승인과 조회에 쓴다
 SECRETS
 
+# 기본 계정 비밀번호와 해시다 (lc-infra #29). 없을 때만 무작위로 만든다. 사람이 넣을 값이 아니다
+"$ROOT/scripts/account-passwords.sh" "/$PROJECT"
+
+# 기본 세계(lc-backend db/base) 스위치다. 꺼진 채로 만들고 시연 전날 사람이 켠다 (docs/deploy/README.md "기본 세계")
+aws ssm get-parameter --name "/$PROJECT/base-enabled" --region "$REGION" > /dev/null 2>&1 \
+  || aws ssm put-parameter --name "/$PROJECT/base-enabled" --value false --type String \
+    --description "기본 세계(lc-backend db/base)를 넣을지. 켜면 다음 배포부터 앱이 넣는다" --region "$REGION" > /dev/null
+
 # 3. 시크릿이 다 찼는지 본다.
 #
 # SecureString 만 본다. 같은 경로에 Terraform 이 만드는 String 파라미터가 섞여 있는데

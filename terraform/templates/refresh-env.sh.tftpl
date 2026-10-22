@@ -72,6 +72,17 @@ case "$RUN_MODE" in
   *) echo "run-mode 값 $RUN_MODE 을 모른다. loadtest 로 뜬다" >&2; RUN_MODE=loadtest; PROFILE_SUFFIX=",loadtest" ;;
 esac
 
+# 기본 세계(lc-backend db/base) 스위치와 기준일, 기본 계정 비밀번호 해시다 (lc-infra #29).
+# 없어도 기동을 막지 않는다. 스위치가 꺼져 있으면 앱이 해시를 쓰지 않는다. 켰는데 해시가 비면 앱이 뜨지 않는다.
+opt() { aws ssm get-parameter --name "$P/$1" --region "$R" --query 'Parameter.Value' --output text 2> /dev/null || true; }
+BASE_ENABLED=$(opt base-enabled)
+[ "$BASE_ENABLED" = "true" ] || BASE_ENABLED=false
+BASE_DATE=$(opt base-date)
+ACCOUNT_SUPERADMIN_PASSWORD_HASH=$(opt account-superadmin-password-hash)
+ACCOUNT_DEMO_ADMIN_PASSWORD_HASH=$(opt account-demo-admin-password-hash)
+ACCOUNT_DEMO_OWNER_PASSWORD_HASH=$(opt account-demo-owner-password-hash)
+ACCOUNT_SCENARIO_PASSWORD_HASH=$(opt account-scenario-password-hash)
+
 TOKEN=$(curl -fsS -X PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds: 60')
 INSTANCE_ID=$(curl -fsS -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
 
@@ -104,5 +115,11 @@ APP_INSTANCE_ID=$INSTANCE_ID
 BATCH_SCHEDULER_ENABLED=$BATCH_SCHEDULER_ENABLED
 RUN_MODE=$RUN_MODE
 PROFILE_SUFFIX=$PROFILE_SUFFIX
+BASE_ENABLED=$BASE_ENABLED
+BASE_DATE=$BASE_DATE
+ACCOUNT_SUPERADMIN_PASSWORD_HASH='$ACCOUNT_SUPERADMIN_PASSWORD_HASH'
+ACCOUNT_DEMO_ADMIN_PASSWORD_HASH='$ACCOUNT_DEMO_ADMIN_PASSWORD_HASH'
+ACCOUNT_DEMO_OWNER_PASSWORD_HASH='$ACCOUNT_DEMO_OWNER_PASSWORD_HASH'
+ACCOUNT_SCENARIO_PASSWORD_HASH='$ACCOUNT_SCENARIO_PASSWORD_HASH'
 ENV
 chmod 600 /opt/${project}/.env
