@@ -168,6 +168,8 @@ data "aws_iam_policy_document" "dev_team" {
       "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${var.project}/dev/team-db-password",
       # 개발 Grafana 의 팀 공용 보기 계정(team) 비밀번호다 (개발 서버 문서 11장)
       "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${var.project}/dev/grafana-team-password",
+      # 개발 앱의 기본 계정 비밀번호 넷(superadmin, demo-admin, demo-owner, scenario)이다. 해시(-password-hash)는 끝이 달라 걸리지 않는다
+      "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${var.project}/dev/account-*-password",
     ]
   }
 
