@@ -598,6 +598,39 @@ aws ssm start-session --target <monitoring-id> \
 
 **k6 버전을 회차 기록에 함께 적어라.** 아래 메모리 실측이 1.7.1 기준이고 apt 는 최신을 깐다.
 
+## 기본 세계와 기본 계정
+
+lc-backend 의 기본 세계(`db/base`, lc-backend #741)는 기본 계정과 시나리오 데이터(점주 300, 가게 288, 캠페인 568 등)를 마이그레이션으로 넣는다. 인프라는 스위치와 기준일, 비밀번호 해시만 넘긴다 (lc-infra #29).
+
+| 파라미터 | 운영 | 개발 | 값 |
+|---|---|---|---|
+| 스위치 | `/lunchcatch/base-enabled` | `/lunchcatch/dev/base-enabled` | `true` 면 넣는다. 없거나 다른 값이면 넣지 않는다. `apply.sh` 가 운영에 `false` 로 만든다 |
+| 기준일 | `/lunchcatch/base-date` | `/lunchcatch/dev/base-date` | `YYYY-MM-DD`. 없으면 앱이 도는 날(KST)이다 |
+| 비밀번호 | `/lunchcatch/account-<계정>-password` | `/lunchcatch/dev/account-<계정>-password` | 사람이 로그인에 쓰는 평문. SecureString |
+| 해시 | `...-password-hash` | `...-password-hash` | 위 평문의 BCrypt 해시. 서버가 `.env` 로 앱에 넘긴다 |
+
+계정은 `superadmin`, `demo-admin`, `demo-owner`(시연 점주), `scenario`(시나리오 점주와 관리자) 넷이다. 비밀번호는 `scripts/account-passwords.sh` 가 없을 때만 무작위로 만든다. 운영은 `apply.sh`, 개발은 `dev-up.sh` 가 부른다.
+
+```bash
+aws ssm get-parameter --name /lunchcatch/account-demo-owner-password --with-decryption --query Parameter.Value --output text
+```
+
+**켜면 한 번만 돈다.** 버전 마이그레이션이라 그 DB 에 한 번 들어가면 다시 돌지 않는다. 날짜도 그때의 기준일로 고정된다. 다른 날 기준으로 다시 넣으려면 DB 를 새로 만든다.
+
+**기준일은 모든 환경에서 비워 둔다 (2026-10-23 결정).** 비우면 켠 날(KST) 기준으로 들어가고, 그 뒤로는 날마다 00:00 배치가 그날 예산, 후보, 쿠폰을 만든다. 개발과 운영이 같은 방식이어야 한다. 처음에 운영을 시연일(`2026-10-28`)로 고정했더니 기본 세계가 그날까지의 배치를 성공으로 넣어 두어 그 사이 배치가 건너뛰고 피드가 비었다.
+
+```bash
+aws ssm put-parameter --name /lunchcatch/base-enabled --value true --type String --overwrite
+aws ssm delete-parameter --name /lunchcatch/base-date     # 넣어 두었다면 지운다
+./scripts/deploy.sh <main 의 SHA>     # 서버가 refresh-env 로 새 값을 읽고 다시 뜬다
+```
+
+**시연 층(`R__demo.sql`)은 기준일이 바뀌면 다시 돈다.** 기준일을 비우면 날짜가 바뀐 뒤 앱이 다시 뜰 때마다 시연 계정의 데이터를 그날 기준으로 되돌린다. 계정 행과 비밀번호는 그대로다.
+
+**이미 있는 계정은 건너뛴다.** 예전 `seed-admin.sh` 가 넣은 `superadmin` 이 그렇다. 새 값으로 맞추는 법은 아래 "첫 최고 관리자" 에 있다.
+
+**사진은 미리 올려 둔다.** 기본 세계의 사진 키(`world/stores/...`, `world/campaigns/...`) 1,636장과 시연 층 사진(`demo/...`) 42장은 개발과 운영 미디어 버킷에 있다. `destroy.sh` 가 운영 버킷을 비우므로 다시 세우면 다시 올린다 (lc-infra #29 댓글에 출처와 만드는 법).
+
 ## 첫 최고 관리자
 
 관리자는 최고 관리자(SUPER_ADMIN)가 `POST /v1/admin/admins` 로 발급한다. 첫 `superadmin` 은 기본 세계가 넣는다(위 "기본 세계와 기본 계정"). 빈 DB 로 다시 세우면 앱이 기동하며 SSM `account-superadmin-password-hash` 로 넣는다.
