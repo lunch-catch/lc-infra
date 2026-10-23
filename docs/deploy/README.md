@@ -598,6 +598,54 @@ aws ssm start-session --target <monitoring-id> \
 
 **k6 버전을 회차 기록에 함께 적어라.** 아래 메모리 실측이 1.7.1 기준이고 apt 는 최신을 깐다.
 
+## 기본 세계와 기본 계정
+
+lc-backend 의 기본 세계(`db/base`, lc-backend #741)는 기본 계정과 시나리오 데이터를 마이그레이션으로 넣는다. 점주 500명과 가게가 강남구에 있고 강남역, 역삼역, 선릉역 둘레에 각 100개, 역마다 진행 중 캠페인 70개다 (lc-backend #858). 인프라는 스위치와 기준일, 비밀번호 해시만 넘긴다 (lc-infra #29).
+
+| 파라미터 | 운영 | 개발 | 값 |
+|---|---|---|---|
+| 스위치 | `/lunchcatch/base-enabled` | `/lunchcatch/dev/base-enabled` | `true` 면 넣는다. 없거나 다른 값이면 넣지 않는다. `apply.sh` 가 운영에 `false` 로 만든다 |
+| 기준일 | `/lunchcatch/base-date` | `/lunchcatch/dev/base-date` | `YYYY-MM-DD`. 없으면 앱이 도는 날(KST)이다 |
+| 비밀번호 | `/lunchcatch/account-<계정>-password` | `/lunchcatch/dev/account-<계정>-password` | 사람이 로그인에 쓰는 평문. SecureString |
+| 해시 | `...-password-hash` | `...-password-hash` | 위 평문의 BCrypt 해시. 서버가 `.env` 로 앱에 넘긴다 |
+
+계정은 `superadmin`, `demo-admin`, `demo-owner`(시연 점주), `scenario`(시나리오 점주와 관리자) 넷이다. 비밀번호는 `scripts/account-passwords.sh` 가 없을 때만 무작위로 만든다. 운영은 `apply.sh`, 개발은 `dev-up.sh` 가 부른다.
+
+```bash
+aws ssm get-parameter --name /lunchcatch/account-demo-owner-password --with-decryption --query Parameter.Value --output text
+```
+
+**켜면 한 번만 돈다.** 버전 마이그레이션이라 그 DB 에 한 번 들어가면 다시 돌지 않는다. 날짜도 그때의 기준일로 고정된다. 다른 날 기준으로 다시 넣으려면 아래 정리를 돌리고 다시 배포한다.
+
+**기준일은 모든 환경에서 비워 둔다 (2026-10-23 결정).** 비우면 켠 날(KST) 기준으로 들어가고, 그 뒤로는 날마다 00:00 배치가 그날 예산, 후보, 쿠폰을 만든다. 개발과 운영이 같은 방식이어야 한다. 처음에 운영을 시연일(`2026-10-28`)로 고정했더니 기본 세계가 그날까지의 배치를 성공으로 넣어 두어 그 사이 배치가 건너뛰고 피드가 비었다.
+
+```bash
+aws ssm put-parameter --name /lunchcatch/base-enabled --value true --type String --overwrite
+aws ssm delete-parameter --name /lunchcatch/base-date     # 넣어 두었다면 지운다
+./scripts/deploy.sh <main 의 SHA>     # 서버가 refresh-env 로 새 값을 읽고 다시 뜬다
+```
+
+**시연 층(`R__demo.sql`)은 기준일이 바뀌면 다시 돈다.** 기준일을 비우면 날짜가 바뀐 뒤 앱이 다시 뜰 때마다 시연 계정의 데이터를 그날 기준으로 되돌린다. 계정 행과 비밀번호는 그대로다.
+
+**기본 세계 파일(V2 ~ V8)을 고친 코드로 올릴 때는 먼저 정리한다 (lc-backend #858).** 이미 적용된 V 파일의 체크섬이 어긋나 새 코드가 뜨지 못한다. 정리는 계정(관리자, 점주, 회원)을 남기고 기본 세계와 시연 층의 나머지 행과 이력을 지운다. 그다음 새 코드를 배포하면 그날 기준으로 다시 들어간다.
+
+```bash
+./scripts/reset-base-world.sh dev  <lc-backend>/scripts/reset_base_world.sql   # 개발. 그다음 develop 배포
+./scripts/reset-base-world.sh prod <lc-backend>/scripts/reset_base_world.sql   # 운영. prod 를 입력해 확인한다. 그다음 릴리스 배포
+```
+
+정리 SQL 은 배포할 코드와 같은 커밋의 것을 쓴다. 정리 전에 새 코드가 먼저 배포되면 체크섬이 어긋나 새 앱이 뜨지 못한다. 개발은 무중단 배포라 돌던 앱이 그대로 남으므로, 정리한 뒤 그 배포를 다시 돌리면 된다.
+
+**기본 세계 번호를 차지한 실제 행은 옮긴다 (lc-backend #879).** 기본 세계를 키우는 사이 실제로 등록된 가게와 그 메뉴, 이미지, 영업시간이 자동 증가로 새 기본 세계가 쓸 번호(1,000만 대역)를 받은 경우가 있다. 개발의 가게 `10000301` 이 그랬다. 정리는 이런 행을 지우지 않고 번호에 4,000만을 더해 5,000만 대역으로 옮긴다. 캠페인, 쿠폰, 결제, 리포트, 환불, 포인트 원장은 옮기지 않으며, 이 표에 그런 행이 있으면 아무것도 지우기 전에 오류로 멈춘다. 그때는 그 행을 먼저 따로 옮긴다.
+
+**정리로 함께 지워지는 실제 데이터가 있다.** 날짜로만 묶인 전체 분석 표 5개(퍼널, 정산, 가게, 회원, 세그먼트)와 배치 실행 기록의 최근 61일, 실제 회원이 기본 세계와 시연 캠페인에 남긴 쿠폰, 찜, 노출, 스와이프다. 기본 세계가 분석 표와 배치 기록을 다시 채운다.
+
+**템플릿과 포스터는 반복 마이그레이션(`R__templates_posters.sql`)이 넣는다.** 파일이 바뀌면 다시 돌아 기본 세계와 시연 캠페인 7개의 포스터만 다시 만든다. 팀원이 만든 템플릿과 실제 캠페인의 포스터는 건드리지 않는다.
+
+**이미 있는 계정은 건너뛴다.** 예전 `seed-admin.sh` 가 넣은 `superadmin` 이 그렇다. 새 값으로 맞추는 법은 아래 "첫 최고 관리자" 에 있다.
+
+**사진은 미리 올려 둔다.** 기본 세계의 사진 키(`world/stores/...`, `world/campaigns/...`) 1,636장과 시연 층 사진(`demo/...`) 42장은 개발과 운영 미디어 버킷에 있다. `destroy.sh` 가 운영 버킷을 비우므로 다시 세우면 다시 올린다 (lc-infra #29 댓글에 출처와 만드는 법).
+
 ## 첫 최고 관리자
 
 관리자는 최고 관리자(SUPER_ADMIN)가 `POST /v1/admin/admins` 로 발급한다. 첫 `superadmin` 은 기본 세계가 넣는다(위 "기본 세계와 기본 계정"). 빈 DB 로 다시 세우면 앱이 기동하며 SSM `account-superadmin-password-hash` 로 넣는다.
