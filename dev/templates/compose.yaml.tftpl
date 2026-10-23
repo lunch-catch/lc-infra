@@ -2,6 +2,84 @@
 # t3.small 의 2 GB 에 넷을 올리므로 모두 메모리 상한을 둔다. 상한이 없으면 JVM 이 호스트 기준으로
 # 힙을 잡아 MySQL 과 다투다 커널 OOM 으로 죽는다.
 # 값은 .env 에서 온다. lunchcatch-dev-refresh 가 SSM 을 읽어 통째로 다시 쓴다.
+# 앱 설정이다. app-blue 와 app-green 이 같이 쓴다 (개발 서버 문서 7장 "끊김 없는 배포").
+# 평소에는 하나만 돈다. 배포는 쉬는 쪽을 새 이미지로 먼저 띄우고 healthy 가 되면 도는 쪽을 내린다.
+x-app: &app
+  # 배포 기록이 없으면 none 이 된다. 그때는 refresh 가 app 을 올리지 않는다.
+  image: ${image}:$${GIT_SHA:-none}
+  restart: unless-stopped
+  depends_on:
+    mysql:
+      condition: service_healthy
+    valkey:
+      condition: service_started
+  environment: &app-env
+    # 서버가 하나라 API 와 스케줄러를 한 프로세스에서 돌린다. batch 가 스케줄러를 켜고 풀을 5 로 둔다
+    # prod 는 로그 출력(JSON)만 켠다. 빠지면 logback 에 출력이 없어 docker logs 가 빈다
+    SPRING_PROFILES_ACTIVE: "prod,batch"
+    DB_URL: "jdbc:mysql://mysql:3306/${project}"
+    DB_USERNAME: "${project}"
+    DB_PASSWORD: "$${DB_PASSWORD}"
+    # 개발 전용 키다. 개발에서 찍은 토큰이 운영에서 통과하면 안 된다
+    JWT_SECRET: "$${JWT_SECRET}"
+    JWT_COOKIE_SECURE: "true"
+    KAKAO_CLIENT_ID: "$${KAKAO_CLIENT_ID}"
+    KAKAO_CLIENT_SECRET: "$${KAKAO_CLIENT_SECRET}"
+    KAKAO_APP_ID: "$${KAKAO_APP_ID}"
+    KAKAO_ADMIN_KEY: "$${KAKAO_ADMIN_KEY}"
+    # 토스 테스트 비밀키다. 없으면 앱이 키 자리표시자 글자 그대로 인증해 토스가 500 을 준다
+    TOSS_SECRET_KEY: "$${TOSS_SECRET_KEY}"
+    VALKEY_HOST: "valkey"
+    VALKEY_PORT: "6379"
+    # 개발 프론트 셋이다. 같은 사이트라 Strict 쿠키가 실린다 (프론트엔드 배포 문서 2.1절)
+    CORS_ALLOWED_ORIGINS: "${frontend_origins}"
+    # 개발 사용자 앱의 콜백이다. 카카오 개발자 콘솔의 Redirect URI 에도 있어야 한다
+    KAKAO_REDIRECT_URI: "https://${kakao_callback_host}/oauth/callback"
+    # 개발 이미지 저장소다. 버킷과 CDN 은 bootstrap/dev_media.tf 가 갖는다
+    CDN_BASE_URL: "${cdn_base_url}"
+    S3_MEDIA_BUCKET: "${media_bucket}"
+    S3_REGION: "${region}"
+    # 기본 세계(lc-backend db/base) 스위치와 기준일이다. 예전 시험 시드(db/seed)를 대신한다 (lc-infra #29)
+    BASE_ENABLED: "$${BASE_ENABLED}"
+    BASE_DATE: "$${BASE_DATE}"
+    # 기본 계정 비밀번호의 BCrypt 해시다. .env 에서 작은따옴표로 감싸 $ 가 변수로 읽히지 않는다
+    ACCOUNT_SUPERADMIN_PASSWORD_HASH: "$${ACCOUNT_SUPERADMIN_PASSWORD_HASH}"
+    ACCOUNT_DEMO_ADMIN_PASSWORD_HASH: "$${ACCOUNT_DEMO_ADMIN_PASSWORD_HASH}"
+    ACCOUNT_DEMO_OWNER_PASSWORD_HASH: "$${ACCOUNT_DEMO_OWNER_PASSWORD_HASH}"
+    ACCOUNT_SCENARIO_PASSWORD_HASH: "$${ACCOUNT_SCENARIO_PASSWORD_HASH}"
+    # 관리자 템플릿 생성의 LLM 이다. 서버 역할로 인증한다 (LLM 문서 4.2절)
+    BEDROCK_MODEL_ID: "${bedrock_model_id}"
+    BEDROCK_REGION: "${bedrock_region}"
+    # 관리자 1명당 템플릿 생성과 수정을 분당 몇 번까지 받을지다. 시연 촬영에서 연달아 호출해도 걸리지 않게 올렸다. 운영은 기본값 3 이다
+    TEMPLATE_GENERATION_RATE_LIMIT: "20"
+    APP_NAME: "${project}-dev"
+    TRACE_SAMPLE_RATE: "0"
+    # 힙은 컨테이너 상한(mem_limit)의 70% 다. 상한이 있어야 이 비율이 뜻대로 돈다
+    # user.timezone 이 빠지면 DB 시각이 9시간 밀려 저장된다. Hibernate 가 JVM 시간대(UTC)로 넘기고 드라이버가 세션 시간대(Asia/Seoul)로 다시 바꾼다.
+    JAVA_TOOL_OPTIONS: >-
+      -XX:MaxRAMPercentage=70
+      -Dnetworkaddress.cache.ttl=5
+      -Dnetworkaddress.cache.negative.ttl=1
+      -Duser.timezone=Asia/Seoul
+  mem_limit: 1100m
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health/liveness"]
+    interval: 10s
+    timeout: 3s
+    retries: 3
+    start_period: 90s
+  stop_grace_period: 45s
+  # CloudWatch Logs 로도 보낸다. 팀원이 서버에 들어오지 않고 scripts/dev-logs.sh 로 본다 (개발 서버 문서 10장).
+  # 컨테이너를 다시 만들어도 30일 남는다. docker logs 도 그대로 된다(Docker 의 이중 로깅).
+  # non-blocking 이라 CloudWatch 가 느려도 앱이 멈추지 않는다
+  logging:
+    driver: awslogs
+    options:
+      awslogs-region: "${region}"
+      awslogs-group: "${log_group}"
+      mode: non-blocking
+      max-buffer-size: 4m
+
 services:
   caddy:
     image: caddy:2.10
@@ -15,83 +93,20 @@ services:
       - caddy-config:/config
     mem_limit: 64m
 
-  app:
-    # 배포 기록이 없으면 none 이 된다. 그때는 refresh 가 app 을 올리지 않는다.
-    image: ${image}:$${GIT_SHA:-none}
-    container_name: ${project}
-    restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
-      valkey:
-        condition: service_started
+  app-blue:
+    <<: *app
+    container_name: ${project}-blue
     environment:
-      # 서버가 하나라 API 와 스케줄러를 한 프로세스에서 돌린다. batch 가 스케줄러를 켜고 풀을 5 로 둔다
-      # prod 는 로그 출력(JSON)만 켠다. 빠지면 logback 에 출력이 없어 docker logs 가 빈다
-      SPRING_PROFILES_ACTIVE: "prod,batch"
-      DB_URL: "jdbc:mysql://mysql:3306/${project}"
-      DB_USERNAME: "${project}"
-      DB_PASSWORD: "$${DB_PASSWORD}"
-      # 개발 전용 키다. 개발에서 찍은 토큰이 운영에서 통과하면 안 된다
-      JWT_SECRET: "$${JWT_SECRET}"
-      JWT_COOKIE_SECURE: "true"
-      KAKAO_CLIENT_ID: "$${KAKAO_CLIENT_ID}"
-      KAKAO_CLIENT_SECRET: "$${KAKAO_CLIENT_SECRET}"
-      KAKAO_APP_ID: "$${KAKAO_APP_ID}"
-      KAKAO_ADMIN_KEY: "$${KAKAO_ADMIN_KEY}"
-      # 토스 테스트 비밀키다. 없으면 앱이 키 자리표시자 글자 그대로 인증해 토스가 500 을 준다
-      TOSS_SECRET_KEY: "$${TOSS_SECRET_KEY}"
-      VALKEY_HOST: "valkey"
-      VALKEY_PORT: "6379"
-      # 개발 프론트 셋이다. 같은 사이트라 Strict 쿠키가 실린다 (프론트엔드 배포 문서 2.1절)
-      CORS_ALLOWED_ORIGINS: "${frontend_origins}"
-      # 개발 사용자 앱의 콜백이다. 카카오 개발자 콘솔의 Redirect URI 에도 있어야 한다
-      KAKAO_REDIRECT_URI: "https://${kakao_callback_host}/oauth/callback"
-      # 개발 이미지 저장소다. 버킷과 CDN 은 bootstrap/dev_media.tf 가 갖는다
-      CDN_BASE_URL: "${cdn_base_url}"
-      S3_MEDIA_BUCKET: "${media_bucket}"
-      S3_REGION: "${region}"
-      # 기본 세계(lc-backend db/base) 스위치와 기준일이다. 예전 시험 시드(db/seed)를 대신한다 (lc-infra #29)
-      BASE_ENABLED: "$${BASE_ENABLED}"
-      BASE_DATE: "$${BASE_DATE}"
-      # 기본 계정 비밀번호의 BCrypt 해시다. .env 에서 작은따옴표로 감싸 $ 가 변수로 읽히지 않는다
-      ACCOUNT_SUPERADMIN_PASSWORD_HASH: "$${ACCOUNT_SUPERADMIN_PASSWORD_HASH}"
-      ACCOUNT_DEMO_ADMIN_PASSWORD_HASH: "$${ACCOUNT_DEMO_ADMIN_PASSWORD_HASH}"
-      ACCOUNT_DEMO_OWNER_PASSWORD_HASH: "$${ACCOUNT_DEMO_OWNER_PASSWORD_HASH}"
-      ACCOUNT_SCENARIO_PASSWORD_HASH: "$${ACCOUNT_SCENARIO_PASSWORD_HASH}"
-      # 관리자 템플릿 생성의 LLM 이다. 서버 역할로 인증한다 (LLM 문서 4.2절)
-      BEDROCK_MODEL_ID: "${bedrock_model_id}"
-      BEDROCK_REGION: "${bedrock_region}"
-      # 관리자 1명당 템플릿 생성과 수정을 분당 몇 번까지 받을지다. 시연 촬영에서 연달아 호출해도 걸리지 않게 올렸다. 운영은 기본값 3 이다
-      TEMPLATE_GENERATION_RATE_LIMIT: "20"
-      APP_NAME: "${project}-dev"
-      APP_INSTANCE_ID: "dev"
-      TRACE_SAMPLE_RATE: "0"
-      # 힙은 컨테이너 상한(mem_limit)의 70% 다. 상한이 있어야 이 비율이 뜻대로 돈다
-      # user.timezone 이 빠지면 DB 시각이 9시간 밀려 저장된다. Hibernate 가 JVM 시간대(UTC)로 넘기고 드라이버가 세션 시간대(Asia/Seoul)로 다시 바꾼다.
-      JAVA_TOOL_OPTIONS: >-
-        -XX:MaxRAMPercentage=70
-        -Dnetworkaddress.cache.ttl=5
-        -Dnetworkaddress.cache.negative.ttl=1
-        -Duser.timezone=Asia/Seoul
-    mem_limit: 1100m
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health/liveness"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 90s
-    stop_grace_period: 45s
-    # CloudWatch Logs 로도 보낸다. 팀원이 서버에 들어오지 않고 scripts/dev-logs.sh 로 본다 (개발 서버 문서 10장).
-    # 컨테이너를 다시 만들어도 30일 남는다. docker logs 도 그대로 된다(Docker 의 이중 로깅).
-    # non-blocking 이라 CloudWatch 가 느려도 앱이 멈추지 않는다
-    logging:
-      driver: awslogs
-      options:
-        awslogs-region: "${region}"
-        awslogs-group: "${log_group}"
-        mode: non-blocking
-        max-buffer-size: 4m
+      <<: *app-env
+      # 배치 점유의 주인 이름이다. 전환 중 잠깐 둘이 함께 돌 때 서로의 단계를 제 것으로 보지 않게 나눈다
+      APP_INSTANCE_ID: "dev-blue"
+
+  app-green:
+    <<: *app
+    container_name: ${project}-green
+    environment:
+      <<: *app-env
+      APP_INSTANCE_ID: "dev-green"
 
   mysql:
     image: mysql:8.4
@@ -111,7 +126,8 @@ services:
       - "127.0.0.1:3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
-    mem_limit: 512m
+    # 기본 세계(lc-backend db/base)가 들어가 512m 에서 한도 가까이 썼다 (2026-10-23 463 MiB). 넉넉히 올린다
+    mem_limit: 768m
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
       interval: 5s

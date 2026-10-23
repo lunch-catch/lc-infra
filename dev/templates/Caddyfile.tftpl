@@ -5,7 +5,18 @@
 # 앱의 트래픽 포트(8080)만 넘긴다. 액추에이터(8081)는 밖에 내놓지 않는다.
 ${api_host} {
 	encode gzip
-	reverse_proxy app:8080
+	# 앱은 app-blue 와 app-green 중 하나가 돈다. 배포 중에는 둘이 잠깐 함께 돈다 (개발 서버 문서 7장).
+	# 상태 확인으로 살아 있는 쪽에만 보내고, 넘어가는 동안 들어온 요청은 30초까지 다시 시도한다.
+	reverse_proxy app-blue:8080 app-green:8080 {
+		lb_policy first
+		lb_try_duration 30s
+		lb_try_interval 250ms
+		health_uri /actuator/health/liveness
+		health_port 8081
+		health_interval 2s
+		health_timeout 2s
+		fail_duration 10s
+	}
 }
 
 # 개발 Grafana 다 (개발 서버 문서 11장). 로그인은 Grafana 계정으로 한다. 가입은 막아 두었다
