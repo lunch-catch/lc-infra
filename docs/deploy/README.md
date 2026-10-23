@@ -644,7 +644,34 @@ aws ssm delete-parameter --name /lunchcatch/base-date     # 넣어 두었다면 
 
 **이미 있는 계정은 건너뛴다.** 예전 `seed-admin.sh` 가 넣은 `superadmin` 이 그렇다. 새 값으로 맞추는 법은 아래 "첫 최고 관리자" 에 있다.
 
-**사진은 미리 올려 둔다.** 기본 세계의 사진 키(`world/stores/...`, `world/campaigns/...`) 1,636장과 시연 층 사진(`demo/...`) 42장은 개발과 운영 미디어 버킷에 있다. `destroy.sh` 가 운영 버킷을 비우므로 다시 세우면 다시 올린다 (lc-infra #29 댓글에 출처와 만드는 법).
+**사진은 미리 올려 둔다.** 기본 세계 사진(`world/stores/...` 가게 로고, 매장, 메뉴 사진과 `world/campaigns/<캠페인>/poster.jpg` 포스터)과 시연 층 사진(`demo/...`)은 개발과 운영 미디어 버킷에 같은 키로 있다(lc-infra #29 댓글에 출처와 만드는 법). 포스터는 지금 임시 이미지이고, 프론트가 만든 포스터와 로고를 받으면 같은 키에 덮어쓴다 (lc-backend #886).
+
+**운영을 destroy 하면 DB 와 미디어가 모두 지워진다.** `destroy.sh` 는 RDS 를 최종 스냅샷 없이 지우고 미디어 버킷을 내용째 지운다. 다시 세웠을 때 돌아오는 것과 돌아오지 않는 것은 이렇다.
+
+| 무엇 | 다시 세우면 |
+|---|---|
+| 기본 세계와 시연 층(가게, 메뉴 이름, 전단지 템플릿 10종, 포스터 행) | 앱이 처음 뜰 때 V2 ~ V8 과 반복 마이그레이션이 그날 기준으로 다시 넣는다 |
+| 기본 계정 비밀번호 | SSM 에 남아 그대로 쓴다 |
+| 운영에서 직접 만든 템플릿, 캠페인, 포스터, 실제 가입자 | 돌아오지 않는다. 남겨야 하면 destroy 전에 RDS 스냅샷을 손으로 뜬다 |
+| 미디어 사진 | 돌아오지 않는다. 아래로 개발 버킷에서 복사한다 |
+
+다시 세운 뒤 기본 세계와 시연 사진을 개발 버킷에서 복사하고 CDN 캐시를 비운다. 개발 버킷의 팀원 업로드(`stores/`, `campaigns/`)와 지운 시드 사진(`seed/`)은 복사하지 않는다.
+
+```bash
+export AWS_PROFILE=lunchcatch
+aws s3 sync s3://lunchcatch-dev-media/world/ s3://lunchcatch-media/world/ --cache-control "public, max-age=86400"
+aws s3 sync s3://lunchcatch-dev-media/demo/  s3://lunchcatch-media/demo/  --cache-control "public, max-age=86400"
+dist=$(aws cloudfront list-distributions --query "DistributionList.Items[?Aliases.Items[0]=='cdn.lunchcatch.com'].Id" --output text)
+aws cloudfront create-invalidation --distribution-id "$dist" --paths "/world/*" "/demo/*"
+```
+
+복사한 뒤 개수를 맞춰 본다. 두 버킷의 `world/`, `demo/` 개수가 같아야 한다.
+
+```bash
+for b in lunchcatch-dev-media lunchcatch-media; do
+  echo "$b world $(aws s3 ls s3://$b/world/ --recursive | wc -l) demo $(aws s3 ls s3://$b/demo/ --recursive | wc -l)"
+done
+```
 
 ## 첫 최고 관리자
 
