@@ -627,6 +627,13 @@ aws ssm delete-parameter --name /lunchcatch/base-date     # 넣어 두었다면 
 
 **시연 층(`R__demo.sql`)은 기준일이 바뀌면 다시 돈다.** 기준일을 비우면 날짜가 바뀐 뒤 앱이 다시 뜰 때마다 시연 계정의 데이터를 그날 기준으로 되돌린다. 계정 행과 비밀번호는 그대로다.
 
+**기본 세계 파일(V2 ~ V7)을 고친 코드로 올릴 때는 먼저 정리한다 (lc-backend #858).** 이미 적용된 V 파일의 체크섬이 어긋나 새 코드가 뜨지 못한다. 정리는 계정(관리자, 점주, 회원)을 남기고 기본 세계와 시연 층의 나머지 행과 이력을 지운다. 그다음 새 코드를 배포하면 그날 기준으로 다시 들어간다.
+
+```bash
+./scripts/reset-base-world.sh dev  <lc-backend>/scripts/reset_base_world.sql   # 개발. 그다음 develop 배포
+./scripts/reset-base-world.sh prod <lc-backend>/scripts/reset_base_world.sql   # 운영. prod 를 입력해 확인한다. 그다음 릴리스 배포
+```
+
 **이미 있는 계정은 건너뛴다.** 예전 `seed-admin.sh` 가 넣은 `superadmin` 이 그렇다. 새 값으로 맞추는 법은 아래 "첫 최고 관리자" 에 있다.
 
 **사진은 미리 올려 둔다.** 기본 세계의 사진 키(`world/stores/...`, `world/campaigns/...`) 1,636장과 시연 층 사진(`demo/...`) 42장은 개발과 운영 미디어 버킷에 있다. `destroy.sh` 가 운영 버킷을 비우므로 다시 세우면 다시 올린다 (lc-infra #29 댓글에 출처와 만드는 법).
