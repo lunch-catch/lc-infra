@@ -62,6 +62,8 @@ services:
       # 관리자 템플릿 생성의 LLM 이다 (LLM 문서 4.2절). 키는 넘기지 않는다. 서버 역할로 인증한다
       BEDROCK_MODEL_ID: "${bedrock_model_id}"
       BEDROCK_REGION: "${bedrock_region}"
+      # 관리자 1명당 템플릿 생성과 수정을 분당 몇 번까지 받을지다. 시연 촬영에서 연달아 호출해도 걸리지 않게 개발과 같이 올렸다 (lc-infra #32)
+      TEMPLATE_GENERATION_RATE_LIMIT: "20"
       APP_NAME: "${project}"
       APP_INSTANCE_ID: "$${APP_INSTANCE_ID}"
 %{ if role == "batch" ~}
