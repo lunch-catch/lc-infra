@@ -4,3 +4,6 @@
 
 # PowerShell 스크립트는 Windows 에서 쓰므로 CRLF 로 둔다.
 *.ps1 text eol=crlf
+
+# draw.io 원본은 아이콘이 base64 로 들어 있어 줄 단위 diff 가 의미가 없다.
+*.drawio -diff
