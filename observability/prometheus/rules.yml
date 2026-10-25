@@ -14,6 +14,14 @@ groups:
 
   - name: critical
     rules:
+      # 메모리가 다 차서 쓰기가 거절됐다. 로그인 상태, 쿠폰 순번, 과금 쓰기가 실패하고 있다
+      - alert: CacheOomRejected
+        expr: increase(redis_errors_total{err="OOM"}[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          description: "캐시가 메모리 부족으로 쓰기를 거절했다. 키를 정리하거나 노드를 키워라"
+
       # 배포 전 대비 2배, 3분 지속. 롤백 판단의 근거다.
       - alert: HighFiveXXRate
         expr: |
@@ -98,6 +106,15 @@ groups:
           severity: warning
         annotations:
           description: "캐시 연결이 1분간 끊겼다. 강등 경로 동작을 확인하라"
+
+      # 퇴출 정책이 noeviction 이라 메모리가 차면 쓰기가 오류가 된다. 차기 전에 알린다
+      - alert: CacheMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.7
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          description: "캐시 메모리가 70% 를 넘었다. TTL 없는 키와 키 개수를 확인하라"
 
       # 10분 내 3회. OOM 이 가장 흔한 원인이다.
       - alert: ContainerRestartLoop

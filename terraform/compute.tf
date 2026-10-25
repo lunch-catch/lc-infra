@@ -176,8 +176,13 @@ resource "aws_launch_template" "app" {
     }
   }
 
+  /*
+   * AMI 변경을 무시한다. 배치 템플릿과 같은 이유다.
+   * 무관한 apply 가 새 AMI 로 템플릿 버전을 만들면 다음 배포와 확장, 교체가 검증 안 된 AMI 로 뜬다.
+   */
   lifecycle {
     create_before_destroy = true
+    ignore_changes        = [image_id]
   }
 }
 

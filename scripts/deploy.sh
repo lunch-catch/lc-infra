@@ -71,8 +71,13 @@ instance_ids() {
 }
 
 # 0. 사전 상태 점검. 실패하면 여기서 끝난다.
-log "0. 사전 점검"
-"$(dirname "$0")/preflight.sh" deploy
+# 롤백은 SKIP_PREFLIGHT=1 로 건너뛴다. 배포가 반쯤 실패해 healthy < desired 인 바로 그 상태를 점검이 막기 때문이다.
+if [ "${SKIP_PREFLIGHT:-0}" = 1 ]; then
+  log "0. 사전 점검 건너뜀 (롤백)"
+else
+  log "0. 사전 점검"
+  "$(dirname "$0")/preflight.sh" deploy
+fi
 
 # 1. 이미지는 워크플로가 이미 ECR 에 올렸다. 여기서는 존재만 전제한다.
 log "1. 이미지 태그 $SHA"
