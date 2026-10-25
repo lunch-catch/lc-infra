@@ -2,9 +2,17 @@
 
 런치캐치(lunch-catch) 백엔드의 인프라다. Terraform 으로 AWS 를 만들고, lc-backend 의 `main` 병합을 트리거로 운영에 배포한다.
 
+## 아키텍처
+
+### 운영
+
 ![운영 AWS 아키텍처](docs/architecture/aws-prod.png)
 
-그림의 원본과 개발 서버 그림은 [`docs/architecture/`](docs/architecture/) 에 있다.
+### 개발
+
+![개발 AWS 아키텍처](docs/architecture/aws-dev.png)
+
+그림의 draw.io 원본과 고치는 법은 [`docs/architecture/`](docs/architecture/) 에 있다.
 
 ## 한눈에 보기
 
