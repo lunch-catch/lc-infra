@@ -146,6 +146,16 @@ resource "aws_sns_topic" "critical_us_east_1" {
   display_name = "critical"
 }
 
+# 외부 감시 알람은 이 주제로만 간다. 구독이 없으면 서비스가 밖에서 안 보여도 아무도 모른다
+resource "aws_sns_topic_subscription" "email_us_east_1" {
+  count = local.has_domain && var.alert_email != "" ? 1 : 0
+
+  provider  = aws.us_east_1
+  topic_arn = aws_sns_topic.critical_us_east_1[0].arn
+  protocol  = "email"
+  endpoint  = var.alert_email
+}
+
 resource "aws_cloudwatch_metric_alarm" "endpoint_health" {
   count = local.has_domain ? 1 : 0
 
@@ -244,11 +254,13 @@ resource "aws_budgets_budget" "monthly" {
 }
 
 /*
- * SNS 주제가 예산 알림을 받으려면 budgets 서비스에 게시 권한을 줘야 한다.
- * 이것이 없으면 예산은 만들어지는데 알림이 조용히 안 온다.
+ * 주제 정책은 기본 정책을 통째로 갈아끼운다. 그래서 이 주제에 게시하는 서비스를 모두 여기에 적는다.
+ * budgets 만 적었을 때 CloudWatch 알람과 RDS 이벤트가 "Failed to execute action" 으로 조용히 버려졌다.
+ * 다른 계정의 알람이 이 주제를 쓰지 못하게 게시 주체 계정을 이 계정으로 묶는다.
  */
-data "aws_iam_policy_document" "sns_budgets" {
+data "aws_iam_policy_document" "sns_critical" {
   statement {
+    sid       = "Budgets"
     effect    = "Allow"
     actions   = ["SNS:Publish"]
     resources = [aws_sns_topic.critical.arn]
@@ -258,9 +270,27 @@ data "aws_iam_policy_document" "sns_budgets" {
       identifiers = ["budgets.amazonaws.com"]
     }
   }
+
+  statement {
+    sid       = "CloudWatchAlarmsAndRdsEvents"
+    effect    = "Allow"
+    actions   = ["SNS:Publish"]
+    resources = [aws_sns_topic.critical.arn]
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudwatch.amazonaws.com", "events.rds.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
 }
 
 resource "aws_sns_topic_policy" "critical" {
   arn    = aws_sns_topic.critical.arn
-  policy = data.aws_iam_policy_document.sns_budgets.json
+  policy = data.aws_iam_policy_document.sns_critical.json
 }

@@ -18,9 +18,21 @@ resource "aws_elasticache_subnet_group" "main" {
 }
 
 resource "aws_elasticache_parameter_group" "main" {
+  # description 을 고치면 같은 이름으로 다시 만들어야 해서 그대로 둔다. 실제로 고친 값은 아래 parameter 다
   name        = "${var.project}-valkey90"
   family      = "valkey9"
   description = "defaults only. nothing to tune for cache use"
+
+  /*
+   * 메모리가 차도 키를 지우지 않고 쓰기를 오류로 돌려준다.
+   * 기본값 volatile-lru 는 TTL 이 걸린 키부터 지운다. 이 캐시에는 리프레시 토큰, 선착순 순번, 과금 멱등 표시처럼
+   * 원본이 여기뿐인 키가 TTL 을 달고 있어서, 지워지면 강제 로그아웃이나 이중 과금이 오류 없이 일어난다.
+   * 쓰기 오류는 앱의 캐시 장애 처리로 넘어가고 Prometheus 의 CacheMemoryHigh, CacheOomRejected 가 알린다.
+   */
+  parameter {
+    name  = "maxmemory-policy"
+    value = "noeviction"
+  }
 
   lifecycle {
     create_before_destroy = true

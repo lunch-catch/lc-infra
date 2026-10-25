@@ -33,5 +33,11 @@ SHA="${1:?되돌아갈 커밋 SHA 를 넘겨라}"
 current=$(aws ssm get-parameter --name "/$PROJECT/current-sha" --region "$REGION" \
   --query 'Parameter.Value' --output text)
 
+# 대상 이미지가 ECR 에 없으면 증설 대기 360초를 다 쓰고 나서야 실패하므로 먼저 확인한다
+aws ecr describe-images --repository-name "$PROJECT" --region "$REGION" \
+  --image-ids "imageTag=$SHA" --query 'imageDetails[0].imageTags' --output text >/dev/null \
+  || { printf 'ERROR: ECR 에 %s 이미지가 없다\n' "$SHA" >&2; exit 1; }
+
 echo "롤백 $current -> $SHA"
-exec "$(dirname "$0")/deploy.sh" "$SHA"
+# 롤백이 필요한 때는 대개 사전 점검이 실패하는 상태라 건너뛴다. deploy.sh 0번 주석 참고
+SKIP_PREFLIGHT=1 exec "$(dirname "$0")/deploy.sh" "$SHA"

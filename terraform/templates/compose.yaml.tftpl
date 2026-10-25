@@ -72,11 +72,13 @@ services:
       LAUNCHCATCH_SCHEDULER_ENABLED: "$${BATCH_SCHEDULER_ENABLED}"
 %{ endif ~}
       TRACE_SAMPLE_RATE: "0.1"
-      # MaxRAMPercentage 는 컨테이너 한도 기준이다.
+      # 컨테이너 한도가 없어 MaxRAMPercentage 는 인스턴스 메모리 기준이다. 70 이면 힙과 힙 밖 메모리, 사이드카를 합쳐 t3.small 2GB 를 넘을 수 있어 60 으로 둔다.
+      # 힙이 모자라면 일부 스레드만 죽은 채 liveness 가 UP 으로 남으므로 프로세스를 끝내 컨테이너 재시작에 맡긴다.
       # DNS TTL 이 결정적이다. 이것이 빠지면 페일오버 후 옛 주소를 계속 찾는다.
       # user.timezone 이 빠지면 DB 시각이 9시간 밀려 저장된다. Hibernate 가 JVM 시간대(UTC)로 넘기고 드라이버가 세션 시간대(Asia/Seoul)로 다시 바꾼다.
       JAVA_TOOL_OPTIONS: >-
-        -XX:MaxRAMPercentage=70
+        -XX:MaxRAMPercentage=60
+        -XX:+ExitOnOutOfMemoryError
         -Dnetworkaddress.cache.ttl=5
         -Dnetworkaddress.cache.negative.ttl=1
         -Duser.timezone=Asia/Seoul
