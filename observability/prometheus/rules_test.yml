@@ -1,0 +1,64 @@
+# BatchNotRun 의 주기별 임계값을 확인한다 (lc-infra #44).
+#   docker run --rm -v "$PWD/observability/prometheus:/p" --entrypoint promtool prom/prometheus:v3.13.1 test rules /p/rules_test.yml
+#
+# 값은 마지막 성공 시각(초)이다. 0 은 시험 시작 때 성공하고 그 뒤로 성공하지 않은 작업,
+# 0+60x... 은 매분 성공해 늘 최신인 작업이다.
+rule_files:
+  - rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'batch_job_last_success_timestamp_seconds{instance="b1", scheduler="DailyJobScheduler.sendHeartbeat()"}'
+        values: '0x3100'
+      - series: 'batch_job_last_success_timestamp_seconds{instance="b2", scheduler="DailyJobScheduler.sendHeartbeat()"}'
+        values: '0+60x3100'
+      - series: 'batch_job_last_success_timestamp_seconds{instance="b1", scheduler="PaymentRecheckWorker.recheckUnknownPayments()"}'
+        values: '0x3100'
+      - series: 'batch_job_last_success_timestamp_seconds{instance="b1", scheduler="DailyAggregationJob.run()"}'
+        values: '0x3100'
+      - series: 'batch_job_last_success_timestamp_seconds{instance="b1", scheduler="CouponIssueCloseJob.closeCoupons()"}'
+        values: '0x3100'
+      - series: 'batch_job_last_success_timestamp_seconds{instance="b1", scheduler="EventLogRetentionJob.purgeExpiredEvents()"}'
+        values: '0x3100'
+    alert_rule_test:
+      # 4분: 아무것도 울리지 않는다. 결제 재조회도 5분 전이다
+      - eval_time: 4m
+        alertname: BatchNotRun
+        exp_alerts: []
+      # 40분: 생존 신호와 결제 재조회만 울린다. 하루 작업은 성공한 지 40분이라 울리지 않는다 (예전에는 울렸다)
+      - eval_time: 40m
+        alertname: BatchNotRun
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: b1, scheduler: "DailyJobScheduler.sendHeartbeat()"}
+            exp_annotations: {description: "배치 b1 의 DailyJobScheduler.sendHeartbeat() 가 주기를 넘겨 성공하지 못했다"}
+          - exp_labels: {severity: warning, instance: b1, scheduler: "PaymentRecheckWorker.recheckUnknownPayments()"}
+            exp_annotations: {description: "배치 b1 의 PaymentRecheckWorker.recheckUnknownPayments() 가 주기를 넘겨 성공하지 못했다"}
+      # 26시간: 하루 작업이 울린다. 이벤트 보존은 50시간 전이라 울리지 않는다
+      - eval_time: 1560m
+        alertname: BatchNotRun
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: b1, scheduler: "DailyJobScheduler.sendHeartbeat()"}
+            exp_annotations: {description: "배치 b1 의 DailyJobScheduler.sendHeartbeat() 가 주기를 넘겨 성공하지 못했다"}
+          - exp_labels: {severity: warning, instance: b1, scheduler: "PaymentRecheckWorker.recheckUnknownPayments()"}
+            exp_annotations: {description: "배치 b1 의 PaymentRecheckWorker.recheckUnknownPayments() 가 주기를 넘겨 성공하지 못했다"}
+          - exp_labels: {severity: warning, instance: b1, scheduler: "DailyAggregationJob.run()"}
+            exp_annotations: {description: "배치 b1 의 DailyAggregationJob.run() 가 주기를 넘겨 성공하지 못했다"}
+          - exp_labels: {severity: warning, instance: b1, scheduler: "CouponIssueCloseJob.closeCoupons()"}
+            exp_annotations: {description: "배치 b1 의 CouponIssueCloseJob.closeCoupons() 가 주기를 넘겨 성공하지 못했다"}
+      # 51시간: 이벤트 보존까지 울린다. 매분 성공하는 b2 는 끝까지 울리지 않는다
+      - eval_time: 3060m
+        alertname: BatchNotRun
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: b1, scheduler: "DailyJobScheduler.sendHeartbeat()"}
+            exp_annotations: {description: "배치 b1 의 DailyJobScheduler.sendHeartbeat() 가 주기를 넘겨 성공하지 못했다"}
+          - exp_labels: {severity: warning, instance: b1, scheduler: "PaymentRecheckWorker.recheckUnknownPayments()"}
+            exp_annotations: {description: "배치 b1 의 PaymentRecheckWorker.recheckUnknownPayments() 가 주기를 넘겨 성공하지 못했다"}
+          - exp_labels: {severity: warning, instance: b1, scheduler: "DailyAggregationJob.run()"}
+            exp_annotations: {description: "배치 b1 의 DailyAggregationJob.run() 가 주기를 넘겨 성공하지 못했다"}
+          - exp_labels: {severity: warning, instance: b1, scheduler: "CouponIssueCloseJob.closeCoupons()"}
+            exp_annotations: {description: "배치 b1 의 CouponIssueCloseJob.closeCoupons() 가 주기를 넘겨 성공하지 못했다"}
+          - exp_labels: {severity: warning, instance: b1, scheduler: "EventLogRetentionJob.purgeExpiredEvents()"}
+            exp_annotations: {description: "배치 b1 의 EventLogRetentionJob.purgeExpiredEvents() 가 주기를 넘겨 성공하지 못했다"}
