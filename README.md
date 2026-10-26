@@ -116,6 +116,7 @@ Terraform 쪽에 `ignore_changes` 를 걸어 두었다. 자세한 것은 [`docs/
 | `dev-db.sh` / `dev-logs.sh` | 개발 서버 MySQL 에 포트 포워딩으로 붙는다, 앱 로그를 본다. Windows 는 `.ps1` |
 | `account-passwords.sh` | 기본 계정 비밀번호를 SSM 에 둔다 |
 | `superadmin-password.sh` | superadmin 비밀번호를 SSM 값으로 맞춘다 |
+| `account-password.sh` | 기본 계정 묶음(scenario, demo-owner, demo-admin, superadmin)의 비밀번호를 SSM 과 DB 에서 함께 바꾼다 |
 | `reset-base-world.sh` | 기본 세계(시연 데이터)를 다시 넣기 전에 정리한다 |
 | `member-env.sh` | 팀원이 자기 AWS 계정에 운영과 같은 인프라를 띄워 부하 시험을 한다 |
 | `loadtest-box.sh` / `loadtest-snapshot.sh` | 부하 생성기를 띄우고 내린다, 회차 대시보드를 PNG 로 받는다 |
