@@ -67,7 +67,7 @@ resource "aws_ssm_parameter" "cdn_domain" {
 /*
  * 배치 스케줄러를 재배포 없이 끄는 스위치다 (백엔드 배치 운영 문서 1장).
  *
- * 앱은 환경변수 LAUNCHCATCH_SCHEDULER_ENABLED 가 프로필 설정보다 우선한다. 그런데 .env 는
+ * 앱은 환경변수 LUNCHCATCH_SCHEDULER_ENABLED 가 프로필 설정보다 우선한다. 그런데 .env 는
  * refresh-env 가 배포와 재시작마다 통째로 다시 쓰므로, 인스턴스에서 손으로 고친 값은 다음 배포에 사라진다.
  * 그래서 값을 여기 두고 refresh-env 가 읽는다. 끄는 법은 이 값을 false 로 바꾸고 배치에서
  * refresh-env 와 서비스 재시작을 돌리는 것이다. 운영자가 바꾸는 값이라 Terraform 은 되돌리지 않는다.

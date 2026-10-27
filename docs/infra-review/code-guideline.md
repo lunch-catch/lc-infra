@@ -313,9 +313,9 @@ ASG가 인스턴스를 교체할 때 시작 템플릿의 태그가 고정되어 
   두 대를 한꺼번에 교체하면 그 사이 작업을 이어받을 서버가 없다. `$Latest` 로 걸면 Terraform 이 템플릿 변경을 몰라 교체가 시작되지 않는다.
 * `INF-12-25` 배치 시작 템플릿에 `ignore_changes = [image_id]` 가 걸려 있는가
   `most_recent` AMI 가 바뀔 때마다 새 버전이 생겨 무관한 apply 가 배치를 교체한다.
-* `INF-12-26` `LAUNCHCATCH_SCHEDULER_ENABLED` 를 배치 역할의 컨테이너에만 넘기고 그 값을 SSM 에서 읽는가
+* `INF-12-26` `LUNCHCATCH_SCHEDULER_ENABLED` 를 배치 역할의 컨테이너에만 넘기고 그 값을 SSM 에서 읽는가
   앱에 넘기면 앱 스케줄러가 켜질 길이 생긴다. 인스턴스의 `.env` 에 두면 다음 배포의 `refresh-env` 가 덮어써 끈 스케줄러가 다시 켜진다.
-* `INF-12-27` 배치에 서버 식별자(`LAUNCHCATCH_BATCH_OWNER_ID`)를 고정값으로 주지 않는가
+* `INF-12-27` 배치에 서버 식별자(`LUNCHCATCH_BATCH_OWNER_ID`)를 고정값으로 주지 않는가
   재시작해도 같은 값이면 새 프로세스의 생존 신호가 죽은 프로세스의 행까지 갱신해 아무도 이어받지 않는다.
 * `INF-12-20` 오토스케일링 정책을 만들었다면 지표가 `ALBRequestCountPerTarget` 인가
   CPU 는 이 앱의 포화를 못 잡는다. 요청 스레드가 DB 응답이나 발급 큐의 future 를 기다리며 블록되므로,
