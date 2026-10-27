@@ -69,6 +69,12 @@ services:
 %{ if role == "batch" ~}
       # 배치 스케줄러 스위치. SSM batch-scheduler-enabled 에서 온다.
       # 앱에는 넘기지 않는다. 넘기면 앱 스케줄러가 켜질 길이 생긴다.
+      #
+      # 두 이름을 함께 넘기는 것은 철자 통일의 전환기라서다 (lc-infra #47).
+      # 설정 접두어가 lunchcatch 로 바뀌므로 신 백엔드는 LUNCHCATCH 를 읽고 구 백엔드는 LAUNCHCATCH 를 읽는다.
+      # 한쪽만 넘기면 배포 순서에 따라 스위치가 켜진 채로 고장나 장애 때 배치를 멈출 수 없다.
+      # lc-backend #1060 이 배포되면 LAUNCHCATCH 줄을 뺀다 (lc-infra #48).
+      LUNCHCATCH_SCHEDULER_ENABLED: "$${BATCH_SCHEDULER_ENABLED}"
       LAUNCHCATCH_SCHEDULER_ENABLED: "$${BATCH_SCHEDULER_ENABLED}"
 %{ endif ~}
       TRACE_SAMPLE_RATE: "0.1"
