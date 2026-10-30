@@ -7,6 +7,22 @@
 
 locals {
   ssm_prefix = "/${var.project}"
+
+  /*
+   * 도메인을 사기 전까지 쓰는 임시 경로다.
+   * ALB 를 거치지 않는다.
+   */
+  has_duckdns = var.duckdns_hostname != ""
+
+  /*
+   * Grafana 가 자기 주소를 아는 값이다. ALB 경로가 있으면 그쪽이 정본이다.
+   * 틀리면 로그인 후 리디렉션과 패널 공유 링크가 localhost 로 간다.
+   */
+  grafana_root_url = (
+    var.grafana_alb_enabled ? "https://${var.grafana_host}/" :
+    local.has_duckdns ? "https://${var.duckdns_hostname}/" :
+    "unset"
+  )
 }
 
 /*
@@ -33,7 +49,7 @@ resource "aws_ssm_parameter" "db_endpoint" {
   name        = "${local.ssm_prefix}/db-endpoint"
   description = "DB endpoint for app and batch"
   type        = "String"
-  value       = aws_db_instance.main.address
+  value       = var.db_address
 
   /*
    * 값을 Terraform 이 직접 넣는다. 한때 "unset" 으로 태어나 apply.sh 5단계가 채웠는데,
@@ -57,7 +73,7 @@ resource "aws_ssm_parameter" "cdn_domain" {
   name        = "${local.ssm_prefix}/cdn-domain"
   description = "CloudFront domain for image URLs"
   type        = "String"
-  value       = local.has_domain ? local.cdn_host : aws_cloudfront_distribution.media.domain_name
+  value       = var.cdn_domain
 
   lifecycle {
     ignore_changes = [value]
@@ -91,7 +107,7 @@ resource "aws_ssm_parameter" "cache_endpoint" {
   name        = "${local.ssm_prefix}/cache-endpoint"
   description = "cache endpoint for app and monitoring"
   type        = "String"
-  value       = aws_elasticache_replication_group.main.primary_endpoint_address
+  value       = var.cache_endpoint
 
   lifecycle {
     ignore_changes = [value]
@@ -148,10 +164,13 @@ resource "aws_ssm_parameter" "grafana_auth_proxy" {
   name        = "${local.ssm_prefix}/grafana-auth-proxy"
   description = "whether ALB puts the OIDC identity header in front of Grafana"
   type        = "String"
-  value       = local.has_grafana ? "true" : "false"
+  value       = var.grafana_alb_enabled ? "true" : "false"
 }
 
-# Caddy 가 어느 이름으로 인증서를 받을지 알아야 한다. 비어 있으면 Caddy 를 띄우지 않는다.
+/*
+ * Caddy 가 어느 이름으로 인증서를 받을지 알아야 한다.
+ * 비어 있으면 Caddy 를 띄우지 않는다.
+ */
 resource "aws_ssm_parameter" "duckdns_hostname" {
   name        = "${local.ssm_prefix}/duckdns-hostname"
   description = "DuckDNS hostname for the Caddy TLS front. unset when unused"

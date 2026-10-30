@@ -13,9 +13,11 @@
 #
 # up 을 다시 부르면 바뀐 코드만 반영하고 정리 시각을 지금부터 다시 센다.
 #
-# 운영 코드(terraform/)를 고치지 않고 그대로 쓴다. 매번 작업 사본에 복사한 뒤 팀원 환경에 맞는
-# 차이(도메인 없음, 삭제 보호 해제, 자동 정리)만 사본에 얹는다. 그래서 운영 코드가 바뀌면
+# 운영과 같은 모듈(modules/)을 부하 시험 루트(envs/lt)로 부른다. 팀원 환경에 맞는 차이(도메인 없음,
+# 삭제 보호 해제, 자동 정리)는 그 루트가 값으로 갖는다. 그래서 운영 코드가 바뀌면
 # git pull 하고 up 하는 것만으로 팀원 환경에도 들어간다.
+#
+# 계정마다 상태 버킷과 변수 파일과 .terraform 이 다르다. 셋 다 ~/.lunchcatch-member/<계정> 아래에 둔다.
 #
 # 우리 계정(762794225116)에서는 접두사를 lunchcatch-lt 로 바꿔 띄운다. 운영과 이름이 같으면 부딪히기 때문이다.
 # 계정 한도와 관측(Prometheus 가 계정의 서버를 모두 찾는다)을 나눠 쓰므로 운영이 떠 있으면 멈춘다.
@@ -72,48 +74,28 @@ if [ "$ACCOUNT" = "$OUR_ACCOUNT" ]; then
       || die "우리 계정에 운영이 떠 있다 (DB ${prod_db:-없음}, 서버 $prod_vms 대). 운영을 내린 뒤 띄운다 (./scripts/destroy.sh)"
   fi
 fi
-TF="$WORK/terraform"
+TF="$ROOT/envs/lt"
+VARS="$WORK/member.tfvars"
+# 같은 루트를 여러 계정에서 돌리므로 .terraform 을 계정마다 따로 둔다
+export TF_DATA_DIR="$WORK/.terraform"
+
+# 모듈화(#50) 전의 작업 사본이 남아 있으면 그 상태는 옛 주소를 쓴다. 새 코드로 up 하면 같은 이름을 다시 만들다 부딪힌다
+if [ -d "$WORK/terraform" ]; then
+  die "모듈화 전에 띄운 환경이 남아 있다. 옛 사본으로 먼저 지운다:
+  terraform -chdir=$WORK/terraform init -reconfigure -backend-config=bucket=tfstate-$PROJECT-$ACCOUNT -backend-config=key=member/terraform.tfstate -backend-config=region=$REGION
+  terraform -chdir=$WORK/terraform destroy
+  rm -rf $WORK/terraform $WORK/observability"
+fi
 STATE_BUCKET="tfstate-$PROJECT-$ACCOUNT"
 export TF_IN_AUTOMATION=1
 export AWS_REGION="$REGION" AWS_DEFAULT_REGION="$REGION"
 
-# 작업 사본을 운영 코드에서 새로 만든다. 상태는 S3 에 있어 사본을 지워도 잃지 않는다.
-prepare_copy() {
-  mkdir -p "$WORK"
-  rm -rf "$WORK/observability"
-  mkdir -p "$TF"
-  find "$TF" -maxdepth 1 -type f \( -name '*.tf' -o -name '*.tfvars' -o -name '*.hcl' \) -delete
-  rm -rf "$TF/templates"
-  cp "$ROOT"/terraform/*.tf "$ROOT/terraform/.terraform.lock.hcl" "$TF/"
-  cp -R "$ROOT/terraform/templates" "$TF/templates"
-  cp -R "$ROOT/observability" "$WORK/observability"
-  cp "$ROOT/member/cleanup.tf" "$TF/member_cleanup.tf"
-
-  # 시험 환경이라 지키지 않는다. destroy.sh 의 가드 해제와 같은 자리다
-  local s
-  for f in "$TF"/*.tf; do
-    s=$(sed \
-      -e 's/^\( *\)prevent_destroy = true$/\1prevent_destroy = false/' \
-      -e 's/^\( *\)enable_deletion_protection = true$/\1enable_deletion_protection = false/' \
-      -e 's/^\( *\)deletion_protection\( *\)= true$/\1deletion_protection\2= false/' \
-      -e 's/^\( *\)skip_final_snapshot\( *\)= false$/\1skip_final_snapshot\2= true/' \
-      -e 's/^\( *\)delete_on_termination\( *\)= false$/\1delete_on_termination\2= true/' \
-      -e 's|^resource "aws_s3_bucket" "media" {$|resource "aws_s3_bucket" "media" {\
-  force_destroy = true|' \
-      -e 's|^resource "aws_ecr_repository" "app" {$|resource "aws_ecr_repository" "app" {\
-  force_delete = true|' \
-      "$f")
-    printf '%s\n' "$s" > "$f"
-  done
-}
-
 write_vars() {
   local expires=$1
-  cat > "$TF/member.auto.tfvars" <<EOF
+  mkdir -p "$WORK"
+  cat > "$VARS" <<EOF
 # member-env.sh 가 만든다. 고치지 않는다
-aws_profile          = ""
 allowed_account_ids  = ["$ACCOUNT"]
-domain_name          = ""
 alert_email          = "${MEMBER_ALERT_EMAIL:-}"
 project              = "$PROJECT"
 media_bucket_name    = "$PROJECT-media-$ACCOUNT"
@@ -208,17 +190,16 @@ up)
   ensure_state_bucket
   ensure_secrets
   EXPIRES=$(expires_at)
-  prepare_copy
   write_vars "$EXPIRES"
   tf_init
 
   # 인스턴스가 뜨면서 이 값을 읽는다. 먼저 만들어 채워 두어야 첫 부팅부터 그 이미지로 뜬다
   log "2. 이미지 $SHA"
-  terraform -chdir="$TF" apply -auto-approve -input=false -target=aws_ssm_parameter.current_sha > /dev/null
+  terraform -chdir="$TF" apply -auto-approve -input=false -var-file="$VARS" -target=module.compute.aws_ssm_parameter.current_sha > /dev/null
   aws ssm put-parameter --name "/$PROJECT/current-sha" --type String --overwrite --value "$SHA" > /dev/null
 
   log "3. terraform apply (처음은 20분쯤 걸린다)"
-  terraform -chdir="$TF" apply -auto-approve -input=false
+  terraform -chdir="$TF" apply -auto-approve -input=false -var-file="$VARS"
 
   ALB=$(terraform -chdir="$TF" output -raw alb_dns_name)
   log "4. 앱 대기 http://$ALB"
@@ -243,7 +224,7 @@ EOF
   ;;
 
 status)
-  [ -d "$TF" ] || die "이 계정에 띄운 적이 없다"
+  [ -f "$VARS" ] || die "이 계정에 띄운 적이 없다"
   tf_init
   printf '정리 시각(UTC) %s\n' "$(terraform -chdir="$TF" output -raw member_expires_at 2> /dev/null || echo 없음)"
   printf 'ALB           %s\n' "$(terraform -chdir="$TF" output -raw alb_dns_name 2> /dev/null || echo 없음)"
@@ -265,11 +246,11 @@ EOF
   ;;
 
 down)
-  [ -d "$TF" ] || die "이 계정에 띄운 적이 없다"
+  [ -f "$VARS" ] || die "이 계정에 띄운 적이 없다"
   log "1. terraform destroy"
   tf_init
-  # 정리 시각은 상관없다. 변수만 채운다
-  terraform -chdir="$TF" destroy -auto-approve -input=false
+  # 정리 시각은 상관없다. 마지막 up 이 남긴 변수 파일을 그대로 쓴다
+  terraform -chdir="$TF" destroy -auto-approve -input=false -var-file="$VARS"
   # 이 환경 것만 센다. 우리 계정에는 운영 흔적과 개발 서버가 함께 있다
   log "2. 남은 것 ($PROJECT)"
   printf '  EC2 %s, RDS %s, ALB %s, NAT %s, EIP %s\n' \

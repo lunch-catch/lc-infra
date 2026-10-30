@@ -154,7 +154,7 @@ aws bedrock-runtime converse --model-id global.openai.gpt-5.6-sol --region ap-no
 
 | 역할 | 어디 | 이유 |
 |---|---|---|
-| 운영 앱 서버 (`instance["app"]`) | `terraform/iam.tf` | 템플릿 API 는 앱 서버가 받는다 |
+| 운영 앱 서버 (`instance["app"]`) | `modules/compute/iam.tf` | 템플릿 API 는 앱 서버가 받는다 |
 | 개발 서버 | `dev/main.tf` | 개발에서 먼저 시험한다 |
 | 배치 서버 | 주지 않는다 | 배치는 LLM 을 부르지 않는다 |
 
@@ -177,7 +177,7 @@ arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-6
 | `BEDROCK_MODEL_ID` | `jp.anthropic.claude-sonnet-4-6` | 같음 |
 | `BEDROCK_REGION` | `ap-northeast-1` | 같음 |
 
-값은 `terraform/variables.tf`, `dev/variables.tf` 의 `bedrock_model_id` 와 `bedrock_region` 에서 오고 compose 템플릿이 넘긴다. 이름은 백엔드의 설정 키와 맞춘다. 백엔드가 다른 이름을 정하면 이쪽을 바꾼다.
+값은 `modules/compute/variables.tf`, `dev/variables.tf` 의 `bedrock_model_id` 와 `bedrock_region` 에서 오고 compose 템플릿이 넘긴다. 이름은 백엔드의 설정 키와 맞춘다. 백엔드가 다른 이름을 정하면 이쪽을 바꾼다.
 
 ### 4.3 네트워크
 
@@ -240,7 +240,7 @@ arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-6
 **로컬 모델(Ollama 등)을 쓰지 않은 이유.** 지금 모델 `gpt-oss-120b` 는 메모리 65 GB 이상이 필요해 노트북에서 돌지 않는다.
 `gpt-oss-20b` 는 돌지만 서버와 다른 모델이고, 노트북에서 템플릿 한 건이 30초 상한을 넘을 수 있으며, API 형식이 달라 로컬 전용 구현이 하나 더 생긴다.
 
-**모델을 바꾸면 `bootstrap/` 의 `dev_team_bedrock_model_id` 도 함께 바꾼다.** `terraform/` 과 루트가 달라 변수를 공유하지 못한다.
+**모델을 바꾸면 `bootstrap/` 의 `dev_team_bedrock_model_id` 도 함께 바꾼다.** `envs/prod/` 과 루트가 달라 변수를 공유하지 못한다.
 
 ## 6. 남은 일
 

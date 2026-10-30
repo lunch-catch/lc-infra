@@ -32,7 +32,10 @@ resource "aws_internet_gateway" "main" {
   }
 }
 
-# ALB, NAT, 부하 생성기가 여기 있다. 앱과 배치와 모니터링은 사설로 옮겼다.
+/*
+ * ALB, NAT, 부하 생성기가 여기 있다.
+ * 앱과 배치와 모니터링은 사설로 옮겼다.
+ */
 resource "aws_subnet" "public" {
   for_each = var.public_subnet_cidrs
 
@@ -49,7 +52,10 @@ resource "aws_subnet" "public" {
   }
 }
 
-# RDS 와 ElastiCache 가 여기 있다. 나갈 일이 없다.
+/*
+ * RDS 와 ElastiCache 가 여기 있다.
+ * 나갈 일이 없다.
+ */
 resource "aws_subnet" "private" {
   for_each = var.private_subnet_cidrs
 
@@ -101,7 +107,10 @@ resource "aws_nat_gateway" "main" {
   allocation_id = aws_eip.nat[each.key].id
   subnet_id     = aws_subnet.public[each.key].id
 
-  # IGW 가 먼저 붙어 있어야 만들어진다. 암묵적 의존이 안 잡혀 명시한다.
+  /*
+   * IGW 가 먼저 붙어 있어야 만들어진다.
+   * 암묵적 의존이 안 잡혀 명시한다.
+   */
   depends_on = [aws_internet_gateway.main]
 
   tags = {
@@ -151,7 +160,10 @@ resource "aws_vpc_endpoint" "s3" {
 }
 
 resource "aws_route_table_association" "public" {
-  # 키를 서브넷 리소스가 아니라 원본 맵에서 가져온다. 리소스를 쓰면 apply 전에 키를 알 수 없다.
+  /*
+   * 키를 서브넷 리소스가 아니라 원본 맵에서 가져온다.
+   * 리소스를 쓰면 apply 전에 키를 알 수 없다.
+   */
   for_each = var.public_subnet_cidrs
 
   subnet_id      = aws_subnet.public[each.key].id

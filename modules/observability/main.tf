@@ -13,6 +13,8 @@
  * 각각 별도 과금이라 예산을 조용히 갉아먹는다.
  */
 
+data "aws_caller_identity" "current" {}
+
 resource "aws_sns_topic" "critical" {
   name         = "${var.project}-critical"
   display_name = "critical"
@@ -31,7 +33,10 @@ resource "aws_sns_topic_subscription" "email" {
   endpoint  = var.alert_email
 }
 
-# 모니터링 인스턴스가 죽으면 Prometheus 알람이 전부 침묵한다. 이것만은 밖에서 봐야 한다.
+/*
+ * 모니터링 인스턴스가 죽으면 Prometheus 알람이 전부 침묵한다.
+ * 이것만은 밖에서 봐야 한다.
+ */
 resource "aws_cloudwatch_metric_alarm" "monitoring_status" {
   alarm_name          = "${var.project}-monitoring-status"
   namespace           = "AWS/EC2"
@@ -44,7 +49,7 @@ resource "aws_cloudwatch_metric_alarm" "monitoring_status" {
   alarm_description   = "monitoring instance status check failed. restart it"
 
   dimensions = {
-    InstanceId = aws_instance.monitoring.id
+    InstanceId = var.monitoring_instance_id
   }
 
   alarm_actions = [aws_sns_topic.critical.arn]
@@ -79,14 +84,17 @@ resource "aws_cloudwatch_metric_alarm" "batch_capacity" {
   alarm_description   = "batch ASG has fewer than 2 in-service instances. the other batch takes over meanwhile"
 
   dimensions = {
-    AutoScalingGroupName = aws_autoscaling_group.batch.name
+    AutoScalingGroupName = var.batch_asg_name
   }
 
   alarm_actions = [aws_sns_topic.critical.arn]
   ok_actions    = [aws_sns_topic.critical.arn]
 }
 
-# 정상 대상이 0이면 ALB 가 fail-open 으로 아무 데나 보낸다. 서비스가 사실상 끊긴 상태다.
+/*
+ * 정상 대상이 0이면 ALB 가 fail-open 으로 아무 데나 보낸다.
+ * 서비스가 사실상 끊긴 상태다.
+ */
 resource "aws_cloudwatch_metric_alarm" "healthy_host_count" {
   alarm_name          = "${var.project}-healthy-host-count"
   namespace           = "AWS/ApplicationELB"
@@ -100,8 +108,8 @@ resource "aws_cloudwatch_metric_alarm" "healthy_host_count" {
   treat_missing_data  = "breaching"
 
   dimensions = {
-    LoadBalancer = aws_lb.main.arn_suffix
-    TargetGroup  = aws_lb_target_group.app.arn_suffix
+    LoadBalancer = var.alb_arn_suffix
+    TargetGroup  = var.app_target_group_arn_suffix
   }
 
   alarm_actions = [aws_sns_topic.critical.arn]
@@ -113,7 +121,7 @@ resource "aws_cloudwatch_metric_alarm" "healthy_host_count" {
  * ACM DNS 검증은 자동 갱신되지만 검증 레코드가 사라지면 만료 시점에야 드러난다.
  */
 resource "aws_cloudwatch_metric_alarm" "cert_expiry" {
-  count = local.has_domain ? 1 : 0
+  count = var.domain_enabled ? 1 : 0
 
   alarm_name          = "${var.project}-cert-expiry"
   namespace           = "AWS/CertificateManager"
@@ -126,7 +134,7 @@ resource "aws_cloudwatch_metric_alarm" "cert_expiry" {
   alarm_description   = "certificate expires in under 30 days. check validation record"
 
   dimensions = {
-    CertificateArn = aws_acm_certificate.main[0].arn
+    CertificateArn = var.certificate_arn
   }
 
   alarm_actions = [aws_sns_topic.critical.arn]
@@ -139,7 +147,7 @@ resource "aws_cloudwatch_metric_alarm" "cert_expiry" {
  * Route 53 지표는 us-east-1 에만 올라오므로 알람도 거기에 만든다.
  */
 resource "aws_sns_topic" "critical_us_east_1" {
-  count = local.has_domain ? 1 : 0
+  count = var.domain_enabled ? 1 : 0
 
   provider     = aws.us_east_1
   name         = "${var.project}-critical"
@@ -148,7 +156,7 @@ resource "aws_sns_topic" "critical_us_east_1" {
 
 # 외부 감시 알람은 이 주제로만 간다. 구독이 없으면 서비스가 밖에서 안 보여도 아무도 모른다
 resource "aws_sns_topic_subscription" "email_us_east_1" {
-  count = local.has_domain && var.alert_email != "" ? 1 : 0
+  count = var.domain_enabled && var.alert_email != "" ? 1 : 0
 
   provider  = aws.us_east_1
   topic_arn = aws_sns_topic.critical_us_east_1[0].arn
@@ -157,7 +165,7 @@ resource "aws_sns_topic_subscription" "email_us_east_1" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "endpoint_health" {
-  count = local.has_domain ? 1 : 0
+  count = var.domain_enabled ? 1 : 0
 
   provider            = aws.us_east_1
   alarm_name          = "${var.project}-endpoint-health"
@@ -171,7 +179,7 @@ resource "aws_cloudwatch_metric_alarm" "endpoint_health" {
   alarm_description   = "service unreachable from outside"
 
   dimensions = {
-    HealthCheckId = aws_route53_health_check.endpoint[0].id
+    HealthCheckId = var.endpoint_health_check_id
   }
 
   alarm_actions = [aws_sns_topic.critical_us_east_1[0].arn]
@@ -186,7 +194,7 @@ resource "aws_db_event_subscription" "failover" {
   name             = "${var.project}-failover"
   sns_topic        = aws_sns_topic.critical.arn
   source_type      = "db-instance"
-  source_ids       = [aws_db_instance.main.identifier]
+  source_ids       = [var.db_identifier]
   event_categories = ["failover"]
 }
 
@@ -211,7 +219,10 @@ resource "aws_budgets_budget" "monthly" {
   limit_unit   = "USD"
   time_unit    = "MONTHLY"
 
-  # 이미 쓴 금액이 절반을 넘었다. 아직 조치할 시간이 있다.
+  /*
+   * 이미 쓴 금액이 절반을 넘었다.
+   * 아직 조치할 시간이 있다.
+   */
   notification {
     comparison_operator        = "GREATER_THAN"
     threshold                  = 50

@@ -1,24 +1,24 @@
 /*
  * 삭제 방지를 두 겹으로 건다 (INF-18, 되돌릴 수 없음).
  * 잘못된 변수 파일로 destroy 를 돌리면 ALB 가 사라지고 DNS 이름이 바뀐다.
+ * 한 겹은 여기 AWS 쪽 삭제 보호이고, 다른 한 겹은 envs/prod 의 파괴 가드(prevent_destroy)다.
  */
 resource "aws_lb" "main" {
   name               = "${var.project}-alb"
   load_balancer_type = "application"
-  subnets            = [for s in aws_subnet.public : s.id]
-  security_groups    = [aws_security_group.alb.id]
+  subnets            = values(var.public_subnet_ids)
+  security_groups    = [var.alb_security_group_id]
 
-  # 요청 타임아웃 계층의 가장 바깥이다. 안쪽이 더 짧아야 한다.
+  /*
+   * 요청 타임아웃 계층의 가장 바깥이다.
+   * 안쪽이 더 짧아야 한다.
+   */
   idle_timeout = 60
 
-  enable_deletion_protection = true
+  enable_deletion_protection = var.deletion_protection
 
   tags = {
     Name = "${var.project}-alb"
-  }
-
-  lifecycle {
-    prevent_destroy = true
   }
 }
 
@@ -33,10 +33,13 @@ resource "aws_lb_target_group" "app" {
   name        = "${var.project}-app"
   port        = 8080
   protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = var.vpc_id
   target_type = "instance"
 
-  # 종료 타임아웃 계층의 가장 안쪽이다. Spring graceful 30초와 짝을 이룬다.
+  /*
+   * 종료 타임아웃 계층의 가장 안쪽이다.
+   * Spring graceful 30초와 짝을 이룬다.
+   */
   deregistration_delay = 30
 
   health_check {
@@ -67,7 +70,7 @@ resource "aws_lb_target_group" "liveness" {
   name        = "${var.project}-liveness"
   port        = 8081
   protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = var.vpc_id
   target_type = "instance"
 
   deregistration_delay = 30
@@ -87,7 +90,10 @@ resource "aws_lb_target_group" "liveness" {
   }
 }
 
-# 도메인이 없으면 80 이 그대로 서비스한다. 임시 상태다.
+/*
+ * 도메인이 없으면 80 이 그대로 서비스한다.
+ * 임시 상태다.
+ */
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
@@ -171,7 +177,7 @@ resource "aws_lb_target_group" "grafana" {
   name        = "${var.project}-grafana"
   port        = 3000
   protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = var.vpc_id
   target_type = "instance"
 
   /*
@@ -192,15 +198,6 @@ resource "aws_lb_target_group" "grafana" {
   tags = {
     Name = "${var.project}-grafana"
   }
-}
-
-# 모니터링은 ASG 밖 고정 인스턴스라 대상을 직접 붙인다.
-resource "aws_lb_target_group_attachment" "grafana" {
-  count = local.has_grafana ? 1 : 0
-
-  target_group_arn = aws_lb_target_group.grafana[0].arn
-  target_id        = aws_instance.monitoring.id
-  port             = 3000
 }
 
 /*
@@ -230,10 +227,16 @@ resource "aws_lb_listener_rule" "grafana" {
       client_id     = var.grafana_oidc_client_id
       client_secret = data.aws_ssm_parameter.grafana_oidc_client_secret[0].value
 
-      # 이메일만 받는다. Grafana 가 사용자를 만들 때 쓰는 값이 그것뿐이다.
+      /*
+       * 이메일만 받는다.
+       * Grafana 가 사용자를 만들 때 쓰는 값이 그것뿐이다.
+       */
       scope = "openid email"
 
-      # 12시간마다 다시 로그인한다. 하루 한 번꼴이라 매일 아침에 걸린다.
+      /*
+       * 12시간마다 다시 로그인한다.
+       * 하루 한 번꼴이라 매일 아침에 걸린다.
+       */
       session_timeout            = 43200
       on_unauthenticated_request = "authenticate"
     }
@@ -259,6 +262,6 @@ resource "aws_lb_listener_rule" "grafana" {
 data "aws_ssm_parameter" "grafana_oidc_client_secret" {
   count = local.has_grafana ? 1 : 0
 
-  name            = "${local.ssm_prefix}/grafana-oidc-client-secret"
+  name            = "/${var.project}/grafana-oidc-client-secret"
   with_decryption = true
 }

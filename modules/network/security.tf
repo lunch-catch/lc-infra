@@ -93,7 +93,10 @@ resource "aws_security_group" "loadtest" {
   }
 }
 
-# 인터넷에서 들어오는 유일한 자리다. 80 은 리스너가 443 으로 넘긴다.
+/*
+ * 인터넷에서 들어오는 유일한 자리다.
+ * 80 은 리스너가 443 으로 넘긴다.
+ */
 resource "aws_vpc_security_group_ingress_rule" "alb_https" {
   security_group_id = aws_security_group.alb.id
   cidr_ipv4         = "0.0.0.0/0"
@@ -226,7 +229,7 @@ resource "aws_vpc_security_group_ingress_rule" "prometheus_from_loadtest" {
  * 다른 경로로 3000 에 닿을 수 없으니 헤더를 위조해 넣을 상대가 없다.
  */
 resource "aws_vpc_security_group_ingress_rule" "grafana_from_alb" {
-  count = local.has_grafana ? 1 : 0
+  count = var.grafana_alb_enabled ? 1 : 0
 
   security_group_id            = aws_security_group.mon.id
   referenced_security_group_id = aws_security_group.alb.id
@@ -321,14 +324,17 @@ resource "aws_vpc_security_group_egress_rule" "all" {
  * 80 은 챌린지 응답과 443 리다이렉트만 한다. Grafana 로 넘기지 않는다.
  */
 resource "aws_vpc_security_group_ingress_rule" "caddy_acme" {
-  count = local.has_duckdns ? 1 : 0
+  count = var.duckdns_enabled ? 1 : 0
 
   security_group_id = aws_security_group.mon.id
   cidr_ipv4         = "0.0.0.0/0"
   from_port         = 80
   to_port           = 80
   ip_protocol       = "tcp"
-  # 아포스트로피는 AWS 가 규칙 설명에서 거부한다. 허용 집합은 a-zA-Z0-9._-:/()#,@[]+=&;{}!$* 다.
+  /*
+   * 아포스트로피는 AWS 가 규칙 설명에서 거부한다.
+   * 허용 집합은 a-zA-Z0-9._-:/()#,@[]+=&;{}!$* 다.
+   */
   description = "ACME HTTP-01 challenge for Caddy"
 }
 
@@ -337,7 +343,7 @@ resource "aws_vpc_security_group_ingress_rule" "caddy_acme" {
  * 인증 전 요청은 Caddy 의 basic_auth 가 막으므로 Grafana 까지 닿지 않는다.
  */
 resource "aws_vpc_security_group_ingress_rule" "caddy_https" {
-  for_each = local.has_duckdns ? toset(var.grafana_https_allowed_cidrs) : toset([])
+  for_each = var.duckdns_enabled ? toset(var.grafana_https_allowed_cidrs) : toset([])
 
   security_group_id = aws_security_group.mon.id
   cidr_ipv4         = each.value

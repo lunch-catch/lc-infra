@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # 개발 서버를 올린다 (docs/system-design/런치캐치_개발서버.md 7장).
-# 없으면 만들고, 멈춰 있으면 켠다. 운영(terraform/)과 무관하게 돈다.
+# 없으면 만들고, 멈춰 있으면 켠다. 운영(envs/prod)과 무관하게 돈다.
 #
 #   ./dev-up.sh
 set -euo pipefail

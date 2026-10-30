@@ -8,8 +8,6 @@
 data "aws_caller_identity" "current" {}
 
 locals {
-  media_bucket = var.media_bucket_name != "" ? var.media_bucket_name : "${var.project}-media"
-
   # 역할별로 필요한 것이 달라 하나로 묶지 않는다
   instance_roles = {
     app        = "app. read parameters, access media bucket, invoke bedrock"
@@ -171,12 +169,15 @@ resource "aws_iam_role_policy" "pull_image" {
   policy = data.aws_iam_policy_document.pull_image.json
 }
 
-# presigned URL 발급과 이미지 삭제에 쓴다. 버킷 전체를 나열할 이유는 없다.
+/*
+ * presigned URL 발급과 이미지 삭제에 쓴다.
+ * 버킷 전체를 나열할 이유는 없다.
+ */
 data "aws_iam_policy_document" "media" {
   statement {
     effect    = "Allow"
     actions   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
-    resources = ["arn:aws:s3:::${local.media_bucket}/*"]
+    resources = ["arn:aws:s3:::${var.media_bucket}/*"]
   }
 }
 

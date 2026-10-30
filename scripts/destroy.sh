@@ -9,17 +9,17 @@
 # 묻는 절차를 없애지 않는다. 되돌릴 수 없는 작업이고, RDS 데이터와 S3 미디어는
 # 스냅샷도 남기지 않고 사라진다. 인자 없이 실행하는 것이 기본이다.
 #
-# terraform destroy 만으로는 되지 않는다. 세 겹이 막는다.
-#   1. lifecycle prevent_destroy   Terraform 이 plan 단계에서 거부한다
-#   2. deletion_protection         AWS 가 API 호출을 거부한다. 끄려면 apply 를 먼저 해야 한다
-#   3. skip_final_snapshot=false   RDS 가 최종 스냅샷 이름을 요구한다
-#   4. 비어 있지 않은 저장소       S3 와 ECR 이 내용물이 있으면 삭제를 거부한다
+# terraform destroy 만으로는 되지 않는다. 두 겹이 막는다.
+#   1. 파괴 가드          envs/prod 의 terraform_data.destroy_guard 가 prevent_destroy 로 plan 단계에서 거부한다
+#   2. AWS 쪽 삭제 보호   var.deletion_protection 하나가 켜고 끈다. 끄려면 apply 를 먼저 해야 한다
+#                         RDS 삭제 보호와 최종 스냅샷, ALB 삭제 보호, 모니터링 종료 보호와 볼륨 보존,
+#                         비어 있지 않은 S3 와 ECR 의 삭제 거부가 여기에 묶여 있다
 #
-# 그래서 가드를 걷어내고 apply 를 한 번 돌린 뒤에야 destroy 가 된다.
-# 걷어낸 가드는 마지막에 되돌린다. 방어가 코드에 살아 있어야 다음 재구축이 안전하다.
+# 그래서 deletion_protection=false 로 apply 를 한 번 돌리고, 가드를 상태에서 뺀 뒤에야 destroy 가 된다.
+# 코드는 고치지 않는다. 다음 apply 가 변수 기본값(true)으로 보호를 되살리고 가드를 다시 만든다.
 #
-# destroy 가 끝나도 남는 것이 있다. delete_on_termination=false 인 EBS 볼륨이다.
-# 모니터링 루트 볼륨이 그렇다. 관측 데이터를 지키려는 설정이라 Terraform 이 일부러 안 지운다.
+# 모니터링 루트 볼륨은 보호가 켜진 동안 인스턴스가 사라져도 남는다. 관측 데이터를 지키려는 설정이다.
+# 3단계 apply 가 그것도 함께 끄므로 보통은 남지 않지만, 앞서 손으로 지운 인스턴스의 볼륨은 5단계가 치운다.
 #
 # bootstrap/ 이 갖는 것은 대상이 아니다. tfstate 버킷과 SecureString 시크릿이 살아남는다.
 # 시크릿은 표준 파라미터라 무료이므로 지워봐야 아끼는 것이 없고 재입력만 생긴다.
@@ -37,7 +37,7 @@ REGION="${AWS_REGION:-ap-northeast-2}"
 if [ -z "${AWS_PROFILE:-}" ] && [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
   export AWS_PROFILE=lunchcatch
 fi
-# 그래도 다른 계정을 가리키면 아무것도 하기 전에 멈춘다. terraform/versions.tf 의 allowed_account_ids 와 같은 장치다.
+# 그래도 다른 계정을 가리키면 아무것도 하기 전에 멈춘다. envs/prod/versions.tf 의 allowed_account_ids 와 같은 장치다.
 ACCOUNT_ID="${ACCOUNT_ID:-762794225116}"
 current_account=$(aws sts get-caller-identity --query Account --output text)
 if [ "$current_account" != "$ACCOUNT_ID" ]; then
@@ -46,22 +46,13 @@ if [ "$current_account" != "$ACCOUNT_ID" ]; then
 fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TF="$ROOT/terraform"
+TF="$ROOT/envs/prod"
 
-# 가드가 박혀 있는 파일들. 마지막에 이 목록을 그대로 되돌린다.
-# dns.tf 는 빠졌다. 호스팅 영역이 bootstrap/ 으로 옮겨 가 지킬 것이 없다 (2026-10-07)
-GUARDED=(alb.tf ecr.tf instances.tf rds.tf storage.tf)
+# 보호를 끄는 유일한 자리다. tfvars 에 적지 않는다
+UNPROTECT=(-var deletion_protection=false)
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
-
-restore_guards() {
-  log "가드 원복"
-  (cd "$ROOT" && git checkout -- "${GUARDED[@]/#/terraform/}")
-}
-
-# 중간에 죽어도 가드는 반드시 되돌린다. 지운 채로 남으면 다음 apply 가 무방비가 된다.
-trap restore_guards EXIT
 
 # 1. 확인. 계정을 잘못 보고 지우는 사고가 가장 크다.
 account=$(aws sts get-caller-identity --query Account --output text)
@@ -89,27 +80,10 @@ if [ "${1:-}" != "--yes" ]; then
   [ "$typed" = "$account" ] || die "입력이 계정 ID 와 다르다. 중단한다"
 fi
 
-(cd "$ROOT" && git diff --quiet -- "${GUARDED[@]/#/terraform/}") \
-  || die "가드 파일에 커밋 안 된 변경이 있다. 원복이 그것까지 되돌린다. 먼저 정리하라"
-
-# 2. 가드를 걷어낸다.
-log "2. 가드 해제"
+# 2. 상태를 읽을 준비를 한다.
+log "2. terraform init"
 cd "$TF"
-sed -i '' 's/^\( *\)prevent_destroy = true$/\1prevent_destroy = false/' "${GUARDED[@]}"
-sed -i '' 's/^\( *\)enable_deletion_protection = true$/\1enable_deletion_protection = false/' alb.tf
-sed -i '' 's/^\( *\)deletion_protection\( *\)= true$/\1deletion_protection\2= false/' rds.tf
-sed -i '' 's/^\( *\)skip_final_snapshot\( *\)= false$/\1skip_final_snapshot\2= true/' rds.tf
-# S3 는 비어 있지 않으면 삭제가 거부된다.
-sed -i '' 's|^resource "aws_s3_bucket" "media" {$|resource "aws_s3_bucket" "media" {\n  force_destroy = true|' storage.tf
-#
-# ECR 도 같다. 이미지가 하나라도 있으면 RepositoryNotEmptyException 으로 거부한다.
-# 2026-09-24 에 여기서 걸려 VPC 까지 다 지운 뒤 저장소만 남았다.
-#
-# 이미지는 커밋 SHA 로 언제든 다시 빌드할 수 있어 S3 미디어와 달리 잃을 것이 없다.
-sed -i '' 's|^resource "aws_ecr_repository" "app" {$|resource "aws_ecr_repository" "app" {\n  force_delete = true|' ecr.tf
-
-terraform fmt . > /dev/null
-terraform validate > /dev/null || die "가드 해제 후 validate 실패"
+terraform init -input=false -backend-config=backend.hcl > /dev/null
 
 #
 # 3. AWS 쪽 삭제 보호를 실제로 끈다. 이 단계 없이 destroy 하면 RDS 와 ALB 에서 거부당한다.
@@ -135,10 +109,9 @@ if [ "$remaining" -lt 10 ]; then
   printf '상태에 리소스가 %s 개뿐이다. 이 단계의 apply 가 인프라를 통째로 다시 만든다.\n' "$remaining" >&2
   printf '\n' >&2
   printf '앞선 destroy 가 대부분을 지운 뒤라면 apply 를 건너뛰고 destroy 만 돌려라.\n' >&2
-  printf '  cd terraform && terraform destroy -auto-approve\n' >&2
-  printf '\n' >&2
-  printf '가드는 이미 걷어져 있으므로 그대로 destroy 가 된다. 끝나면 되돌려라.\n' >&2
-  printf '  git checkout -- %s\n' "${GUARDED[*]/#/terraform/}" >&2
+  printf '  cd envs/prod\n' >&2
+  printf '  terraform state rm terraform_data.destroy_guard\n' >&2
+  printf '  terraform destroy -auto-approve -var deletion_protection=false\n' >&2
   printf '\n' >&2
   printf '정말로 전부 새로 만들었다가 지우려면 --force-apply 를 붙여라.\n' >&2
   printf '  %s --yes --force-apply\n' "$0" >&2
@@ -149,11 +122,14 @@ if [ "$remaining" -lt 10 ]; then
   esac
 fi
 
-terraform apply -auto-approve -input=false
+terraform apply -auto-approve -input=false "${UNPROTECT[@]}"
 
-# 4. 파괴.
+# 4. 파괴. 가드는 코드에 둔 채 상태에서만 뺀다. 상태에 없으면 파괴 계획에 들지 않는다
 log "4. destroy"
-terraform destroy -auto-approve -input=false
+if terraform state list 2> /dev/null | grep -qx 'terraform_data.destroy_guard'; then
+  terraform state rm terraform_data.destroy_guard > /dev/null
+fi
+terraform destroy -auto-approve -input=false "${UNPROTECT[@]}"
 
 # 5. Terraform 이 일부러 안 지우는 것을 지운다.
 #    delete_on_termination=false 로 살아남은 볼륨이다. 붙어 있는 인스턴스가 없어야 한다.

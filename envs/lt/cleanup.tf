@@ -1,6 +1,6 @@
 /*
  * 팀원 부하 시험 환경의 자동 정리다 (scripts/member-env.sh, #11).
- * member-env.sh 가 이 파일을 팀원용 작업 사본의 terraform/ 에 넣는다. 운영 코드에는 들어가지 않는다.
+ * 부하 시험 루트(envs/lt)에만 있다. 운영(envs/prod)에는 들어가지 않는다.
  *
  * 띄운 사람이 down 을 잊어도 member_expires_at 에 돈이 드는 것을 AWS 가 스스로 지운다.
  * 노트북을 닫아도 돈다. EventBridge Scheduler 가 AWS API 를 직접 부르므로 Lambda 코드가 없다.
@@ -24,10 +24,12 @@ locals {
   member_release_at = "at(${replace(timeadd("${var.member_expires_at}Z", "30m"), "Z", "")})"
 
   member_instance_ids = concat(
-    [aws_instance.monitoring.id],
-    [for i in aws_instance.load_test : i.id],
+    [module.compute.monitoring_instance_id],
+    module.compute.load_test_instance_ids,
   )
 }
+
+data "aws_caller_identity" "current" {}
 
 data "aws_iam_policy_document" "member_cleanup_assume" {
   statement {
@@ -77,8 +79,8 @@ resource "aws_iam_role_policy" "member_cleanup" {
 
 resource "aws_scheduler_schedule" "member_asg" {
   for_each = {
-    app   = aws_autoscaling_group.app.name
-    batch = aws_autoscaling_group.batch.name
+    app   = module.compute.app_asg_name
+    batch = module.compute.batch_asg_name
   }
 
   name                         = "${var.project}-member-cleanup-asg-${each.key}"
@@ -120,7 +122,7 @@ resource "aws_scheduler_schedule" "member_instances" {
 }
 
 resource "aws_scheduler_schedule" "member_nat" {
-  for_each = aws_nat_gateway.main
+  for_each = module.network.nat_gateway_ids
 
   name                         = "${var.project}-member-cleanup-nat-${each.key}"
   schedule_expression          = local.member_cleanup_at
@@ -134,12 +136,12 @@ resource "aws_scheduler_schedule" "member_nat" {
   target {
     arn      = "arn:aws:scheduler:::aws-sdk:ec2:deleteNatGateway"
     role_arn = aws_iam_role.member_cleanup.arn
-    input    = jsonencode({ NatGatewayId = each.value.id })
+    input    = jsonencode({ NatGatewayId = each.value })
   }
 }
 
 resource "aws_scheduler_schedule" "member_eip" {
-  for_each = aws_eip.nat
+  for_each = module.network.nat_eip_allocation_ids
 
   name                         = "${var.project}-member-cleanup-eip-${each.key}"
   schedule_expression          = local.member_release_at
@@ -153,7 +155,7 @@ resource "aws_scheduler_schedule" "member_eip" {
   target {
     arn      = "arn:aws:scheduler:::aws-sdk:ec2:releaseAddress"
     role_arn = aws_iam_role.member_cleanup.arn
-    input    = jsonencode({ AllocationId = each.value.id })
+    input    = jsonencode({ AllocationId = each.value })
   }
 }
 
@@ -170,7 +172,7 @@ resource "aws_scheduler_schedule" "member_alb" {
   target {
     arn      = "arn:aws:scheduler:::aws-sdk:elasticloadbalancingv2:deleteLoadBalancer"
     role_arn = aws_iam_role.member_cleanup.arn
-    input    = jsonencode({ LoadBalancerArn = aws_lb.main.arn })
+    input    = jsonencode({ LoadBalancerArn = module.edge.alb_arn })
   }
 }
 
@@ -188,7 +190,7 @@ resource "aws_scheduler_schedule" "member_cache" {
     arn      = "arn:aws:scheduler:::aws-sdk:elasticache:deleteReplicationGroup"
     role_arn = aws_iam_role.member_cleanup.arn
     input = jsonencode({
-      ReplicationGroupId   = aws_elasticache_replication_group.main.id
+      ReplicationGroupId   = module.data.cache_replication_group_id
       RetainPrimaryCluster = false
     })
   }
@@ -209,7 +211,7 @@ resource "aws_scheduler_schedule" "member_db" {
     arn      = "arn:aws:scheduler:::aws-sdk:rds:deleteDBInstance"
     role_arn = aws_iam_role.member_cleanup.arn
     input = jsonencode({
-      DbInstanceIdentifier   = aws_db_instance.main.identifier
+      DbInstanceIdentifier   = module.data.db_identifier
       SkipFinalSnapshot      = true
       DeleteAutomatedBackups = true
     })

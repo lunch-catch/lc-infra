@@ -1,6 +1,6 @@
 # cp terraform.tfvars.example terraform.tfvars
 #
-# 기본값으로 두어도 되는 것은 적지 않았다. variables.tf 를 보라.
+# 기본값으로 두어도 되는 것은 적지 않았다. variables.tf 와 modules/*/variables.tf 를 보라.
 # tfvars 는 gitignore 대상이다. 잘못된 변수 파일로 destroy 를 돌리면 ALB 가 사라진다.
 
 # 백엔드 API 주소. 비어 있으면 ACM 과 HTTPS 리스너를 만들지 않는다.

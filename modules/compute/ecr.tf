@@ -21,6 +21,12 @@ resource "aws_ecr_repository" "app" {
    */
   image_tag_mutability = "IMMUTABLE"
 
+  /*
+   * 보호가 켜져 있으면 이미지가 남은 저장소의 삭제를 ECR 이 거부한다.
+   * 이미지는 커밋 SHA 로 다시 빌드할 수 있다.
+   */
+  force_delete = !var.deletion_protection
+
   image_scanning_configuration {
     scan_on_push = true
   }
