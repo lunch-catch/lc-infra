@@ -73,10 +73,11 @@ data "aws_iam_policy_document" "read_params" {
 }
 
 /*
- * 부하 생성기만 범위를 좁힌다. 파라미터 두 개만 읽는다.
+ * 부하 생성기만 범위를 좁힌다. 파라미터 세 개만 읽는다.
  *
- *   jwt-signing-key       mint-tokens.py 가 앱과 같은 키로 2만 장을 찍는다
+ *   jwt-signing-key       앱과 같은 키로 시험 토큰을 서명한다
  *   prometheus-endpoint   결과를 remote write 로 밀 주소다
+ *   current-sha           떠 있는 앱의 커밋이다. 같은 커밋의 시나리오를 받는다 (#42). 시크릿이 아니다
  *
  * 시나리오를 받는 데는 자격증명이 필요 없다. lc-backend 가 public 이라 그냥 클론된다.
  *
@@ -97,7 +98,7 @@ data "aws_iam_policy_document" "read_params_loadtest" {
     actions = ["ssm:GetParameter", "ssm:GetParameters"]
 
     resources = [
-      for n in ["jwt-signing-key", "prometheus-endpoint"] :
+      for n in ["jwt-signing-key", "prometheus-endpoint", "current-sha"] :
       "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_prefix}/${n}"
     ]
   }
