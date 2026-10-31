@@ -3,17 +3,20 @@
 # 팀원이 자기 AWS 계정에 운영과 같은 인프라를 한 벌 띄워 부하 시험을 한다 (#11).
 # 문서: docs/system-design/런치캐치_팀원_부하시험환경.md
 #
-#   AWS_PROFILE=me ./scripts/member-env.sh up              띄운다. 4시간 뒤 AWS 가 스스로 지운다
+#   AWS_PROFILE=me ./scripts/member-env.sh up              띄운다. 끝나면 down 으로 직접 지운다
 #   AWS_PROFILE=me ./scripts/member-env.sh up --sha <sha>  lc-backend 의 그 커밋 이미지로 띄운다
 #   AWS_PROFILE=me ./scripts/member-env.sh status          떠 있는 것과 정리 시각
 #   AWS_PROFILE=me ./scripts/member-env.sh down            전부 지운다
 #
 # MEMBER_ALERT_EMAIL 을 주면 예산 알림과 경보를 그 메일로 받는다. 처음 받는 확인 메일의 링크를 누른다.
 #
-# up 을 다시 부르면 바뀐 코드만 반영하고 정리 시각을 지금부터 다시 센다.
+# 시험 시간에 제한이 없다 (#52). 각자 자기 계정이라 언제 지울지도 스스로 정한다. 켜 둔 동안은 시간당 요금이 나간다.
+# MEMBER_HOURS=<시간> 을 주면 그 시간 뒤 AWS 가 스스로 지운다. 잊을 것 같으면 준다.
+#
+# up 을 다시 부르면 바뀐 코드만 반영한다. MEMBER_HOURS 를 주면 정리 시각을 지금부터 다시 세고, 안 주면 자동 정리를 없앤다.
 #
 # 운영과 같은 모듈(modules/)을 부하 시험 루트(envs/lt)로 부른다. 팀원 환경에 맞는 차이(도메인 없음,
-# 삭제 보호 해제, 자동 정리)는 그 루트가 값으로 갖는다. 그래서 운영 코드가 바뀌면
+# 삭제 보호 해제, 선택적 자동 정리)는 그 루트가 값으로 갖는다. 그래서 운영 코드가 바뀌면
 # git pull 하고 up 하는 것만으로 팀원 환경에도 들어간다.
 #
 # 계정마다 상태 버킷과 변수 파일과 .terraform 이 다르다. 셋 다 ~/.lunchcatch-member/<계정> 아래에 둔다.
@@ -35,7 +38,8 @@ REGION="ap-northeast-2"
 BACKEND_REPO="lunch-catch/lc-backend"
 IMAGE_WORKFLOW="image.yml"
 APP_IMAGE_REPOSITORY="ghcr.io/$BACKEND_REPO"
-HOURS="${MEMBER_HOURS:-4}"
+# 비우면 자동 정리를 만들지 않는다
+HOURS="${MEMBER_HOURS:-}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
@@ -198,6 +202,7 @@ image_exists() {
 }
 
 expires_at() {
+  [ -n "$HOURS" ] || return 0
   date -u -d "+$HOURS hours" +%Y-%m-%dT%H:%M:%S 2> /dev/null || date -u -v+"$HOURS"H +%Y-%m-%dT%H:%M:%S
 }
 
@@ -238,7 +243,7 @@ up)
     --query 'Reservations[0].Instances[0].InstanceId' --output text)
   cat <<EOF
 
-완료. 자동 정리 $EXPIRES (UTC). 그 전에 끝나면 down 을 부른다.
+완료. ${EXPIRES:+자동 정리 $EXPIRES (UTC). }끝나면 down 을 부른다. 켜 둔 동안 시간당 0.4~0.6 USD 가 나간다.
 
   운영 모드   $(run_mode)
   앱          http://$ALB
@@ -250,7 +255,8 @@ EOF
 status)
   [ -f "$VARS" ] || die "이 계정에 띄운 적이 없다"
   tf_init
-  printf '정리 시각(UTC) %s\n' "$(terraform -chdir="$TF" output -raw member_expires_at 2> /dev/null || echo 없음)"
+  exp=$(terraform -chdir="$TF" output -raw member_expires_at 2> /dev/null || true)
+  printf '정리 시각(UTC) %s\n' "${exp:-없음. down 으로 직접 지운다}"
   printf 'ALB           %s\n' "$(terraform -chdir="$TF" output -raw alb_dns_name 2> /dev/null || echo 없음)"
   printf '이미지        %s\n' "$(aws ssm get-parameter --name "/$PROJECT/current-sha" --query Parameter.Value --output text 2> /dev/null || echo 없음)"
   printf '운영 모드     %s\n' "$(run_mode)"
