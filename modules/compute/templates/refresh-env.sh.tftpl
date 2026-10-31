@@ -94,8 +94,12 @@ INSTANCE_ID=$(curl -fsS -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169
 #
 # 이 토큰은 12시간짜리라 재부팅이나 재배포마다 새로 받는다. 이 스크립트가 그때마다 돈다.
 #
+# 이미지가 GHCR 공개 패키지면(팀원 부하 시험 환경) 로그인 없이 받으므로 이 줄이 렌더링되지 않는다.
+#
+%{ if ecr_login ~}
 aws ecr get-login-password --region "$R" \
   | docker login --username AWS --password-stdin ${registry}
+%{ endif ~}
 
 install -d -m 0755 /opt/${project}
 cat > /opt/${project}/.env <<ENV

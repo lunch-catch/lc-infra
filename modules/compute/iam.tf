@@ -144,6 +144,8 @@ resource "aws_iam_role_policy" "read_params" {
  * 모니터링과 부하 생성기는 공개 이미지만 쓰므로 주지 않는다.
  */
 data "aws_iam_policy_document" "pull_image" {
+  count = local.image_from_ecr ? 1 : 0
+
   statement {
     effect    = "Allow"
     actions   = ["ecr:GetAuthorizationToken"]
@@ -162,11 +164,11 @@ data "aws_iam_policy_document" "pull_image" {
 }
 
 resource "aws_iam_role_policy" "pull_image" {
-  for_each = toset(["app", "batch"])
+  for_each = local.image_from_ecr ? toset(["app", "batch"]) : toset([])
 
   name   = "pull-image"
   role   = aws_iam_role.instance[each.value].id
-  policy = data.aws_iam_policy_document.pull_image.json
+  policy = data.aws_iam_policy_document.pull_image[0].json
 }
 
 /*
