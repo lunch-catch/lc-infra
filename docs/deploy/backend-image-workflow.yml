@@ -42,15 +42,31 @@ jobs:
         run: printf '%s' "$TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
 
       # 태그는 커밋 SHA 라 같은 태그에 다른 이미지가 들어가면 안 된다. 재실행이면 빌드부터 건너뛴다.
+      #
+      # 레지스트리의 HTTP 상태로 가른다. 200 은 있음, 404 는 없음이다(패키지가 아직 없을 때도 404).
+      # 그 밖(인증 실패, 5xx, 네트워크)은 있는지 모르는 것이라 잡을 실패로 끝낸다. 없음으로 치면 같은 태그를 덮어쓸 수 있다.
       - id: exists
         name: 이미지가 이미 있나
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
         run: |
-          if docker manifest inspect "$IMAGE:$SHA" > /dev/null 2>&1; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "이미 올린 이미지다. 빌드를 건너뛴다"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
+          repo="${IMAGE#ghcr.io/}"
+          bearer=$(curl -fsS -u "$ACTOR:$TOKEN" "https://ghcr.io/token?scope=repository:$repo:pull,push" | jq -r .token)
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -I \
+            -H "Authorization: Bearer $bearer" \
+            -H "Accept: application/vnd.oci.image.index.v1+json,application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json,application/vnd.docker.distribution.manifest.list.v2+json" \
+            "https://ghcr.io/v2/$repo/manifests/$SHA")
+          case "$code" in
+            200)
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "이미 올린 이미지다. 빌드를 건너뛴다" ;;
+            404)
+              echo "skip=false" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "::error::이미지가 있는지 확인하지 못했다 (HTTP $code). 덮어쓰지 않으려고 멈춘다. 다시 돌린다"
+              exit 1 ;;
+          esac
 
       - if: steps.exists.outputs.skip == 'false'
         uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
