@@ -6,7 +6,9 @@
 #   ./loadtest-snapshot.sh --label F-2 --minutes 10
 #   ./loadtest-snapshot.sh --from 1790699360000 --to 1790699480000
 #   ./loadtest-snapshot.sh --dash fm-loadtest     한 장만
+#   AWS_PROFILE=me ./loadtest-snapshot.sh --lt --label r1   팀원 부하 시험 환경(member-env.sh)에서
 #
+#   --lt               부하 시험 환경이다. 접두사가 lunchcatch-lt 이고 운영 계정 가드 대신 AWS_PROFILE 을 요구한다
 #   --label <이름>     저장 폴더에 붙인다
 #   --minutes <분>     지금부터 거꾸로 몇 분 (기본 5)
 #   --from / --to      유닉스 밀리초로 구간을 직접 준다
@@ -32,35 +34,22 @@
 # SG-alb 출처만 허용한다. 내 IP 를 SG 에 넣지 않으려면 SSM 이 유일한 길이다.
 set -euo pipefail
 
-PROJECT="${PROJECT:-lunchcatch}"
 REGION="${AWS_REGION:-ap-northeast-2}"
-
-# 프로필을 빠뜨려도 default 자격증명(다른 계정)으로 가지 않게 한다.
-# CI 는 OIDC 자격증명을 환경변수로 받으므로 프로필을 건드리지 않는다. 없는 프로필을 걸면 CLI 가 죽는다.
-if [ -z "${AWS_PROFILE:-}" ] && [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
-  export AWS_PROFILE=lunchcatch
-fi
-# 그래도 다른 계정을 가리키면 아무것도 하기 전에 멈춘다. envs/prod/versions.tf 의 allowed_account_ids 와 같은 장치다.
-ACCOUNT_ID="${ACCOUNT_ID:-762794225116}"
-current_account=$(aws sts get-caller-identity --query Account --output text)
-if [ "$current_account" != "$ACCOUNT_ID" ]; then
-  printf 'ERROR: 계정 %s 를 가리킨다. %s 여야 한다. AWS_PROFILE 을 확인한다\n' "$current_account" "$ACCOUNT_ID" >&2
-  exit 1
-fi
-
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_ROOT="${OUT_ROOT:-$ROOT/loadtest-runs}"
 LOCAL_PORT="${LOCAL_PORT:-13000}"
 WIDTH="${WIDTH:-1600}"
 HEIGHT="${HEIGHT:-900}"
 
-LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=()
+LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); LT=""
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
+# 인자를 먼저 읽는다. --lt 에 따라 접두사와 계정 가드가 달라진다
 while [ $# -gt 0 ]; do
   case "$1" in
+    --lt)      LT=1; shift ;;
     --label)   LABEL="${2:-}"; shift 2 ;;
     --minutes) MINUTES="${2:-}"; shift 2 ;;
     --from)    FROM="${2:-}"; shift 2 ;;
@@ -70,6 +59,29 @@ while [ $# -gt 0 ]; do
     *) die "모르는 인자: $1" ;;
   esac
 done
+
+if [ -n "$LT" ]; then
+  #
+  # 팀원 부하 시험 환경이다 (member-env.sh, lc-infra #52). 그 사람의 계정이라 계정 ID 를 미리 알 수 없다.
+  # 대신 프로필을 반드시 받는다. 빠뜨렸을 때 기본 자격증명의 엉뚱한 계정으로 가지 않게 하려는 것이다.
+  #
+  PROJECT="${PROJECT:-lunchcatch-lt}"
+  [ -n "${AWS_PROFILE:-}${AWS_ACCESS_KEY_ID:-}" ] || die "--lt 에는 AWS_PROFILE 을 준다. member-env.sh up 을 돌린 계정의 프로필이다"
+else
+  PROJECT="${PROJECT:-lunchcatch}"
+  # 프로필을 빠뜨려도 default 자격증명(다른 계정)으로 가지 않게 한다.
+  # CI 는 OIDC 자격증명을 환경변수로 받으므로 프로필을 건드리지 않는다. 없는 프로필을 걸면 CLI 가 죽는다.
+  if [ -z "${AWS_PROFILE:-}" ] && [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
+    export AWS_PROFILE=lunchcatch
+  fi
+  # 그래도 다른 계정을 가리키면 아무것도 하기 전에 멈춘다. envs/prod/versions.tf 의 allowed_account_ids 와 같은 장치다.
+  ACCOUNT_ID="${ACCOUNT_ID:-762794225116}"
+  current_account=$(aws sts get-caller-identity --query Account --output text)
+  if [ "$current_account" != "$ACCOUNT_ID" ]; then
+    printf 'ERROR: 계정 %s 를 가리킨다. %s 여야 한다. AWS_PROFILE 을 확인한다. 부하 시험 환경이면 --lt 를 준다\n' "$current_account" "$ACCOUNT_ID" >&2
+    exit 1
+  fi
+fi
 
 # 구간을 정한다. from 과 to 를 함께 주지 않았으면 지금부터 거꾸로 센다.
 if [ -z "$FROM" ] || [ -z "$TO" ]; then
@@ -83,9 +95,10 @@ if [ ${#DASH[@]} -eq 0 ]; then
   DASH=(fm-overview fm-hosts fm-app-jvm fm-data-stores fm-loadtest)
 fi
 
+# 접두사로 고른다. 같은 계정에 운영과 부하 시험 환경이 함께 있으면 Role 만으로는 어느 쪽인지 모른다
 mon_id() {
   aws ec2 describe-instances --region "$REGION" \
-    --filters "Name=tag:Role,Values=monitoring" "Name=instance-state-name,Values=running" \
+    --filters "Name=tag:Project,Values=$PROJECT" "Name=tag:Role,Values=monitoring" "Name=instance-state-name,Values=running" \
     --query 'Reservations[0].Instances[0].InstanceId' --output text
 }
 
@@ -94,7 +107,7 @@ cleanup() { [ -n "$TUNNEL_PID" ] && kill "$TUNNEL_PID" 2>/dev/null || true; }
 trap cleanup EXIT
 
 id=$(mon_id)
-[ "$id" != "None" ] && [ -n "$id" ] || die "running 인 모니터링 인스턴스가 없다"
+[ "$id" != "None" ] && [ -n "$id" ] || die "running 인 $PROJECT 모니터링 인스턴스가 없다"
 
 log "1. 터널 $LOCAL_PORT -> $id:3000"
 aws ssm start-session --target "$id" --region "$REGION" \
