@@ -31,7 +31,7 @@ DefaultLimitNOFILE=250000
 SYSTEMD
 systemctl daemon-reexec
 
-# git 은 시나리오를 받는 데, python3 는 토큰을 찍는 데 쓴다.
+# git 은 시나리오를 받는 데, python3 는 토큰을 찍는 데 쓴다(mint-tokens.py 가 있을 때만).
 # mint-tokens.py 가 표준 라이브러리만 쓰므로 pip 는 필요 없다.
 apt-get install -y git python3
 
@@ -119,6 +119,10 @@ sed -i "s|__PROM__|$PROM_IP|" /opt/loadtest/env
 #
 # 시나리오와 토큰을 받는 절차를 스크립트로 남긴다.
 #
+# 시나리오는 앱과 같은 커밋에서 받는다 (#42). SSM current-sha 가 지금 떠 있는 앱 이미지의 커밋이다.
+# 운영이면 main 의 배포 커밋, 팀원 부하 시험이면 develop 의 커밋이 된다.
+# 전에는 main 만 받아 develop 의 앱을 main 의 시나리오로 쳤다. 경로나 응답이 바뀐 커밋이면 앱이 아니라 시나리오가 틀린다.
+#
 # user_data 안에서만 하면 부팅 때 한 번이 끝이다. 토큰이 6시간짜리라
 # (mint-tokens.py 의 VALIDITY_SECONDS) 인스턴스를 아침에 띄우고 오후에 시험하면
 # 전부 만료된 채로 시작한다. 그 경우 401 이 쏟아지는데 앱 문제로 보인다.
@@ -130,7 +134,8 @@ cat > /opt/loadtest/refresh.sh <<'REFRESH'
 #
 # 시나리오를 다시 받고 토큰을 다시 찍는다. 시험 직전에 한 번 돌린다.
 #
-#   sudo /opt/loadtest/refresh.sh
+#   sudo /opt/loadtest/refresh.sh                       떠 있는 앱과 같은 커밋의 시나리오
+#   sudo SCENARIO_REF=develop /opt/loadtest/refresh.sh  브랜치나 커밋을 골라 받는다
 #   sudo TOKEN_COUNT=5000 /opt/loadtest/refresh.sh
 #
 set -euo pipefail
@@ -145,6 +150,13 @@ sec() {
     --with-decryption --query 'Parameter.Value' --output text
 }
 
+# 앱이 아직 배포 전(bootstrap)이거나 값을 못 읽으면 develop 을 받는다
+REF="$${SCENARIO_REF:-}"
+if [ -z "$REF" ]; then
+  REF=$(sec current-sha 2> /dev/null || true)
+  case "$REF" in ""|bootstrap|None) REF=develop ;; esac
+fi
+
 # 이 스크립트는 root 로 도는데 /opt/loadtest 는 ubuntu 소유다 (마지막의 chown).
 # 그대로 두면 git 이 "detected dubious ownership" 으로 거부한다.
 # 부팅 때는 chown 전이라 통과하고 나중에 손으로 부를 때만 걸리므로 알아채기 어렵다.
@@ -157,18 +169,17 @@ export GIT_CONFIG_VALUE_0="$DIR"
 
 # 레포가 public 이라 토큰이 필요 없다.
 # blob 을 미루고 loadtest 만 꺼내 온다. 전체 히스토리를 받을 이유가 없다.
-if [ -d "$DIR/.git" ]; then
-  echo "이미 있다. 최신으로 맞춘다"
-  git -C "$DIR" fetch --depth 1 origin main
-  git -C "$DIR" reset --hard origin/main
-else
-  git clone --depth 1 --filter=blob:none --sparse "$REPO" "$DIR"
+# 브랜치 이름과 커밋 SHA 를 똑같이 받으려고 clone 이 아니라 fetch 로 고른다. GitHub 은 SHA 로 바로 fetch 할 수 있다.
+if [ ! -d "$DIR/.git" ]; then
+  git clone --depth 1 --filter=blob:none --sparse --no-checkout "$REPO" "$DIR"
   git -C "$DIR" sparse-checkout set loadtest
 fi
+git -C "$DIR" fetch --depth 1 --filter=blob:none origin "$REF"
+git -C "$DIR" reset --hard FETCH_HEAD
 
 sha=$(git -C "$DIR" rev-parse --short HEAD)
 [ -n "$sha" ] || { echo "커밋을 못 읽었다. 위 오류를 보라" >&2; exit 1; }
-echo "시나리오 $sha"
+echo "시나리오 $REF ($sha)"
 
 #
 # 토큰을 여기서 찍는다.
@@ -178,14 +189,18 @@ echo "시나리오 $sha"
 #
 # 출력을 로그로 흘리지 않는다. 마지막 줄이 관리자 토큰이라 user-data.log 에 남으면 안 된다.
 #
+# mint-tokens.py 가 없는 커밋이면 건너뛴다. 광고 서빙 시나리오는 k6 안에서 JWT_SECRET 으로 직접 서명한다 (lc-backend #997).
 COUNT="$${TOKEN_COUNT:-20000}"
-JWT_SECRET="$(sec jwt-signing-key)" TOKEN_COUNT="$COUNT" \
-  python3 "$DIR/loadtest/mint-tokens.py" > /opt/loadtest/mint.out 2>&1
-chmod 600 /opt/loadtest/mint.out
+if [ -f "$DIR/loadtest/mint-tokens.py" ]; then
+  JWT_SECRET="$(sec jwt-signing-key)" TOKEN_COUNT="$COUNT" \
+    python3 "$DIR/loadtest/mint-tokens.py" > /opt/loadtest/mint.out 2>&1
+  chmod 600 /opt/loadtest/mint.out
+  echo "토큰 $COUNT 장. 관리자 토큰은 /opt/loadtest/mint.out 에 있다"
+else
+  echo "이 커밋에는 mint-tokens.py 가 없다. 토큰 찍기를 건너뛴다. 시나리오가 JWT_SECRET 으로 직접 서명한다"
+fi
 
 chown -R ubuntu:ubuntu /opt/loadtest
-
-echo "토큰 $COUNT 장. 관리자 토큰은 /opt/loadtest/mint.out 에 있다"
 echo "돌리기 전에 시드 SQL 을 넣었는지 확인하라. 이 스크립트는 DB 를 건드리지 않는다"
 REFRESH
 
