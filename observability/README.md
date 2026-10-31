@@ -190,7 +190,7 @@ cd /opt/lunchcatch/infra && git pull --ff-only
 sed -e 's/${project}/lunchcatch/g' \
     -e 's/${region}/ap-northeast-2/g' \
     -e 's/${db_username}/lunchcatch/g' \
-    terraform/templates/refresh-monitoring-env.sh.tftpl \
+    modules/compute/templates/refresh-monitoring-env.sh.tftpl \
   | sudo tee /usr/local/bin/lunchcatch-refresh-monitoring-env > /dev/null
 sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 ```

@@ -8,7 +8,7 @@
 #
 # bootstrap apply 는 멱등하다. 이미 적용되어 있으면 no-op 이므로 매번 돌려도 안전하다.
 #
-# 시크릿 검사를 여기서 하는 이유는 Terraform 이 db-password 하나만 보기 때문이다(rds.tf postcondition).
+# 시크릿 검사를 여기서 하는 이유는 Terraform 이 db-password 하나만 보기 때문이다(modules/data/rds.tf postcondition).
 # 나머지 일곱은 unset 이어도 apply 가 통과하고, 인스턴스가 뜬 뒤에야 드러난다.
 # ECR 로그인 실패로 컨테이너가 안 뜨거나, Slack 알림이 조용히 안 가는 식이다.
 
@@ -22,7 +22,7 @@ REGION="${AWS_REGION:-ap-northeast-2}"
 if [ -z "${AWS_PROFILE:-}" ] && [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
   export AWS_PROFILE=lunchcatch
 fi
-# 그래도 다른 계정을 가리키면 아무것도 하기 전에 멈춘다. terraform/versions.tf 의 allowed_account_ids 와 같은 장치다.
+# 그래도 다른 계정을 가리키면 아무것도 하기 전에 멈춘다. envs/prod/versions.tf 의 allowed_account_ids 와 같은 장치다.
 ACCOUNT_ID="${ACCOUNT_ID:-762794225116}"
 current_account=$(aws sts get-caller-identity --query Account --output text)
 if [ "$current_account" != "$ACCOUNT_ID" ]; then
@@ -40,7 +40,7 @@ if [ "$lt_vms" != "0" ]; then
   exit 1
 fi
 
-# 7단계가 배포를 걸 대상이다. terraform/variables.tf 의 github_org 와 github_backend_repo 와 같다.
+# 7단계가 배포를 걸 대상이다. modules/compute/variables.tf 의 github_org 와 github_backend_repo 와 같다.
 GITHUB_ORG="${GITHUB_ORG:-lunch-catch}"
 BACKEND_REPO="${BACKEND_REPO:-lc-backend}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -174,11 +174,11 @@ log "   운영 모드 $MODE 기록"
 # 한쪽만 물으면 15분짜리 작업 중간에 사람을 기다리다 멈춰 선다.
 #
 # 변경 내용을 검토하려면 이 스크립트가 아니라 plan 을 먼저 돌린다.
-#   terraform -chdir=terraform plan -input=false
+#   terraform -chdir=envs/prod plan -input=false
 #
 # 넘긴 인자는 그대로 전달된다. -target 이나 -var 를 붙일 수 있다.
 log "4. terraform"
-cd "$ROOT/terraform"
+cd "$ROOT/envs/prod"
 terraform init -input=false -backend-config=backend.hcl > /dev/null
 terraform apply -auto-approve -input=false "$@"
 

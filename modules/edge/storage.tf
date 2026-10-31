@@ -6,19 +6,28 @@
  * 공개하면 키 구조가 드러나고 나중에 서명 URL 로 좁힐 수도 없다.
  */
 
+locals {
+  media_bucket = coalesce(var.media_bucket_name, "${var.project}-media")
+}
+
 resource "aws_s3_bucket" "media" {
   bucket = local.media_bucket
+
+  /*
+   * 보호가 켜져 있으면 비어 있지 않은 버킷의 삭제를 S3 가 거부한다.
+   * 끄는 것은 파괴 직전과 부하 시험 환경뿐이다.
+   */
+  force_destroy = !var.deletion_protection
 
   tags = {
     Name = local.media_bucket
   }
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
-# 넷을 모두 켠다. 하나라도 빠지면 버킷 정책이나 ACL 로 공개될 여지가 남는다.
+/*
+ * 넷을 모두 켠다.
+ * 하나라도 빠지면 버킷 정책이나 ACL 로 공개될 여지가 남는다.
+ */
 resource "aws_s3_bucket_public_access_block" "media" {
   bucket                  = aws_s3_bucket.media.id
   block_public_acls       = true
@@ -128,7 +137,10 @@ resource "aws_cloudfront_distribution" "media" {
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
   }
 
-  # 무료 구간이 월 1TB 다. 가장 싼 등급으로도 넘길 일이 없다.
+  /*
+   * 무료 구간이 월 1TB 다.
+   * 가장 싼 등급으로도 넘길 일이 없다.
+   */
   price_class = "PriceClass_200"
 
   restrictions {
@@ -150,7 +162,10 @@ resource "aws_cloudfront_distribution" "media" {
   }
 }
 
-# 이 배포의 서명만 허용한다. 다른 경로로는 버킷을 읽을 수 없다.
+/*
+ * 이 배포의 서명만 허용한다.
+ * 다른 경로로는 버킷을 읽을 수 없다.
+ */
 data "aws_iam_policy_document" "media_bucket" {
   statement {
     effect    = "Allow"
@@ -174,7 +189,10 @@ resource "aws_s3_bucket_policy" "media" {
   bucket = aws_s3_bucket.media.id
   policy = data.aws_iam_policy_document.media_bucket.json
 
-  # 정책이 공개 판정을 받으면 block_public_policy 가 거부한다. 순서를 고정한다.
+  /*
+   * 정책이 공개 판정을 받으면 block_public_policy 가 거부한다.
+   * 순서를 고정한다.
+   */
   depends_on = [aws_s3_bucket_public_access_block.media]
 }
 

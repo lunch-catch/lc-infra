@@ -27,7 +27,7 @@
 | 이미지 | S3 + CloudFront (`cdn.lunchcatch.com`) | S3 + CloudFront (`cdn.dev.lunchcatch.com`) |
 | 관측 | 모니터링 EC2 의 Grafana, Prometheus, Loki, Alertmanager | 같은 EC2 의 Grafana, Prometheus, 앱 로그는 CloudWatch Logs |
 | 배포 | `deploy.sh` 롤링 배포 | caddy 뒤에서 blue 와 green 을 번갈아 띄운다 |
-| Terraform 위치 | `terraform/` | `dev/` |
+| Terraform 위치 | `envs/prod/` (모듈은 `modules/`) | `dev/` |
 
 ## 동작 흐름
 
@@ -69,10 +69,17 @@ CloudWatch 알람, RDS 이벤트 -> SNS -> 메일     모니터링 인스턴스�
 ## 저장소 구조
 
 ```
-terraform/       운영 AWS 리소스. 모듈로 쪼개지 않는다
+modules/         운영 AWS 리소스 정의. 아래 다섯 모듈로 나눈다
+  network/         VPC, 서브넷, NAT, S3 엔드포인트, 보안 그룹
+  data/            RDS, ElastiCache
+  edge/            ALB, 인증서, DNS 레코드, 이미지 버킷과 CloudFront
+  compute/         시작 템플릿, 앱과 배치 ASG, 모니터링과 부하 생성기, ECR, IAM, 런타임 SSM 값, 부팅 템플릿
+  observability/   CloudWatch 알람, SNS, 예산
+envs/            모듈을 조립하는 루트. 상태가 루트마다 따로다
+  prod/            운영. 파괴 가드와 삭제 보호를 켠다
+  lt/              팀원 부하 시험 한 벌. 삭제 보호를 끄고 정해진 시각에 스스로 지운다. member-env.sh 가 돌린다
 dev/             개발 서버. 운영과 상태를 나눠 따로 올리고 내린다
 bootstrap/       파괴를 견디는 계층. 상태 버킷, 시크릿, GitHub OIDC 역할, 도메인 호스팅 영역, 개발 ECR. 로컬 상태로 관리한다
-member/          팀원 부하 시험 환경을 정해진 시각에 자동으로 지운다. member-env.sh 가 팀원 사본에 넣는다
 observability/   모니터링 인스턴스에서 도는 것들. Terraform 이 아니라 git clone 으로 배포한다
 scripts/         런타임을 다루는 것들. Terraform 이 건드리면 안 되는 영역이다
 docs/            그림, 설계 근거, 배포 절차, 판정 기준
@@ -80,6 +87,8 @@ verify.sh        G-LOCAL 진입점. 본체는 common 저장소에 있다
 ```
 
 **`bootstrap/` 이 따로인 이유**는 둘이다. 상태 버킷은 자기 자신을 상태에 담을 수 없어 닭과 달걀이고, 시크릿은 `destroy.sh` 를 견뎌야 한다. SSM 표준 파라미터는 무료라 지워도 아끼는 것이 없는데 지우면 재구축 때 전부를 손으로 다시 넣어야 한다. `./scripts/apply.sh` 가 두 구성의 순서를 흡수한다.
+
+**운영과 부하 시험이 같은 모듈을 쓰는 이유**는 시험한 구성과 운영 구성이 갈라지지 않게 하기 위해서다. 차이(도메인, 삭제 보호, 자동 정리)는 `envs/lt` 가 변수로만 준다. 개발 서버(`dev/`)는 EC2 한 대 구성이라 모양이 달라 모듈을 쓰지 않는다.
 
 **`observability/` 를 Terraform 이 갖지 않는 이유**는 알람 임계값을 고칠 때마다 `apply` 를 하지 않기 위해서다(`INF-32`, `OPS-2-18`). 모니터링 인스턴스가 이 저장소를 클론하고, 설정을 고치면 거기서 `git pull` 한다.
 
@@ -96,7 +105,7 @@ Terraform 쪽에 `ignore_changes` 를 걸어 두었다. 자세한 것은 [`docs/
 
 **계정 가드.** 다른 AWS 계정에서 실수로 돌리지 않게 세 겹으로 막는다.
 
-- `terraform/versions.tf` 가 `allowed_account_ids` 와 `profile` 을 함께 건다. 다른 계정 자격증명이면 plan 단계에서 `AWS account ID not allowed` 로 멈춘다.
+- `envs/prod/versions.tf` 가 `allowed_account_ids` 와 `profile` 을 함께 건다. 다른 계정 자격증명이면 plan 단계에서 `AWS account ID not allowed` 로 멈춘다.
 - `scripts/` 는 `AWS_PROFILE` 이 비어 있으면 `lunchcatch` 프로필을 쓰고, 운영 계정이 아니면 시작 전에 멈춘다. CI 처럼 자격증명이 환경변수로 오면 프로필을 건드리지 않는다.
 - `destroy.sh` 는 대상 계정 ID 를 사람이 직접 입력해야 진행한다.
 
@@ -124,7 +133,8 @@ Terraform 쪽에 `ignore_changes` 를 걸어 두었다. 자세한 것은 [`docs/
 ## 검증
 
 ```bash
-cd terraform && terraform fmt -check -recursive && terraform validate
+terraform fmt -check -recursive modules envs
+terraform -chdir=envs/prod init -backend=false && terraform -chdir=envs/prod validate
 ./verify.sh                  # G-LOCAL. 아직 push 하지 않은 커밋 전부
 ```
 

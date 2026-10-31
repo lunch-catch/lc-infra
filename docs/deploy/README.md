@@ -54,7 +54,7 @@ assume 은 되고 정책이 없으니 호출만 거절된다. **로그만 보면
 
 **`.env` 를 통째로 다시 만든다.** `GIT_SHA` 한 줄만 고치지 않는다. user-data 는 최초 부팅에만 돌아서 나머지 값이 부팅 시점에 굳는데, RDS 복원은 항상 새 인스턴스를 만들어 엔드포인트가 바뀐다(`INF-26`). 부분 수정으로는 배치가 그 변화를 영원히 따라가지 못한다.
 
-`refresh-env` 는 `terraform/templates/refresh-env.sh.tftpl` 에서 나오고 user-data 가 부팅 때 인스턴스에 심는다. **부팅과 재배포가 같은 코드를 쓴다**(`MNT-3-01`).
+`refresh-env` 는 `modules/compute/templates/refresh-env.sh.tftpl` 에서 나오고 user-data 가 부팅 때 인스턴스에 심는다. **부팅과 재배포가 같은 코드를 쓴다**(`MNT-3-01`).
 
 **한 대씩 한다.** 두 배치는 액티브-액티브라 한 대가 내려가 있는 동안 다른 한 대가 작업을 맡는다. 둘을 한꺼번에 내리면 그 사이 00:00 묶음이 비고 실행 중이던 작업을 이어받을 서버도 없다. 잠시 구버전과 신버전 배치가 함께 돌지만, 같은 작업을 동시에 시도해도 `batch_execution_log` 의 유일 제약이 한쪽만 통과시킨다. 근거는 `docs/system-design/백엔드공통_배치_설계.md` 2장이다.
 
@@ -142,8 +142,8 @@ Terraform 이 값이나 desired 를 건드리면 배포가 깨진다. 그래서 
 `apply.sh` 는 오래 걸린다. **중간에 끊으면 상태 잠금과 고아 리소스가 남는다.** 그때는 이렇게 푼다.
 
 ```bash
-terraform -chdir=terraform force-unlock -force <잠금ID>     # 먼저 terraform 프로세스가 죽었는지 확인한다
-terraform -chdir=terraform import <주소> <실제ID>           # AWS 에는 있는데 상태에 없는 것
+terraform -chdir=envs/prod force-unlock -force <잠금ID>     # 먼저 terraform 프로세스가 죽었는지 확인한다
+terraform -chdir=envs/prod import <주소> <실제ID>           # AWS 에는 있는데 상태에 없는 것
 ```
 
 ## 처음 적용할 때
@@ -189,7 +189,7 @@ CREATE USER 'exporter'@'%' IDENTIFIED BY '<db-exporter-password>';
 GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'%';
 ```
 
-**`db-password` 만 Terraform 이 따로 막는다**(`rds.tf` 의 postcondition). 나머지는 `unset` 이어도 apply 가 통과하고 인스턴스가 뜬 뒤에야 드러난다. `JWT_SECRET` 이 없어 앱이 기동을 못 하거나, Slack 알림이 조용히 안 가는 식이다. 그래서 스크립트가 전부를 한 번에 본다.
+**`db-password` 만 Terraform 이 따로 막는다**(`modules/data/rds.tf` 의 postcondition). 나머지는 `unset` 이어도 apply 가 통과하고 인스턴스가 뜬 뒤에야 드러난다. `JWT_SECRET` 이 없어 앱이 기동을 못 하거나, Slack 알림이 조용히 안 가는 식이다. 그래서 스크립트가 전부를 한 번에 본다.
 
 **이미지 레지스트리 자격증명은 목록에 없다.** ECR 은 인스턴스 프로파일이 곧 pull 권한이라 넣을 것이 없다. 2026-09-23 이전에는 `ghcr-token` 이 여기 있었다.
 
@@ -217,7 +217,7 @@ CDN 도메인과 ALB 주소는 재구축마다 바뀌지만 **손댈 것이 없�
 | 무엇 | 어디 | destroy 때 |
 |---|---|---|
 | 호스팅 영역 | `bootstrap/dns.tf` (`zone_name`) | **남는다.** 지우면 네임서버가 바뀌어 도메인이 끊긴다 |
-| ACM 인증서, HTTPS 리스너, `api` 별칭, 외부 헬스체크 | `terraform/dns.tf`, `alb.tf` (`domain_name`) | 지워지고 재구축 때 다시 만들어진다 |
+| ACM 인증서, HTTPS 리스너, `api` 별칭, 외부 헬스체크 | `modules/edge/dns.tf`, `alb.tf` (`domain_name`) | 지워지고 재구축 때 다시 만들어진다 |
 
 호스팅 영역은 등록할 때 Route 53 이 자동으로 만든 것을 import 했다. 새로 만들지 않는다.
 
@@ -239,7 +239,7 @@ cd bootstrap && terraform output name_servers
 `aws_instance.monitoring` 에 `ignore_changes = [ami]`, 배치 시작 템플릿에 `ignore_changes = [image_id]` 가 걸려 있다.
 
 **모니터링은 걸지 않으면 apply 가 통째로 막힌다.** `data.aws_ami` 가 `most_recent` 라 Canonical 이 새
-Ubuntu 를 올리면 교체 대상이 되는데, `prevent_destroy` 가 있어 Terraform 이 거부한다. 그러면 **무관한 변경 하나를 넣으려 해도 못 넣는다.** 2026-09-23 에
+Ubuntu 를 올리면 교체 대상이 되는데, 종료 보호(`disable_api_termination`)가 있어 AWS 가 거부한다. 그러면 **무관한 변경 하나를 넣으려 해도 못 넣는다.** 2026-09-23 에
 부하 생성기를 내리려다 이것에 막혔고 `-target` 으로 우회해야 했다.
 
 대가는 **커널이 자동으로 안 올라간다**는 것이다. 보안 패치가 필요하면 사람이 판단해서
@@ -315,15 +315,15 @@ ps -ax | grep [t]erraform          # 아무것도 없어야 한다
 락 정보에 찍힌 `Who` 가 자기 기계이고 프로세스가 없으면 죽은 락이다.
 
 ```bash
-cd terraform
+cd envs/prod
 terraform force-unlock <락 ID>     # ID 는 오류 메시지의 Lock Info 에 있다
 ```
 
 **2. 상태에서 빠진 자원을 붙인다.** `terraform state list` 로 무엇이 없는지 먼저 확인한다.
 
 ```bash
-terraform import aws_db_instance.main lunchcatch-db
-terraform import aws_elasticache_replication_group.main lunchcatch-cache
+terraform import module.data.aws_db_instance.main lunchcatch-db
+terraform import module.data.aws_elasticache_replication_group.main lunchcatch-cache
 ```
 
 **지우고 다시 만들면 안 된다.** RDS 를 지우면 그 안의 데이터가 같이 간다.
@@ -723,19 +723,20 @@ done
 ./scripts/destroy.sh --yes      # 확인을 건너뛴다. 터미널이 없을 때만 쓴다
 ```
 
-`terraform destroy` 만으로는 되지 않는다. 세 겹이 막는다.
+`terraform destroy` 만으로는 되지 않는다. 두 겹이 막는다.
 
 | 막는 것 | 어디서 거부되나 |
 |---|---|
-| `lifecycle { prevent_destroy }` 5곳 | Terraform 이 plan 단계에서 |
-| `deletion_protection` (RDS, ALB) | AWS 가 API 호출을 |
-| `skip_final_snapshot = false` | RDS 가 스냅샷 이름을 요구하며 |
+| `envs/prod` 의 `terraform_data.destroy_guard` (`prevent_destroy`) | Terraform 이 plan 단계에서 destroy 전체를 |
+| `deletion_protection` 변수 하나 (기본 `true`) | AWS 가 API 호출을. RDS 와 ALB 삭제 보호, RDS 최종 스냅샷, 모니터링 종료 보호와 볼륨 보존, 비어 있지 않은 S3 와 ECR |
 
-그래서 스크립트가 **가드를 걷어내고 apply 를 한 번 돌린 뒤에야** destroy 한다. 삭제 보호는 코드만 고쳐서는 안 꺼지고 AWS 에 반영되어야 한다.
+`prevent_destroy` 는 변수로 바꿀 수 없어 모듈 안에 두면 부하 시험 환경까지 묶인다. 그래서 모듈 안의 리소스에는 AWS 쪽 보호만 걸고, plan 단계 가드는 운영 루트에 하나만 둔다.
 
-걷어낸 가드는 `trap` 으로 **반드시 되돌린다.** 중간에 실패해도 마찬가지다. 방어가 코드에 살아 있어야 다음 재구축이 안전하다. 그래서 가드 파일에 커밋 안 된 변경이 있으면 시작하지 않는다. 원복이 그것까지 되돌리기 때문이다.
+그래서 스크립트가 **`-var deletion_protection=false` 로 apply 를 한 번 돌리고, 가드를 상태에서 뺀 뒤에야** destroy 한다. 삭제 보호는 변수만 바꿔서는 안 꺼지고 AWS 에 반영되어야 한다.
 
-**destroy 가 끝나도 EBS 볼륨이 남는다.** `delete_on_termination = false` 인 모니터링 루트 볼륨이다. 관측 데이터를 지키려는 설정이라 Terraform 이 일부러 안 지운다. 스크립트가 따로 찾아 지운다.
+코드는 고치지 않는다. 가드는 `terraform state rm` 으로 상태에서만 빼고, 다음 apply 가 변수 기본값으로 보호를 되살리고 가드를 다시 만든다. 중간에 실패해도 되돌릴 파일이 없다.
+
+**모니터링 루트 볼륨은 보호가 켜진 동안 인스턴스와 함께 지워지지 않는다.** 관측 데이터를 지키려는 설정이다. 위 apply 가 이것도 끄므로 보통은 남지 않지만, 남은 볼륨은 스크립트가 따로 찾아 지운다.
 
 남는 것들은 정상이다.
 

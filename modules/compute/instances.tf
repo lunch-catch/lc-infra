@@ -4,7 +4,7 @@
  * 모니터링은 ASG 에 넣지 않는다 (INF-24).
  * desired 0 이 EBS 까지 지워 Prometheus 와 Loki 데이터가 사라진다.
  *
- * 배치는 여기 없다. 2026-10-06 에 ASG 고정 2대로 옮겼다 (INF-41). compute.tf 의 aws_autoscaling_group.batch 를 보라.
+ * 배치는 여기 없다. 2026-10-06 에 ASG 고정 2대로 옮겼다 (INF-41). main.tf 의 aws_autoscaling_group.batch 를 보라.
  */
 
 resource "aws_instance" "monitoring" {
@@ -21,16 +21,26 @@ resource "aws_instance" "monitoring" {
    * 도메인을 사면 ALB + OIDC 경로(has_grafana)가 열리고, 그때는 사설이어도 볼 수 있다.
    * 그 전까지 사설 상태에서 보는 방법은 SSM 포트 포워딩이다 (observability/README.md).
    */
-  subnet_id              = local.has_duckdns ? aws_subnet.public["a"].id : aws_subnet.private["a"].id
-  vpc_security_group_ids = [aws_security_group.mon.id]
+  subnet_id              = local.has_duckdns ? var.public_subnet_ids["a"] : var.private_subnet_ids["a"]
+  vpc_security_group_ids = [var.security_group_ids["mon"]]
   iam_instance_profile   = aws_iam_instance_profile.instance["monitoring"].name
 
-  # 관측 데이터가 쌓인다. 앱보다 크게 잡는다.
+  /*
+   * EBS 에 관측 데이터가 있다. 태우면 되돌릴 수 없다.
+   * 보호가 켜져 있으면 종료 API 를 막고, 인스턴스가 사라져도 볼륨은 남긴다.
+   * 끄는 것은 파괴 직전과 부하 시험 환경뿐이다.
+   */
+  disable_api_termination = var.deletion_protection
+
+  /*
+   * 관측 데이터가 쌓인다.
+   * 앱보다 크게 잡는다.
+   */
   root_block_device {
     volume_size           = 20
     volume_type           = "gp3"
     encrypted             = true
-    delete_on_termination = false
+    delete_on_termination = !var.deletion_protection
   }
 
   metadata_options {
@@ -52,7 +62,7 @@ resource "aws_instance" "monitoring" {
   }
 
   /*
-   * 모니터링이 읽을 SSM 값이 먼저 있어야 한다. 근거는 compute.tf 의 aws_autoscaling_group.batch 에 있다.
+   * 모니터링이 읽을 SSM 값이 먼저 있어야 한다. 근거는 main.tf 의 aws_autoscaling_group.batch 에 있다.
    *
    * 이쪽은 user-data 에 set -e 가 없어 2026-09-26 에 ParameterNotFound 를 두 번 맞고도 떴다.
    * 죽지 않았을 뿐이고 값이 빈 채로 뜬 것이라 오히려 찾기 어렵다. 그 둘이 db-endpoint 와
@@ -70,14 +80,11 @@ resource "aws_instance" "monitoring" {
   ]
 
   lifecycle {
-    # EBS 에 관측 데이터가 있다. 태우면 되돌릴 수 없다.
-    prevent_destroy = true
-
     /*
      * AMI 가 바뀌어도 이 인스턴스를 갈아엎지 않는다.
      *
      * data.aws_ami 가 most_recent 라 Canonical 이 새 Ubuntu 를 올리면 교체 대상이 되는데,
-     * 위 prevent_destroy 가 그것을 거부해 **모든 apply 가 그 자리에서 죽는다.**
+     * 위 종료 보호가 그것을 거부해 **모든 apply 가 그 자리에서 죽는다.**
      * 무관한 변경 하나를 넣으려 해도 못 넣게 된다. 실제로 그렇게 막혔다 (2026-09-23).
      *
      * 이 인스턴스는 ASG 밖이라 AMI 갱신이 자동으로 필요하지 않다. 커널을 올려야 하면
@@ -96,8 +103,8 @@ resource "aws_instance" "load_test" {
 
   ami                    = data.aws_ami.ubuntu_x86.id
   instance_type          = var.instance_types["load_test"]
-  subnet_id              = aws_subnet.public["a"].id
-  vpc_security_group_ids = [aws_security_group.loadtest.id]
+  subnet_id              = var.public_subnet_ids["a"]
+  vpc_security_group_ids = [var.security_group_ids["loadtest"]]
   iam_instance_profile   = aws_iam_instance_profile.instance["loadtest"].name
   user_data_base64       = base64encode(local.load_test_user_data)
 
@@ -136,4 +143,16 @@ resource "aws_eip" "monitoring" {
   tags = {
     Name = "${var.project}-monitoring"
   }
+}
+
+/*
+ * 모니터링은 ASG 밖 고정 인스턴스라 대상을 직접 붙인다.
+ * 대상 그룹은 edge 모듈이 갖는다.
+ */
+resource "aws_lb_target_group_attachment" "grafana" {
+  count = var.grafana_alb_enabled ? 1 : 0
+
+  target_group_arn = var.grafana_target_group_arn
+  target_id        = aws_instance.monitoring.id
+  port             = 3000
 }

@@ -14,7 +14,7 @@
 resource "aws_elasticache_subnet_group" "main" {
   name        = "${var.project}-cache"
   description = "private subnets in 2 AZ. primary in a, replica in c"
-  subnet_ids  = [for s in aws_subnet.private : s.id]
+  subnet_ids  = values(var.private_subnet_ids)
 }
 
 resource "aws_elasticache_parameter_group" "main" {
@@ -67,7 +67,7 @@ resource "aws_elasticache_replication_group" "main" {
   preferred_cache_cluster_azs = [var.azs["a"], var.azs["c"]]
 
   subnet_group_name    = aws_elasticache_subnet_group.main.name
-  security_group_ids   = [aws_security_group.cache.id]
+  security_group_ids   = [var.cache_security_group_id]
   parameter_group_name = aws_elasticache_parameter_group.main.name
 
   at_rest_encryption_enabled = true

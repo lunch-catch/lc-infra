@@ -20,7 +20,7 @@ REGION="${AWS_REGION:-ap-northeast-2}"
 if [ -z "${AWS_PROFILE:-}" ] && [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
   export AWS_PROFILE=lunchcatch
 fi
-# 그래도 다른 계정을 가리키면 아무것도 하기 전에 멈춘다. terraform/versions.tf 의 allowed_account_ids 와 같은 장치다.
+# 그래도 다른 계정을 가리키면 아무것도 하기 전에 멈춘다. envs/prod/versions.tf 의 allowed_account_ids 와 같은 장치다.
 ACCOUNT_ID="${ACCOUNT_ID:-762794225116}"
 current_account=$(aws sts get-caller-identity --query Account --output text)
 if [ "$current_account" != "$ACCOUNT_ID" ]; then

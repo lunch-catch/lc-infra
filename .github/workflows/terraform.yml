@@ -13,7 +13,8 @@ on:
   pull_request:
     paths:
       - "**/*.tf"
-      - ".terraform.lock.hcl"
+      - "**/*.tftpl"
+      - "**/.terraform.lock.hcl"
       - ".github/workflows/terraform.yml"
 
 # plan 이 상태 파일 잠금을 잡으므로 동시에 돌리지 않는다
@@ -27,11 +28,16 @@ permissions:
   pull-requests: write
 
 jobs:
+  # 운영과 부하 시험 두 루트가 같은 모듈을 부른다. 모듈을 고치면 둘 다 깨질 수 있어 둘 다 본다
   check:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        root: [envs/prod, envs/lt]
     defaults:
       run:
-        working-directory: terraform
+        working-directory: ${{ matrix.root }}
     steps:
       - uses: actions/checkout@v4
 
@@ -40,8 +46,10 @@ jobs:
           # 확정값은 기술 스택 문서 3.7절에 있다
           terraform_version: "~1.15"
 
+      # 모듈까지 보려고 저장소 루트에서 돈다
       - name: 형식
-        run: terraform fmt -check -recursive -diff
+        working-directory: .
+        run: terraform fmt -check -recursive -diff modules envs
 
       # validate 는 backend 초기화 없이도 돈다. 자격증명이 필요 없다
       - name: 문법
@@ -49,7 +57,9 @@ jobs:
           terraform init -backend=false
           terraform validate
 
+      # plan 은 운영만 본다. 부하 시험 환경은 계정마다 상태가 따로라 여기서 볼 상태가 없다
       - name: AWS 자격증명
+        if: matrix.root == 'envs/prod'
         id: creds
         continue-on-error: true
         uses: aws-actions/configure-aws-credentials@v4

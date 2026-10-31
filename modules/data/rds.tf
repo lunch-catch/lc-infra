@@ -6,7 +6,7 @@
 resource "aws_db_subnet_group" "main" {
   name        = "${var.project}-db"
   description = "private subnets in 2 AZ. required for Multi-AZ"
-  subnet_ids  = [for s in aws_subnet.private : s.id]
+  subnet_ids  = values(var.private_subnet_ids)
 
   tags = {
     Name = "${var.project}-db"
@@ -84,11 +84,14 @@ resource "aws_db_instance" "main" {
   storage_type      = "gp3"
   storage_encrypted = true
 
-  # true 면 동기 복제라 커밋 손실이 없다. 구축 초기에는 false 로 시작한다.
+  /*
+   * true 면 동기 복제라 커밋 손실이 없다.
+   * 구축 초기에는 false 로 시작한다.
+   */
   multi_az = var.db_multi_az
 
   db_subnet_group_name   = aws_db_subnet_group.main.name
-  vpc_security_group_ids = [aws_security_group.db.id]
+  vpc_security_group_ids = [var.db_security_group_id]
   parameter_group_name   = aws_db_parameter_group.main.name
   publicly_accessible    = false
 
@@ -100,12 +103,16 @@ resource "aws_db_instance" "main" {
   /*
    * 자동 백업은 인스턴스를 지우면 함께 사라진다.
    * 최종 스냅샷을 건너뛰면 되돌릴 수단이 없다.
+   * 둘 다 deletion_protection 하나로 켜고 끈다. 끄는 것은 파괴 직전과 부하 시험 환경뿐이다.
    */
-  deletion_protection       = true
-  skip_final_snapshot       = false
+  deletion_protection       = var.deletion_protection
+  skip_final_snapshot       = !var.deletion_protection
   final_snapshot_identifier = "${var.project}-db-final"
 
-  # 일반 로그는 켜지 않는다. 부하 시험 중 GB 단위로 늘어난다.
+  /*
+   * 일반 로그는 켜지 않는다.
+   * 부하 시험 중 GB 단위로 늘어난다.
+   */
   enabled_cloudwatch_logs_exports = ["slowquery"]
 
   /*
@@ -120,8 +127,6 @@ resource "aws_db_instance" "main" {
   }
 
   lifecycle {
-    prevent_destroy = true
-
     /*
      * 파라미터를 만들 때 자리만 unset 으로 채웠다.
      * 실제 값을 넣지 않고 apply 하면 그 문자열이 그대로 마스터 비밀번호가 된다.
@@ -143,7 +148,7 @@ resource "aws_db_instance" "main" {
  * data 소스가 precondition 보다 먼저 평가되기 때문이다.
  */
 data "aws_ssm_parameter" "db_password" {
-  name = "${local.ssm_prefix}/db-password"
+  name = "/${var.project}/db-password"
 
   lifecycle {
     postcondition {

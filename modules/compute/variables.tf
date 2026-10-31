@@ -1,110 +1,130 @@
-# 값의 근거는 전부 docs/system-design/ 에 있다. 여기서 새로 정하지 않는다.
-
-/*
- * 계정을 여럿 쓰는 환경에서 어느 자격증명을 쓸지 고른다.
- * 비우면 기본 자격증명이나 환경변수를 쓴다.
- */
-variable "aws_profile" {
-  description = "AWS CLI 프로파일 이름"
-  type        = string
-  default     = ""
-}
-
-/*
- * 잘못된 계정에 apply 하는 사고를 막는 마지막 방어다.
- * 프로파일을 잘못 잡거나 환경변수가 남아 있으면 plan 단계에서 멈춘다.
- * 비워 두면 검사하지 않는다.
- */
-variable "allowed_account_ids" {
-  description = "이 구성을 적용해도 되는 AWS 계정 ID"
-  type        = list(string)
-  default     = []
-}
-
 variable "project" {
   description = "모든 리소스 이름과 SSM 경로의 접두사"
   type        = string
-  default     = "lunchcatch"
 }
 
 variable "region" {
-  description = "AWS 리전. 범위가 단일 리전이다 (INF-01)"
+  description = "AWS 리전"
   type        = string
-  default     = "ap-northeast-2"
 }
 
-/*
- * AWS 는 계정마다 AZ 이름을 다른 물리 영역에 매핑한다.
- * 그래서 이 값은 이 계정 기준이며 변수로 둔다.
- */
-variable "azs" {
-  description = "논리 AZ 이름을 실제 AZ 에 매핑한다"
+variable "public_subnet_ids" {
+  description = "퍼블릭 서브넷 ID. 키는 논리 AZ 이름이다. 부하 생성기와 DuckDNS 경로의 모니터링이 쓴다"
   type        = map(string)
-
-  default = {
-    a = "ap-northeast-2a"
-    c = "ap-northeast-2c"
-  }
 }
 
-variable "vpc_cidr" {
-  description = "VPC CIDR"
-  type        = string
-  default     = "10.0.0.0/16"
-}
-
-/*
- * 앱을 퍼블릭 서브넷에 두는 이유는 NAT Gateway 를 쓰지 않기 위해서다 (INF-09).
- * 보안은 서브넷이 아니라 보안 그룹으로 확보한다.
- */
-variable "public_subnet_cidrs" {
-  description = "퍼블릭 서브넷. ALB, 앱, 모니터링, 배치, 부하 생성"
+variable "private_subnet_ids" {
+  description = "프라이빗 서브넷 ID. 키는 논리 AZ 이름이다. 앱, 배치, 모니터링이 쓴다"
   type        = map(string)
-
-  default = {
-    a = "10.0.1.0/24"
-    c = "10.0.2.0/24"
-  }
 }
 
-variable "private_subnet_cidrs" {
-  description = "프라이빗 서브넷. RDS 와 ElastiCache"
+variable "security_group_ids" {
+  description = "역할별 보안 그룹 ID. app, batch, mon, loadtest 키를 쓴다"
   type        = map(string)
+}
 
-  default = {
-    a = "10.0.11.0/24"
-    c = "10.0.12.0/24"
-  }
+variable "alb_dns_name" {
+  description = "부하 생성기가 부를 ALB 주소"
+  type        = string
+}
+
+variable "alb_arn_suffix" {
+  description = "스케일링 정책이 볼 ALB 식별자"
+  type        = string
+}
+
+variable "app_target_group_arn" {
+  description = "앱 ASG 를 붙일 대상 그룹"
+  type        = string
+}
+
+variable "app_target_group_arn_suffix" {
+  description = "스케일링 정책이 볼 앱 대상 그룹 식별자"
+  type        = string
+}
+
+variable "liveness_target_group_arn" {
+  description = "앱 ASG 를 함께 붙일 liveness 대상 그룹"
+  type        = string
+}
+
+variable "grafana_alb_enabled" {
+  description = "Grafana 를 ALB 뒤에 붙이는지 여부. edge 모듈과 같은 값을 넘긴다"
+  type        = bool
+}
+
+variable "grafana_target_group_arn" {
+  description = "모니터링을 붙일 Grafana 대상 그룹. grafana_alb_enabled 가 false 면 null 이다"
+  type        = string
+  default     = null
+}
+
+variable "grafana_host" {
+  description = "Grafana 호스트 이름. ALB 경로일 때 ROOT_URL 이 된다"
+  type        = string
 }
 
 /*
- * 비어 있으면 Route 53 과 ACM 과 HTTPS 리스너를 만들지 않는다.
- * 도메인이 생기면 이 값만 채워 apply 한다.
+ * 쿠키의 Secure 속성이 이것을 따른다.
+ * HTTPS 가 없으면 브라우저가 쿠키를 버린다.
  */
-variable "domain_name" {
-  description = "서비스 도메인. 예: api.example.com"
-  type        = string
-  default     = ""
-}
-
-# Grafana 를 붙일 서브도메인. 인증서 SAN 과 호스트 헤더 조건이 이 값을 쓴다.
-variable "grafana_subdomain" {
-  description = "Grafana 서브도메인 라벨. 예: grafana"
-  type        = string
-  default     = "grafana"
+variable "domain_enabled" {
+  description = "서비스 도메인과 HTTPS 리스너가 있는지 여부"
+  type        = bool
 }
 
 /*
- * 비어 있으면 Grafana 를 ALB 에 붙이지 않는다.
- * 값이 있어도 domain_name 이 비어 있으면 붙이지 않는다. OIDC 인증은 HTTPS 리스너에서만 되기 때문이다.
+ * 도메인을 사기 전까지 쓰는 임시 경로다. 비우면 아무것도 만들지 않는다.
  *
- * 클라이언트 ID 는 시크릿이 아니다. OAuth 흐름에서 브라우저에 그대로 드러난다.
- * 시크릿은 SSM 의 grafana-oidc-client-secret 에서 읽는다.
+ * ALB 를 거치지 않는다. 모니터링 인스턴스의 Caddy 가 직접 TLS 를 종료하고
+ * Let's Encrypt 에서 인증서를 받는다. ACM 은 도메인 소유 검증이 필요해 쓸 수 없다.
+ *
+ * domain_name 이 생기면 이 값을 비운다. 두 경로를 동시에 켜지 않는다.
  */
-variable "grafana_oidc_client_id" {
-  description = "Google OAuth 클라이언트 ID. 비우면 Grafana 를 노출하지 않는다"
+variable "duckdns_hostname" {
+  description = "DuckDNS 호스트명. 예: lunchcatch.duckdns.org"
   type        = string
+  nullable    = false
   default     = ""
+}
+
+variable "db_address" {
+  description = "SSM db-endpoint 의 초기값"
+  type        = string
+}
+
+variable "db_name" {
+  description = "데이터베이스 이름. 앱의 접속 URL 에 들어간다"
+  type        = string
+}
+
+variable "db_username" {
+  description = "DB 마스터 사용자. 앱과 mysqld-exporter 가 쓴다"
+  type        = string
+}
+
+variable "cache_endpoint" {
+  description = "SSM cache-endpoint 의 초기값"
+  type        = string
+}
+
+variable "cdn_domain" {
+  description = "SSM cdn-domain 의 초기값"
+  type        = string
+}
+
+variable "media_bucket" {
+  description = "앱이 presigned URL 을 발급할 이미지 버킷 이름"
+  type        = string
+}
+
+/*
+ * AWS 쪽 삭제 보호다. 모니터링 인스턴스의 종료 보호와 루트 볼륨 보존, ECR 의 비우기 거부가 이것을 따른다.
+ * 운영은 켜 두고 destroy.sh 가 파괴 직전에만 끈다. 부하 시험 환경은 꺼 둔다.
+ */
+variable "deletion_protection" {
+  description = "모니터링 종료 보호와 볼륨 보존, ECR 비우기 거부 여부"
+  type        = bool
 }
 
 /*
@@ -122,33 +142,8 @@ variable "grafana_oidc_client_id" {
 variable "app_target_requests_per_instance" {
   description = "앱 ASG 확장 기준. 대상당 분당 요청 수"
   type        = number
+  nullable    = false
   default     = 6000
-}
-
-/*
- * 도메인을 사기 전까지 쓰는 임시 경로다. 비우면 아무것도 만들지 않는다.
- *
- * ALB 를 거치지 않는다. 모니터링 인스턴스의 Caddy 가 직접 TLS 를 종료하고
- * Let's Encrypt 에서 인증서를 받는다. ACM 은 도메인 소유 검증이 필요해 쓸 수 없다.
- *
- * domain_name 이 생기면 이 값을 비운다. 두 경로를 동시에 켜지 않는다.
- */
-variable "duckdns_hostname" {
-  description = "DuckDNS 호스트명. 예: lunchcatch.duckdns.org"
-  type        = string
-  default     = ""
-}
-
-/*
- * Caddy 의 443 을 열어 줄 대역이다.
- *
- * 기본값이 전체 공개인 것은 Caddy 의 basic_auth 가 인증 전 요청을 막기 때문이다.
- * 팀이 고정 IP 를 쓴다면 좁히는 편이 낫다. VPN 출구 IP 는 공유되고 바뀌므로 좁히는 의미가 적다.
- */
-variable "grafana_https_allowed_cidrs" {
-  description = "Caddy 443 을 열어 줄 CIDR 목록"
-  type        = list(string)
-  default     = ["0.0.0.0/0"]
 }
 
 /*
@@ -236,6 +231,7 @@ variable "grafana_https_allowed_cidrs" {
 variable "instance_types" {
   description = "역할별 인스턴스 타입. 기술 스택 확정 문서 2.6절"
   type        = map(string)
+  nullable    = false
 
   default = {
     app        = "t3.small"
@@ -245,94 +241,27 @@ variable "instance_types" {
   }
 }
 
-variable "db_instance_class" {
-  description = "RDS 인스턴스 클래스"
-  type        = string
-  default     = "db.t4g.micro"
-}
-
-variable "cache_node_type" {
-  description = "ElastiCache 노드 타입"
-  type        = string
-  default     = "cache.t4g.micro"
-}
-
-variable "db_name" {
-  description = "데이터베이스 이름. backend 의 compose.yaml 과 같아야 한다"
-  type        = string
-  default     = "lunchcatch"
-}
-
-variable "db_username" {
-  description = "DB 마스터 사용자"
-  type        = string
-  default     = "lunchcatch"
-}
-
 variable "github_org" {
   description = "GitHub 조직. OIDC 신뢰 조건과 저장소 clone 경로에 쓴다"
   type        = string
+  nullable    = false
   default     = "lunch-catch"
 }
 
 variable "github_backend_repo" {
   description = "배포를 트리거하는 저장소. 이 저장소의 main 브랜치만 배포 역할을 맡을 수 있다"
   type        = string
+  nullable    = false
   default     = "lc-backend"
 }
 
 variable "github_infra_repo" {
   description = "terraform plan 을 돌리는 저장소"
   type        = string
+  nullable    = false
   default     = "lc-infra"
 }
 
-variable "media_bucket_name" {
-  description = "이미지 버킷 이름. 비우면 {project}-media 를 쓴다"
-  type        = string
-  default     = ""
-}
-
-/*
- * 확정값이고 2026-08-28 부터 켜져 있다 (기술 스택 확정 문서 2.6절).
- *
- * 기본값을 true 로 둔다. tfvars 는 gitignore 대상이라 거기에만 있으면
- * 다른 사람이 apply 할 때 조용히 Single-AZ 로 내려간다. RTO 2분과 RPO 0 목표가
- * 그 순간 성립하지 않게 되는데 plan 에서 눈에 잘 띄지 않는다.
- *
- * 끄려면 tfvars 에 명시적으로 false 를 적는다. 그 편이 의도가 드러난다.
- */
-variable "db_multi_az" {
-  description = "RDS Multi-AZ 여부. false 인 동안은 RTO 2분과 RPO 0 목표가 성립하지 않는다"
-  type        = bool
-  default     = true
-}
-
-# 문서가 "트래픽이 가장 적은 시간대" 로만 정해 두었다. 실제 패턴을 보고 확정한다.
-variable "db_backup_window" {
-  description = "RDS 자동 백업 창 (UTC). 기본값은 KST 새벽 3시다"
-  type        = string
-  default     = "18:00-19:00"
-}
-
-variable "db_maintenance_window" {
-  description = "RDS 유지보수 창 (UTC). 백업 창과 겹치지 않게 둔다"
-  type        = string
-  default     = "sun:19:30-sun:20:30"
-}
-
-# 시험 시간에만 켠다. 상시 가동 전제의 명시적 예외다.
-/*
- * k6 버전을 박는다. 최신을 깔면 안 된다.
- *
- * VU 당 메모리 실측(2026-08-28, 2만 VU 에 5.0 GB)이 1.7.1 기준이고, m7i.xlarge 를
- * 고른 근거가 그 수치다. 런타임이 바뀌면 같은 스크립트가 다른 메모리를 쓴다.
- *
- * 부하 시험은 회차 간 숫자를 비교하는 일이라 도구가 고정되어야 한다.
- * 도구가 바뀌면 이번 회차가 나빠진 것이 앱 탓인지 k6 탓인지 못 가린다.
- *
- * 올릴 때는 이 값만 바꾸고 메모리를 다시 잰 뒤 deploy/README 의 실측표를 갱신한다.
- */
 /*
  * 부하 생성기의 node_exporter 버전이다.
  *
@@ -345,80 +274,33 @@ variable "db_maintenance_window" {
 variable "node_exporter_version" {
   description = "부하 생성기에 설치할 node_exporter 버전. compose.yaml 과 같은 값을 둔다"
   type        = string
+  nullable    = false
   default     = "1.9.1"
 }
 
+/*
+ * k6 버전을 박는다. 최신을 깔면 안 된다.
+ *
+ * VU 당 메모리 실측(2026-08-28, 2만 VU 에 5.0 GB)이 1.7.1 기준이고, m7i.xlarge 를
+ * 고른 근거가 그 수치다. 런타임이 바뀌면 같은 스크립트가 다른 메모리를 쓴다.
+ *
+ * 부하 시험은 회차 간 숫자를 비교하는 일이라 도구가 고정되어야 한다.
+ * 도구가 바뀌면 이번 회차가 나빠진 것이 앱 탓인지 k6 탓인지 못 가린다.
+ *
+ * 올릴 때는 이 값만 바꾸고 메모리를 다시 잰 뒤 deploy/README 의 실측표를 갱신한다.
+ */
 variable "k6_version" {
   description = "부하 생성기에 설치할 k6 버전"
   type        = string
+  nullable    = false
   default     = "1.7.1"
 }
 
 variable "load_test_enabled" {
   description = "부하 생성 인스턴스를 띄울지 여부"
   type        = bool
+  nullable    = false
   default     = false
-}
-
-# Chatbot 이 죽었을 때의 대체 경로다. 비우면 이메일 구독을 만들지 않는다.
-variable "alert_email" {
-  description = "critical 알림을 받을 이메일"
-  type        = string
-  default     = ""
-}
-
-# presigned PUT 이 브라우저에서 직접 간다. 프론트 도메인이 정해지면 좁힌다.
-variable "media_cors_origins" {
-  description = "이미지 업로드를 허용할 오리진"
-  type        = list(string)
-  default     = ["*"]
-}
-
-/*
- * 월 예산. 기술 스택 확정 문서 5.2절의 추정 총액이 근거다.
- * 프리 티어 크레딧으로 도는 동안에도 소진 속도를 봐야 하므로 값을 둔다.
- */
-variable "monthly_budget_usd" {
-  description = "월 예산 상한. 50, 80, 100% 와 예측 100% 에서 알린다"
-  type        = string
-  default     = "140"
-}
-
-/*
- * 확정값은 7일이다 (백업과복원 설계 3.1절). PITR 로 되돌릴 수 있는 범위를 정한다.
- *
- * 프리 티어 FREE 플랜은 이 값에 상한이 있어 7을 거부한다.
- *   FreeTierRestrictionError: The specified backup retention period exceeds
- *   the maximum available to free tier customers.
- *
- * 유료 플랜으로 올린 뒤 7로 되돌린다. 그 전까지는 복구 가능 범위가 그만큼 좁다.
- */
-variable "db_backup_retention_days" {
-  description = "RDS 자동 백업 보존 기간. 확정값은 7이고 프리 티어에서만 낮춘다"
-  type        = number
-  default     = 7
-}
-
-/*
- * GitHub 의 불변 식별자다. 이름을 바꿔도 변하지 않아 OIDC 주체의 새 형식에 쓰인다.
- * gh api orgs/<org> 와 gh api repos/<org>/<repo> 의 id 값이다.
- */
-variable "github_org_id" {
-  description = "GitHub 조직의 숫자 ID"
-  type        = string
-  default     = "331821599"
-}
-
-variable "github_backend_repo_id" {
-  description = "lc-backend 저장소의 숫자 ID"
-  type        = string
-  default     = "1379931699"
-}
-
-variable "github_infra_repo_id" {
-  description = "lc-infra 저장소의 숫자 ID"
-  type        = string
-  default     = "1379931905"
 }
 
 /*
@@ -429,6 +311,7 @@ variable "github_infra_repo_id" {
 variable "frontend_origins" {
   description = "운영 API 가 받는 출처"
   type        = list(string)
+  nullable    = false
   default = [
     "https://lunchcatch.com",
     "https://www.lunchcatch.com",
@@ -444,6 +327,7 @@ variable "frontend_origins" {
 variable "kakao_redirect_uri" {
   description = "카카오 로그인 리다이렉트 주소"
   type        = string
+  nullable    = false
   default     = "https://lunchcatch.com/oauth/callback"
 }
 
@@ -454,13 +338,19 @@ variable "kakao_redirect_uri" {
 variable "bedrock_model_id" {
   description = "Bedrock 모델 ID 또는 추론 프로필 ID"
   type        = string
+  nullable    = false
   default     = "jp.anthropic.claude-sonnet-4-6"
 }
 
-# 도쿄의 jp 추론 프로필로 부른다. 요청이 일본(도쿄, 오사카) 안에서만 돈다 (LLM 문서 2.1절). 인프라 리전과 따로 둔다.
+/*
+ * 도쿄의 jp 추론 프로필로 부른다.
+ * 요청이 일본(도쿄, 오사카) 안에서만 돈다 (LLM 문서 2.1절).
+ * 인프라 리전과 따로 둔다.
+ */
 variable "bedrock_region" {
   description = "Bedrock 을 부르는 리전"
   type        = string
+  nullable    = false
   default     = "ap-northeast-1"
 }
 
@@ -471,7 +361,8 @@ variable "bedrock_region" {
  * 운영 ECR 은 운영을 내리면 함께 지워져 그 계정 밖에서 기댈 수 없다.
  */
 variable "app_image_repository" {
-  description = "앱 이미지 저장소 주소. 예: 762794225116.dkr.ecr.ap-northeast-2.amazonaws.com/lunchcatch-dev"
+  description = "앱 이미지 저장소 주소. 예: <계정 ID>.dkr.ecr.ap-northeast-2.amazonaws.com/lunchcatch-dev"
   type        = string
+  nullable    = false
   default     = ""
 }

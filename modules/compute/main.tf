@@ -29,7 +29,7 @@ data "aws_ami" "ubuntu_arm" {
  */
 locals {
   common_bootstrap = file("${path.module}/templates/common-bootstrap.sh")
-  alloy_config     = file("${path.module}/../observability/alloy/config.alloy")
+  alloy_config     = file("${path.module}/../../observability/alloy/config.alloy")
 
   # 최초 부팅과 재배포가 같은 코드를 쓴다
   refresh_env = templatefile("${path.module}/templates/refresh-env.sh.tftpl", {
@@ -64,7 +64,7 @@ locals {
     region           = var.region
     github_org       = var.github_org
     backend_repo     = var.github_backend_repo
-    alb_dns_name     = aws_lb.main.dns_name
+    alb_dns_name     = var.alb_dns_name
     k6_version       = var.k6_version
     # compose.yaml 의 prom/node-exporter 태그와 같은 값을 쓴다
     node_exporter_version = var.node_exporter_version
@@ -105,11 +105,11 @@ locals {
     db_name            = var.db_name
     db_username        = var.db_username
     cors_origins       = join(",", var.frontend_origins)
-    cookie_secure      = local.has_domain ? "true" : "false"
+    cookie_secure      = var.domain_enabled ? "true" : "false"
     kakao_redirect_uri = var.kakao_redirect_uri
     bedrock_model_id   = var.bedrock_model_id
     bedrock_region     = var.bedrock_region
-    media_bucket       = local.media_bucket
+    media_bucket       = var.media_bucket
     region             = var.region
   }
 
@@ -145,8 +145,12 @@ resource "aws_launch_template" "app" {
     name = aws_iam_instance_profile.instance["app"].name
   }
 
-  vpc_security_group_ids = [aws_security_group.app.id]
-  # EC2 는 user-data 를 16KB 까지만 받는다. 한글 주석이 많아 넘으므로 gzip 으로 줄인다. cloud-init 이 풀어서 돈다
+  vpc_security_group_ids = [var.security_group_ids["app"]]
+  /*
+   * EC2 는 user-data 를 16KB 까지만 받는다.
+   * 한글 주석이 많아 넘으므로 gzip 으로 줄인다.
+   * cloud-init 이 풀어서 돈다
+   */
   user_data = base64gzip(local.app_user_data)
 
   block_device_mappings {
@@ -160,7 +164,10 @@ resource "aws_launch_template" "app" {
     }
   }
 
-  # 토큰을 요구한다. SSRF 로 자격증명이 새는 경로를 막는다.
+  /*
+   * 토큰을 요구한다.
+   * SSRF 로 자격증명이 새는 경로를 막는다.
+   */
   metadata_options {
     http_tokens                 = "required"
     http_endpoint               = "enabled"
@@ -210,13 +217,16 @@ resource "aws_launch_template" "app" {
  */
 resource "aws_autoscaling_group" "app" {
   name                = "${var.project}-app"
-  vpc_zone_identifier = [for s in aws_subnet.private : s.id]
+  vpc_zone_identifier = values(var.private_subnet_ids)
 
   min_size         = 2
   desired_capacity = 2
   max_size         = 3
 
-  # ELB 헬스체크를 본다. 프로세스는 살아 있는데 응답을 못 하는 경우를 잡는다.
+  /*
+   * ELB 헬스체크를 본다.
+   * 프로세스는 살아 있는데 응답을 못 하는 경우를 잡는다.
+   */
   health_check_type = "ELB"
 
   /*
@@ -248,8 +258,8 @@ resource "aws_autoscaling_group" "app" {
   default_instance_warmup = 180
 
   target_group_arns = [
-    aws_lb_target_group.app.arn,
-    aws_lb_target_group.liveness.arn,
+    var.app_target_group_arn,
+    var.liveness_target_group_arn,
   ]
 
   launch_template {
@@ -302,7 +312,7 @@ resource "aws_autoscaling_lifecycle_hook" "app_terminating" {
  *
  * 스케일 인을 막지 않는다. 상시 서비스라 부하가 빠지면 내려가는 것이 맞다.
  *
- * 이 정책이 CloudWatch 알람 2개를 자동으로 만든다. alarms.tf 와 합친 수는 alarms.tf 머리에 있다.
+ * 이 정책이 CloudWatch 알람 2개를 자동으로 만든다. 다른 알람과 합친 수는 modules/observability/main.tf 머리에 있다.
  */
 resource "aws_autoscaling_policy" "app_requests" {
   name                   = "${var.project}-app-requests"
@@ -312,7 +322,7 @@ resource "aws_autoscaling_policy" "app_requests" {
   target_tracking_configuration {
     predefined_metric_specification {
       predefined_metric_type = "ALBRequestCountPerTarget"
-      resource_label         = "${aws_lb.main.arn_suffix}/${aws_lb_target_group.app.arn_suffix}"
+      resource_label         = "${var.alb_arn_suffix}/${var.app_target_group_arn_suffix}"
     }
 
     target_value = var.app_target_requests_per_instance
@@ -335,8 +345,12 @@ resource "aws_launch_template" "batch" {
     name = aws_iam_instance_profile.instance["batch"].name
   }
 
-  vpc_security_group_ids = [aws_security_group.batch.id]
-  # EC2 는 user-data 를 16KB 까지만 받는다. 한글 주석이 많아 넘으므로 gzip 으로 줄인다. cloud-init 이 풀어서 돈다
+  vpc_security_group_ids = [var.security_group_ids["batch"]]
+  /*
+   * EC2 는 user-data 를 16KB 까지만 받는다.
+   * 한글 주석이 많아 넘으므로 gzip 으로 줄인다.
+   * cloud-init 이 풀어서 돈다
+   */
   user_data = base64gzip(local.batch_user_data)
 
   block_device_mappings {
@@ -393,7 +407,7 @@ resource "aws_launch_template" "batch" {
  */
 resource "aws_autoscaling_group" "batch" {
   name                = "${var.project}-batch"
-  vpc_zone_identifier = [for s in aws_subnet.private : s.id]
+  vpc_zone_identifier = values(var.private_subnet_ids)
 
   min_size         = 2
   desired_capacity = 2
@@ -427,7 +441,10 @@ resource "aws_autoscaling_group" "batch" {
     }
   }
 
-  # CloudWatch 의 batch-capacity 알람이 본다. 1분 단위 그룹 지표는 무료다.
+  /*
+   * CloudWatch 의 batch-capacity 알람이 본다.
+   * 1분 단위 그룹 지표는 무료다.
+   */
   enabled_metrics = ["GroupInServiceInstances"]
 
   tag {
@@ -436,7 +453,10 @@ resource "aws_autoscaling_group" "batch" {
     propagate_at_launch = true
   }
 
-  # stop.sh 와 start.sh 가 세션마다 바꾼다. apply 가 되돌리면 세션 중에 배치가 뜬다.
+  /*
+   * stop.sh 와 start.sh 가 세션마다 바꾼다.
+   * apply 가 되돌리면 세션 중에 배치가 뜬다.
+   */
   lifecycle {
     ignore_changes = [desired_capacity, min_size]
   }

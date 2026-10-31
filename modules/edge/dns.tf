@@ -16,24 +16,10 @@ locals {
   grafana_host = local.has_domain ? "${var.grafana_subdomain}.${local.zone_name}" : ""
 
   /*
-   * Grafana 를 ALB 에 붙이는 조건이다.
-   * OIDC 인증 액션은 HTTPS 리스너에만 붙일 수 있어 도메인이 전제다.
-   * 클라이언트 ID 가 없으면 인증 없이 노출하게 되므로 그때도 붙이지 않는다.
+   * 조건은 부르는 쪽이 정한다.
+   * 보안 그룹과 SSM 값도 같은 판단을 따라야 해서 한 자리에서 계산한다.
    */
-  has_grafana = local.has_domain && var.grafana_oidc_client_id != ""
-
-  # 도메인을 사기 전까지 쓰는 임시 경로다. ALB 를 거치지 않는다.
-  has_duckdns = var.duckdns_hostname != ""
-
-  /*
-   * Grafana 가 자기 주소를 아는 값이다. ALB 경로가 있으면 그쪽이 정본이다.
-   * 틀리면 로그인 후 리디렉션과 패널 공유 링크가 localhost 로 간다.
-   */
-  grafana_root_url = (
-    local.has_grafana ? "https://${local.grafana_host}/" :
-    local.has_duckdns ? "https://${var.duckdns_hostname}/" :
-    "unset"
-  )
+  has_grafana = var.grafana_alb_enabled
 }
 
 /*
