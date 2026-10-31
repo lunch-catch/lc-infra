@@ -33,9 +33,10 @@ locals {
 
   # 최초 부팅과 재배포가 같은 코드를 쓴다
   refresh_env = templatefile("${path.module}/templates/refresh-env.sh.tftpl", {
-    project  = var.project
-    region   = var.region
-    registry = local.ecr_registry
+    project   = var.project
+    region    = var.region
+    registry  = local.ecr_registry
+    ecr_login = local.image_from_ecr
   })
 
   # 모니터링도 같은 이유로 갱신 경로가 필요하다. 다만 읽는 값과 쓰는 자리가 달라 별도다
@@ -88,11 +89,17 @@ locals {
    *
    * 주소 형식은 AWS 가 정한 것이라 계정과 리전과 이름만 있으면 결정된다. 셋 다 알려진 값이다.
    */
+  /*
+   * 이미지가 ECR 에 있는지다. 운영은 이 계정의 ECR 을 쓴다.
+   * 팀원 부하 시험 환경은 GHCR 공개 패키지를 받는다 (envs/lt, #52). 그때는 ECR 로그인과 pull 권한을 만들지 않는다.
+   */
+  image_from_ecr = var.app_image_repository == "" || strcontains(var.app_image_repository, ".dkr.ecr.")
+
   ecr_registry = var.app_image_repository != "" ? split("/", var.app_image_repository)[0] : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com"
   app_image    = var.app_image_repository != "" ? var.app_image_repository : "${local.ecr_registry}/${var.project}"
 
   # 다른 계정의 저장소를 쓸 때 pull 권한이 가리킬 ARN 이다. 주소에서 계정과 이름을 뽑는다
-  app_image_repository_arn = var.app_image_repository != "" ? format(
+  app_image_repository_arn = !local.image_from_ecr ? null : var.app_image_repository != "" ? format(
     "arn:aws:ecr:%s:%s:repository/%s",
     var.region,
     split(".", split("/", var.app_image_repository)[0])[0],

@@ -3,37 +3,43 @@
 # 팀원이 자기 AWS 계정에 운영과 같은 인프라를 한 벌 띄워 부하 시험을 한다 (#11).
 # 문서: docs/system-design/런치캐치_팀원_부하시험환경.md
 #
-#   AWS_PROFILE=me ./scripts/member-env.sh up              띄운다. 4시간 뒤 AWS 가 스스로 지운다
-#   AWS_PROFILE=me ./scripts/member-env.sh up --sha <sha>  개발 ECR 의 그 커밋 이미지로 띄운다
+#   AWS_PROFILE=me ./scripts/member-env.sh up              띄운다. 끝나면 down 으로 직접 지운다
+#   AWS_PROFILE=me ./scripts/member-env.sh up --sha <sha>  lc-backend 의 그 커밋 이미지로 띄운다
 #   AWS_PROFILE=me ./scripts/member-env.sh status          떠 있는 것과 정리 시각
 #   AWS_PROFILE=me ./scripts/member-env.sh down            전부 지운다
-#   AWS_PROFILE=lunchcatch ./scripts/member-env.sh up      우리 계정이면 lunchcatch-lt 로 띄운다
 #
 # MEMBER_ALERT_EMAIL 을 주면 예산 알림과 경보를 그 메일로 받는다. 처음 받는 확인 메일의 링크를 누른다.
 #
-# up 을 다시 부르면 바뀐 코드만 반영하고 정리 시각을 지금부터 다시 센다.
+# 시험 시간에 제한이 없다 (#52). 각자 자기 계정이라 언제 지울지도 스스로 정한다. 켜 둔 동안은 시간당 요금이 나간다.
+# MEMBER_HOURS=<시간> 을 주면 그 시간 뒤 AWS 가 스스로 지운다. 잊을 것 같으면 준다.
+#
+# up 을 다시 부르면 바뀐 코드만 반영한다. MEMBER_HOURS 를 주면 정리 시각을 지금부터 다시 세고, 안 주면 자동 정리를 없앤다.
 #
 # 운영과 같은 모듈(modules/)을 부하 시험 루트(envs/lt)로 부른다. 팀원 환경에 맞는 차이(도메인 없음,
-# 삭제 보호 해제, 자동 정리)는 그 루트가 값으로 갖는다. 그래서 운영 코드가 바뀌면
+# 삭제 보호 해제, 선택적 자동 정리)는 그 루트가 값으로 갖는다. 그래서 운영 코드가 바뀌면
 # git pull 하고 up 하는 것만으로 팀원 환경에도 들어간다.
 #
 # 계정마다 상태 버킷과 변수 파일과 .terraform 이 다르다. 셋 다 ~/.lunchcatch-member/<계정> 아래에 둔다.
 #
-# 우리 계정(762794225116)에서는 접두사를 lunchcatch-lt 로 바꿔 띄운다. 운영과 이름이 같으면 부딪히기 때문이다.
-# 계정 한도와 관측(Prometheus 가 계정의 서버를 모두 찾는다)을 나눠 쓰므로 운영이 떠 있으면 멈춘다.
+# 실행한 사람의 계정 하나만 쓴다. 다른 계정에 기대는 것이 없다 (#52).
+# 앱 이미지는 lc-backend 가 develop 마다 올리는 GHCR 공개 패키지에서 로그인 없이 받는다.
+#
+# 접두사는 lunchcatch-lt 다. 같은 계정에 운영(lunchcatch)이 있어도 이름이 부딪히지 않는다.
+# 다만 계정 한도와 관측(Prometheus 가 계정의 서버를 모두 찾는다)을 나눠 쓰므로 운영이 떠 있으면 멈춘다.
 set -euo pipefail
 
 CMD="${1:-}"
 shift || true
 
-PROJECT="lunchcatch"
+PROJECT="lunchcatch-lt"
 PROD_PROJECT="lunchcatch"
 REGION="ap-northeast-2"
-OUR_ACCOUNT="762794225116"
-# 개발 ECR 이다. 접두사를 바꿔 띄워도 이미지는 같은 저장소에서 받는다
-DEV_ECR="$PROD_PROJECT-dev"
-APP_IMAGE_REPOSITORY="$OUR_ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$DEV_ECR"
-HOURS="${MEMBER_HOURS:-4}"
+# lc-backend 의 이미지 공개 워크플로(.github/workflows/image.yml)가 develop 커밋마다 올린다
+BACKEND_REPO="lunch-catch/lc-backend"
+IMAGE_WORKFLOW="image.yml"
+APP_IMAGE_REPOSITORY="ghcr.io/$BACKEND_REPO"
+# 비우면 자동 정리를 만들지 않는다
+HOURS="${MEMBER_HOURS:-}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
@@ -52,40 +58,41 @@ case "$CMD" in
   *) sed -n '3,10p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
 
-for c in aws terraform git; do
+for c in aws terraform git curl; do
   command -v "$c" > /dev/null || die "$c 가 없다. docs/system-design/런치캐치_팀원_부하시험환경.md 의 준비를 본다"
 done
 
 [ -n "${AWS_PROFILE:-}${AWS_ACCESS_KEY_ID:-}" ] || die "AWS_PROFILE 을 준다. 자기 계정의 관리자 프로필이다. 예: AWS_PROFILE=me"
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text) || die "자격 증명을 확인한다"
-WORK="$HOME/.lunchcatch-member/$ACCOUNT"
-if [ "$ACCOUNT" = "$OUR_ACCOUNT" ]; then
-  PROJECT="$PROD_PROJECT-lt"
-  WORK="$HOME/.lunchcatch-member/$ACCOUNT-lt"
-  # 운영이 조금이라도 남아 있으면 띄우지 않는다. down 과 status 는 막지 않는다
-  if [ "$CMD" = "up" ]; then
-    prod_db=$(aws rds describe-db-instances --db-instance-identifier "$PROD_PROJECT-db" \
-      --query 'DBInstances[0].DBInstanceStatus' --output text 2> /dev/null || true)
-    # 개발 서버도 Project 태그가 lunchcatch 라 Role 로 뺀다
-    prod_vms=$(aws ec2 describe-instances --filters "Name=tag:Project,Values=$PROD_PROJECT" \
-      "Name=instance-state-name,Values=pending,running,stopping,stopped" \
-      --query "length(Reservations[].Instances[] | [?Tags[?Key=='Role'].Value | [0] != 'dev-server'])" --output text)
-    [ -z "$prod_db" ] && [ "$prod_vms" = "0" ] \
-      || die "우리 계정에 운영이 떠 있다 (DB ${prod_db:-없음}, 서버 $prod_vms 대). 운영을 내린 뒤 띄운다 (./scripts/destroy.sh)"
-  fi
+WORK="$HOME/.lunchcatch-member/$ACCOUNT-lt"
+# 이 계정에 운영이 조금이라도 남아 있으면 띄우지 않는다. down 과 status 는 막지 않는다
+if [ "$CMD" = "up" ]; then
+  prod_db=$(aws rds describe-db-instances --db-instance-identifier "$PROD_PROJECT-db" \
+    --query 'DBInstances[0].DBInstanceStatus' --output text 2> /dev/null || true)
+  # 개발 서버도 Project 태그가 lunchcatch 라 Role 로 뺀다
+  prod_vms=$(aws ec2 describe-instances --filters "Name=tag:Project,Values=$PROD_PROJECT" \
+    "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+    --query "length(Reservations[].Instances[] | [?Tags[?Key=='Role'].Value | [0] != 'dev-server'])" --output text)
+  [ -z "$prod_db" ] && [ "$prod_vms" = "0" ] \
+    || die "이 계정에 운영이 떠 있다 (DB ${prod_db:-없음}, 서버 $prod_vms 대). 운영을 내린 뒤 띄운다 (./scripts/destroy.sh)"
 fi
 TF="$ROOT/envs/lt"
 VARS="$WORK/member.tfvars"
 # 같은 루트를 여러 계정에서 돌리므로 .terraform 을 계정마다 따로 둔다
 export TF_DATA_DIR="$WORK/.terraform"
 
-# 모듈화(#50) 전의 작업 사본이 남아 있으면 그 상태는 옛 주소를 쓴다. 새 코드로 up 하면 같은 이름을 다시 만들다 부딪힌다
-if [ -d "$WORK/terraform" ]; then
+#
+# 모듈화(#50) 전의 작업 사본이 남아 있으면 그 상태는 옛 주소를 쓴다. 새 코드로 up 하면 같은 이름을 다시 만들다 부딪힌다.
+# 그때는 접두사가 계정마다 달랐다(lunchcatch 또는 lunchcatch-lt). 두 자리를 다 본다.
+#
+for old in "$HOME/.lunchcatch-member/$ACCOUNT:lunchcatch" "$HOME/.lunchcatch-member/$ACCOUNT-lt:lunchcatch-lt"; do
+  dir="${old%%:*}"
+  [ -d "$dir/terraform" ] || continue
   die "모듈화 전에 띄운 환경이 남아 있다. 옛 사본으로 먼저 지운다:
-  terraform -chdir=$WORK/terraform init -reconfigure -backend-config=bucket=tfstate-$PROJECT-$ACCOUNT -backend-config=key=member/terraform.tfstate -backend-config=region=$REGION
-  terraform -chdir=$WORK/terraform destroy
-  rm -rf $WORK/terraform $WORK/observability"
-fi
+  terraform -chdir=$dir/terraform init -reconfigure -backend-config=bucket=tfstate-${old##*:}-$ACCOUNT -backend-config=key=member/terraform.tfstate -backend-config=region=$REGION
+  terraform -chdir=$dir/terraform destroy
+  rm -rf $dir/terraform $dir/observability"
+done
 STATE_BUCKET="tfstate-$PROJECT-$ACCOUNT"
 export TF_IN_AUTOMATION=1
 export AWS_REGION="$REGION" AWS_DEFAULT_REGION="$REGION"
@@ -172,12 +179,30 @@ check_fresh() {
   fi
 }
 
+# 이미지 워크플로가 develop 에서 마지막으로 성공한 커밋이다. 그 커밋의 이미지는 GHCR 에 올라가 있다
 latest_sha() {
-  aws ecr describe-images --region "$REGION" --registry-id "$OUR_ACCOUNT" --repository-name "$DEV_ECR" \
-    --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text
+  curl -fsS "https://api.github.com/repos/$BACKEND_REPO/actions/workflows/$IMAGE_WORKFLOW/runs?branch=develop&status=success&per_page=1" \
+    | grep -o '"head_sha": *"[0-9a-f]\{40\}"' | head -1 | grep -o '[0-9a-f]\{40\}'
+}
+
+# 이미지 태그는 40자 SHA 다. 짧은 SHA 를 받으면 GitHub 에 물어 늘린다
+full_sha() {
+  [ ${#1} -eq 40 ] && { echo "$1"; return; }
+  curl -fsS "https://api.github.com/repos/$BACKEND_REPO/commits/$1" \
+    | grep -o '"sha": *"[0-9a-f]\{40\}"' | head -1 | grep -o '[0-9a-f]\{40\}'
+}
+
+# 공개 패키지는 익명 토큰으로 매니페스트를 볼 수 있다. 없는 태그로 띄우면 서버가 이미지를 못 받아 20분을 버린다
+image_exists() {
+  local token
+  token=$(curl -fsS "https://ghcr.io/token?scope=repository:$BACKEND_REPO:pull" | grep -o '"token":"[^"]*"' | cut -d'"' -f4) || return 1
+  curl -fsS -o /dev/null -H "Authorization: Bearer $token" \
+    -H "Accept: application/vnd.oci.image.index.v1+json,application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json,application/vnd.docker.distribution.manifest.list.v2+json" \
+    "https://ghcr.io/v2/$BACKEND_REPO/manifests/$1"
 }
 
 expires_at() {
+  [ -n "$HOURS" ] || return 0
   date -u -d "+$HOURS hours" +%Y-%m-%dT%H:%M:%S 2> /dev/null || date -u -v+"$HOURS"H +%Y-%m-%dT%H:%M:%S
 }
 
@@ -185,8 +210,12 @@ case "$CMD" in
 up)
   log "1. 준비 (계정 $ACCOUNT)"
   check_fresh
-  [ -n "$SHA" ] || SHA=$(latest_sha)
-  [ -n "$SHA" ] && [ "$SHA" != "None" ] || die "개발 ECR 에서 이미지를 못 찾았다"
+  if [ -n "$SHA" ]; then
+    SHA=$(full_sha "$SHA") || die "lc-backend 에 그 커밋이 없다"
+  else
+    SHA=$(latest_sha) || die "lc-backend develop 에서 이미지를 올린 커밋을 못 찾았다. Actions 의 '이미지 공개' 실행을 본다"
+  fi
+  image_exists "$SHA" || die "ghcr.io/$BACKEND_REPO:$SHA 가 없다. 그 커밋의 '이미지 공개' 실행이 끝났는지 본다"
   ensure_state_bucket
   ensure_secrets
   EXPIRES=$(expires_at)
@@ -214,7 +243,7 @@ up)
     --query 'Reservations[0].Instances[0].InstanceId' --output text)
   cat <<EOF
 
-완료. 자동 정리 $EXPIRES (UTC). 그 전에 끝나면 down 을 부른다.
+완료. ${EXPIRES:+자동 정리 $EXPIRES (UTC). }끝나면 down 을 부른다. 켜 둔 동안 시간당 0.4~0.6 USD 가 나간다.
 
   운영 모드   $(run_mode)
   앱          http://$ALB
@@ -226,7 +255,8 @@ EOF
 status)
   [ -f "$VARS" ] || die "이 계정에 띄운 적이 없다"
   tf_init
-  printf '정리 시각(UTC) %s\n' "$(terraform -chdir="$TF" output -raw member_expires_at 2> /dev/null || echo 없음)"
+  exp=$(terraform -chdir="$TF" output -raw member_expires_at 2> /dev/null || true)
+  printf '정리 시각(UTC) %s\n' "${exp:-없음. down 으로 직접 지운다}"
   printf 'ALB           %s\n' "$(terraform -chdir="$TF" output -raw alb_dns_name 2> /dev/null || echo 없음)"
   printf '이미지        %s\n' "$(aws ssm get-parameter --name "/$PROJECT/current-sha" --query Parameter.Value --output text 2> /dev/null || echo 없음)"
   printf '운영 모드     %s\n' "$(run_mode)"

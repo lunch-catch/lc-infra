@@ -1,0 +1,89 @@
+# 원본은 lc-infra 의 docs/deploy/backend-image-workflow.yml 이다. 고칠 때는 둘을 함께 고친다.
+#
+# develop 이미지를 GHCR 공개 패키지로 올린다 (#1075).
+# 팀원이 자기 AWS 계정에 부하 시험 환경을 띄울 때 이 이미지를 받는다 (lc-infra 의 scripts/member-env.sh).
+#
+# AWS 에 기대지 않는다. 개발 ECR 은 특정 계정에 있어 다른 계정이 받을 수 없고, 공개 패키지는 로그인 없이 받을 수 있다.
+# 이미지에는 jar 만 들어간다. 시크릿은 실행 시점에 SSM 에서 받으므로 공개해도 새로 드러나는 것이 없다.
+
+name: 이미지 공개
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+# 커밋마다 이미지가 따로라 앞선 실행을 버리지 않는다. 같은 커밋의 재실행만 겹치지 않게 한다.
+concurrency:
+  group: image-${{ github.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      IMAGE: ghcr.io/lunch-catch/lc-backend
+      SHA: ${{ github.sha }}
+    steps:
+      # 액션은 태그가 아니라 커밋으로 고정한다. 운영 배포 워크플로와 같은 기준이다.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: GHCR 로그인
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
+
+      # 태그는 커밋 SHA 라 같은 태그에 다른 이미지가 들어가면 안 된다. 재실행이면 빌드부터 건너뛴다.
+      #
+      # 레지스트리의 HTTP 상태로 가른다. 200 은 있음, 404 는 없음이다(패키지가 아직 없을 때도 404).
+      # 그 밖(인증 실패, 5xx, 네트워크)은 있는지 모르는 것이라 잡을 실패로 끝낸다. 없음으로 치면 같은 태그를 덮어쓸 수 있다.
+      - id: exists
+        name: 이미지가 이미 있나
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          repo="${IMAGE#ghcr.io/}"
+          bearer=$(curl -fsS -u "$ACTOR:$TOKEN" "https://ghcr.io/token?scope=repository:$repo:pull,push" | jq -r .token)
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -I \
+            -H "Authorization: Bearer $bearer" \
+            -H "Accept: application/vnd.oci.image.index.v1+json,application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json,application/vnd.docker.distribution.manifest.list.v2+json" \
+            "https://ghcr.io/v2/$repo/manifests/$SHA")
+          case "$code" in
+            200)
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "이미 올린 이미지다. 빌드를 건너뛴다" ;;
+            404)
+              echo "skip=false" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "::error::이미지가 있는지 확인하지 못했다 (HTTP $code). 덮어쓰지 않으려고 멈춘다. 다시 돌린다"
+              exit 1 ;;
+          esac
+
+      - if: steps.exists.outputs.skip == 'false'
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - if: steps.exists.outputs.skip == 'false'
+        uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
+
+      # source 라벨이 패키지를 이 저장소에 연결한다. 연결되어야 패키지 화면에서 저장소가 보이고 권한이 따라온다.
+      - name: 빌드와 이미지 push
+        if: steps.exists.outputs.skip == 'false'
+        run: |
+          ./gradlew bootJar --no-daemon
+          docker build \
+            --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            --label "org.opencontainers.image.revision=$SHA" \
+            -t "$IMAGE:$SHA" .
+          docker push "$IMAGE:$SHA"

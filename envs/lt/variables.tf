@@ -4,7 +4,7 @@
  */
 
 variable "project" {
-  description = "모든 리소스 이름과 SSM 경로의 접두사. 우리 계정에서는 운영과 겹치지 않게 lunchcatch-lt 를 쓴다"
+  description = "모든 리소스 이름과 SSM 경로의 접두사. 운영과 겹치지 않게 lunchcatch-lt 를 쓴다"
   type        = string
 }
 
@@ -31,7 +31,7 @@ variable "media_bucket_name" {
 }
 
 variable "app_image_repository" {
-  description = "앱 이미지 저장소 주소. 우리 계정의 개발 ECR 을 가리킨다"
+  description = "앱 이미지 저장소 주소. lc-backend 의 GHCR 공개 패키지를 가리킨다"
   type        = string
 }
 
