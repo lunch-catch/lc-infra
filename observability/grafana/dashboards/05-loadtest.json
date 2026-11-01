@@ -1,7 +1,7 @@
 {
   "uid": "lc-loadtest",
   "title": "05 부하 시험",
-  "description": "k6 가 experimental-prometheus-rw 로 밀어 넣는 값이다. 지표 이름은 k6 1.7.1 에서 실제로 확인했고, 트렌드는 초 단위다. k6 의 p95, p99, avg 는 회차 시작부터 쌓은 값이라 유지 구간만 떼어 낼 수 없다. 유지 구간의 API 별 응답은 앱 서버의 히스토그램으로 맨 위에서 본다. 이 화면만 보지 말고 03 앱과 JVM, 04 데이터 저장소와 같은 시간대를 겹쳐 봐야 p99 가 튄 이유를 읽을 수 있다.",
+  "description": "k6 가 experimental-prometheus-rw 로 밀어 넣는 값이다. 지표 이름은 k6 1.7.1 에서 실제로 확인했고, 트렌드는 초 단위다. k6 의 p95, p99, avg 는 회차 시작부터 쌓은 값이라 유지 구간만 떼어 낼 수 없다. API 별 p99 는 앱 서버의 히스토그램으로 따로 그린다. 유지 구간 한 값은 k6 요약과 run.sh metrics 에서 읽는다. 이 화면만 보지 말고 03 앱과 JVM, 04 데이터 저장소와 같은 시간대를 겹쳐 봐야 p99 가 튄 이유를 읽을 수 있다.",
   "tags": [
     "lunchcatch",
     "loadtest"
@@ -24,529 +24,10 @@
   "panels": [
     {
       "type": "row",
-      "title": "유지 구간 결과 (범위 끝 5분)",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 0,
-        "w": 24,
-        "h": 1
-      },
-      "panels": []
-    },
-    {
-      "type": "stat",
-      "title": "평균 요청/초",
-      "description": "k6 가 보낸 요청의 초당 평균이다. 캡처 범위 끝의 5분으로 계산한다. 캡처를 유지 구간 끝에서 끊으면 램프업이 빠진다.",
-      "gridPos": {
-        "x": 0,
-        "y": 1,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 1
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "auto",
-        "orientation": "horizontal"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(rate(k6_http_reqs_total[5m] @ end()))",
-          "instant": true,
-          "range": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "요청 합계",
-      "description": "k6 가 보낸 요청 수다. 캡처 범위 끝의 5분으로 계산한다. 캡처를 유지 구간 끝에서 끊으면 램프업이 빠진다.",
-      "gridPos": {
-        "x": 4,
-        "y": 1,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "auto",
-        "orientation": "horizontal"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(increase(k6_http_reqs_total[5m] @ end()))",
-          "instant": true,
-          "range": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "실패율",
-      "description": "k6 가 기대한 응답이 아니라고 본 요청의 비율이다. 캡처 범위 끝의 5분으로 계산한다. 캡처를 유지 구간 끝에서 끊으면 램프업이 빠진다.",
-      "gridPos": {
-        "x": 8,
-        "y": 1,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 2
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "auto",
-        "orientation": "horizontal"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "(sum(increase(k6_http_reqs_total{expected_response=\"false\"}[5m] @ end())) or vector(0)) / sum(increase(k6_http_reqs_total[5m] @ end()))",
-          "instant": true,
-          "range": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "버려진 반복",
-      "description": "0 이 아니면 생성기가 계획한 부하를 다 못 보냈다. k6 가 이 값을 바뀔 때만 보내 구간을 자를 수 없어 회차 시작부터 쌓인 수를 보인다.",
-      "gridPos": {
-        "x": 12,
-        "y": 1,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "auto",
-        "orientation": "horizontal"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(last_over_time(k6_dropped_iterations_total[5m] @ end())) or vector(0)",
-          "instant": true,
-          "range": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "최대 VU",
-      "description": "유지 구간에 동시에 돈 VU 의 최댓값이다. 상한에 닿았으면 도착률을 못 지킨 것이다. 캡처 범위 끝의 5분으로 계산한다. 캡처를 유지 구간 끝에서 끊으면 램프업이 빠진다.",
-      "gridPos": {
-        "x": 16,
-        "y": 1,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "auto",
-        "orientation": "horizontal"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "max(max_over_time(k6_vus[5m] @ end()))",
-          "instant": true,
-          "range": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "생성기 CPU 최대",
-      "description": "부하 생성기가 병목이면 그 지연이 앱의 응답 시간으로 기록된다. 캡처 범위 끝의 5분으로 계산한다. 캡처를 유지 구간 끝에서 끊으면 램프업이 빠진다.",
-      "gridPos": {
-        "x": 20,
-        "y": 1,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 1
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "auto",
-        "orientation": "horizontal"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "max_over_time((100 * (1 - avg(rate(node_cpu_seconds_total{role=\"load-test\",mode=\"idle\"}[1m]))))[5m:15s] @ end())",
-          "instant": true,
-          "range": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "API 별 요청 합계 (앱)",
-      "description": "앱 서버가 받은 요청 수다. 캡처 범위 끝의 5분으로 계산한다. 캡처를 유지 구간 끝에서 끊으면 램프업이 빠진다.",
-      "gridPos": {
-        "x": 0,
-        "y": 5,
-        "w": 8,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value_and_name",
-        "orientation": "horizontal"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (uri) (increase(http_server_requests_seconds_count{job=\"app\"}[5m] @ end())) > 0",
-          "legendFormat": "{{uri}}",
-          "instant": true,
-          "range": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "API 별 평균 (앱)",
-      "description": "앱 서버에서 잰 응답 시간의 평균이다. 캡처 범위 끝의 5분으로 계산한다. 캡처를 유지 구간 끝에서 끊으면 램프업이 빠진다.",
-      "gridPos": {
-        "x": 8,
-        "y": 5,
-        "w": 8,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 1
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value_and_name",
-        "orientation": "horizontal"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "(sum by (uri) (increase(http_server_requests_seconds_sum{job=\"app\"}[5m] @ end())) / sum by (uri) (increase(http_server_requests_seconds_count{job=\"app\"}[5m] @ end()))) and on (uri) (sum by (uri) (increase(http_server_requests_seconds_count{job=\"app\"}[5m] @ end())) > 0)",
-          "legendFormat": "{{uri}}",
-          "instant": true,
-          "range": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "API 별 p99 (앱)",
-      "description": "앱 서버의 히스토그램으로 계산한 p99 다. k6 의 p99 와 달리 유지 구간만 들어간다. 캡처 범위 끝의 5분으로 계산한다. 캡처를 유지 구간 끝에서 끊으면 램프업이 빠진다.",
-      "gridPos": {
-        "x": 16,
-        "y": 5,
-        "w": 8,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 1
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value_and_name",
-        "orientation": "horizontal"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "histogram_quantile(0.99, sum by (le, uri) (increase(http_server_requests_seconds_bucket{job=\"app\"}[5m] @ end()))) and on (uri) (sum by (uri) (increase(http_server_requests_seconds_count{job=\"app\"}[5m] @ end())) > 0)",
-          "legendFormat": "{{uri}}",
-          "instant": true,
-          "range": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "row",
       "title": "부하 생성기가 보내는 것",
       "gridPos": {
         "x": 0,
-        "y": 10,
+        "y": 0,
         "w": 24,
         "h": 1
       },
@@ -559,7 +40,7 @@
       "description": "k6 가 실제로 보낸 초당 요청 수다. 계획한 도착률과 다르면 생성기가 못 따라간 것이다.",
       "gridPos": {
         "x": 0,
-        "y": 11,
+        "y": 1,
         "w": 12,
         "h": 8
       },
@@ -628,7 +109,7 @@
       "description": "k6 가 실제로 보낸 요청 수를 초당으로 본다. 다른 대시보드와 같은 계산 구간($__rate_interval)이다. 목표 도착률과 차이가 나면 생성기가 부하를 다 못 낸 것이다. 아래 \"생성기가 제 몫을 했는지\" 와 함께 본다.",
       "gridPos": {
         "x": 12,
-        "y": 11,
+        "y": 1,
         "w": 12,
         "h": 8
       },
@@ -676,10 +157,10 @@
     {
       "type": "timeseries",
       "title": "응답 지연",
-      "description": "k6 가 회차 시작부터 쌓은 분위수다. 램프업이 섞여 있어 회차가 길어질수록 천천히 움직인다. 유지 구간의 값은 맨 위 앱 서버 패널에서 읽는다.",
+      "description": "k6 가 회차 시작부터 쌓은 분위수다. 램프업이 섞여 있어 회차가 길어질수록 천천히 움직인다. 구간마다의 값은 옆의 API 별 p99 에서 읽는다.",
       "gridPos": {
         "x": 0,
-        "y": 19,
+        "y": 9,
         "w": 12,
         "h": 8
       },
@@ -761,7 +242,7 @@
       "description": "waiting 이 서버가 생각한 시간이다. connecting 이 튀면 앱이 아니라 생성기나 ALB 앞단을 봐야 한다.",
       "gridPos": {
         "x": 12,
-        "y": 19,
+        "y": 9,
         "w": 12,
         "h": 8
       },
@@ -839,7 +320,7 @@
       "description": "k6 가 기대한 응답이 아니라고 본 요청의 비율이다. 전에는 상태 코드마다 따로 그려 404 는 100%, 200 은 0% 로만 보였다.",
       "gridPos": {
         "x": 0,
-        "y": 27,
+        "y": 17,
         "w": 12,
         "h": 8
       },
@@ -898,11 +379,62 @@
       ]
     },
     {
+      "type": "timeseries",
+      "title": "API 별 p99 (앱)",
+      "description": "앱 서버의 히스토그램 버킷으로 계산한 p99 다. k6 의 p99 와 달리 구간마다 새로 계산해 램프업이 섞이지 않는다. lc-backend 가 http.server.requests 의 percentiles-histogram 을 켜야 값이 나온다(lc-backend#1088).",
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"app\"}[$__rate_interval])))",
+          "legendFormat": "{{uri}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
       "type": "row",
       "title": "생성기가 제 몫을 했는지",
       "gridPos": {
         "x": 0,
-        "y": 35,
+        "y": 25,
         "w": 24,
         "h": 1
       },
@@ -915,7 +447,7 @@
       "description": "0 이 아니면 k6 가 계획한 부하를 다 못 보냈다. 이 회차의 수치는 앱이 아니라 생성기의 한계를 잰 것이다. k6 가 드롭이 있을 때만 이 값을 보내 점이 드물다. 초당으로 바꾸면 구간 안에 점이 모자라 비므로 회차 시작부터 쌓인 수를 그린다. 이름은 k6 1.7.1 에서 확인했다.",
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 26,
         "w": 12,
         "h": 8
       },
@@ -979,7 +511,7 @@
       "description": "iteration_duration 이 계속 늘면 VU 가 쌓여 메모리가 는다. 2만 VU 회차에서 먼저 보는 값이다.",
       "gridPos": {
         "x": 12,
-        "y": 36,
+        "y": 26,
         "w": 12,
         "h": 8
       },

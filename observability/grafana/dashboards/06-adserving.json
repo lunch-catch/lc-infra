@@ -23,359 +23,11 @@
   "panels": [
     {
       "type": "row",
-      "title": "노출 저장 유지 구간 결과 (범위 끝 5분)",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 0,
-        "w": 24,
-        "h": 1
-      },
-      "panels": []
-    },
-    {
-      "type": "stat",
-      "title": "노출 큐 최대",
-      "description": "앱 서버들의 노출 저장 큐 길이 합의 최댓값이다. 노출 수집 v3 부터 있는 지표다. 그 전 버전에서는 비어 있다. 캡처 범위 끝의 5분으로 계산한다. 캡처를 유지 구간 끝에서 끊으면 램프업이 빠진다.",
-      "gridPos": {
-        "x": 0,
-        "y": 1,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "auto",
-        "orientation": "horizontal"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "max_over_time(sum(adserving_impression_queue_size)[5m:15s] @ end())",
-          "instant": true,
-          "range": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "버린 노출",
-      "description": "큐가 차서 100ms 안에 넣지 못해 버린 노출 수다. 노출 수집 v3 부터 있는 지표다. 그 전 버전에서는 비어 있다. 캡처 범위 끝의 5분으로 계산한다. 캡처를 유지 구간 끝에서 끊으면 램프업이 빠진다.",
-      "gridPos": {
-        "x": 4,
-        "y": 1,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "auto",
-        "orientation": "horizontal"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(increase(adserving_impression_dropped_total[5m] @ end())) or vector(0)",
-          "instant": true,
-          "range": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "저장 실패 묶음",
-      "description": "저장이 실패해 다시 쓴 묶음 수다. 노출 수집 v3 부터 있는 지표다. 그 전 버전에서는 비어 있다. 캡처 범위 끝의 5분으로 계산한다. 캡처를 유지 구간 끝에서 끊으면 램프업이 빠진다.",
-      "gridPos": {
-        "x": 8,
-        "y": 1,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "auto",
-        "orientation": "horizontal"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(increase(adserving_impression_write_failed_total[5m] @ end())) or vector(0)",
-          "instant": true,
-          "range": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "못 쓴 노출",
-      "description": "다시 써도 끝내 쓰지 못한 노출 수다. 0 이 아니면 노출이 사라졌다. 노출 수집 v3 부터 있는 지표다. 그 전 버전에서는 비어 있다. 캡처 범위 끝의 5분으로 계산한다. 캡처를 유지 구간 끝에서 끊으면 램프업이 빠진다.",
-      "gridPos": {
-        "x": 12,
-        "y": 1,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "auto",
-        "orientation": "horizontal"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(increase(adserving_impression_write_lost_total[5m] @ end())) or vector(0)",
-          "instant": true,
-          "range": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "릴레이 밀림 최대",
-      "description": "정산으로 아직 넘기지 못한 노출 수의 최댓값이다. 노출 수집 v2 부터 있는 지표다. 그 전 버전에서는 비어 있다. 캡처 범위 끝의 5분으로 계산한다. 캡처를 유지 구간 끝에서 끊으면 램프업이 빠진다.",
-      "gridPos": {
-        "x": 16,
-        "y": 1,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "auto",
-        "orientation": "horizontal"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "max_over_time(sum(adserving_impression_dispatch_backlog)[5m:15s] @ end())",
-          "instant": true,
-          "range": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "정산 묶음 평균 시간",
-      "description": "릴레이가 정산 한 번에 쓴 시간의 평균이다. 노출 수집 v2 부터 있는 지표다. 그 전 버전에서는 비어 있다. 캡처 범위 끝의 5분으로 계산한다. 캡처를 유지 구간 끝에서 끊으면 램프업이 빠진다.",
-      "gridPos": {
-        "x": 20,
-        "y": 1,
-        "w": 4,
-        "h": 4
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "decimals": 3
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "auto",
-        "orientation": "horizontal"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(increase(adserving_impression_dispatch_deduct_seconds_sum[5m] @ end())) / sum(increase(adserving_impression_dispatch_deduct_seconds_count[5m] @ end()))",
-          "instant": true,
-          "range": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "row",
       "title": "노출 저장",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 5,
+        "y": 0,
         "w": 24,
         "h": 1
       },
@@ -387,7 +39,7 @@
       "description": "서버마다 큐에 쌓인 노출 수다. 계속 늘면 저장이 들어오는 속도를 못 따라간다. 노출 수집 v3 부터 있는 지표다. 그 전 버전에서는 비어 있다.",
       "gridPos": {
         "x": 0,
-        "y": 6,
+        "y": 1,
         "w": 12,
         "h": 8
       },
@@ -438,7 +90,7 @@
       "description": "큐가 차서 버린 노출, 끝내 못 쓴 노출, 저장이 실패한 묶음이다. 정상이면 모두 0 이다. 노출 수집 v3 부터 있는 지표다. 그 전 버전에서는 비어 있다.",
       "gridPos": {
         "x": 12,
-        "y": 6,
+        "y": 1,
         "w": 12,
         "h": 8
       },
@@ -507,7 +159,7 @@
       "description": "저장했지만 정산으로 아직 넘기지 못한 노출 수다. 늘기만 하면 릴레이가 처리량을 못 따라간다. 노출 수집 v2 부터 있는 지표다. 그 전 버전에서는 비어 있다.",
       "gridPos": {
         "x": 0,
-        "y": 14,
+        "y": 9,
         "w": 12,
         "h": 8
       },
@@ -558,7 +210,7 @@
       "description": "릴레이가 정산 한 번에 쓴 평균 시간(왼쪽)과 초당 넘긴 건수다. 처리량이 들어오는 노출보다 낮으면 밀림이 는다. 노출 수집 v2 부터 있는 지표다. 그 전 버전에서는 비어 있다.",
       "gridPos": {
         "x": 12,
-        "y": 14,
+        "y": 9,
         "w": 12,
         "h": 8
       },
@@ -644,7 +296,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 22,
+        "y": 17,
         "w": 24,
         "h": 1
       },
@@ -658,7 +310,7 @@
       "id": 2,
       "gridPos": {
         "x": 0,
-        "y": 23,
+        "y": 18,
         "w": 12,
         "h": 8
       },
@@ -708,7 +360,7 @@
       "id": 3,
       "gridPos": {
         "x": 12,
-        "y": 23,
+        "y": 18,
         "w": 12,
         "h": 8
       },
@@ -757,7 +409,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 31,
+        "y": 26,
         "w": 24,
         "h": 1
       },
@@ -771,7 +423,7 @@
       "id": 5,
       "gridPos": {
         "x": 0,
-        "y": 32,
+        "y": 27,
         "w": 12,
         "h": 8
       },
@@ -837,7 +489,7 @@
       "id": 6,
       "gridPos": {
         "x": 12,
-        "y": 32,
+        "y": 27,
         "w": 12,
         "h": 8
       },
@@ -905,7 +557,7 @@
       "id": 7,
       "gridPos": {
         "x": 0,
-        "y": 40,
+        "y": 35,
         "w": 12,
         "h": 8
       },
@@ -955,7 +607,7 @@
       "id": 8,
       "gridPos": {
         "x": 12,
-        "y": 40,
+        "y": 35,
         "w": 12,
         "h": 8
       },
@@ -1004,7 +656,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 48,
+        "y": 43,
         "w": 24,
         "h": 1
       },
@@ -1018,7 +670,7 @@
       "id": 10,
       "gridPos": {
         "x": 0,
-        "y": 49,
+        "y": 44,
         "w": 24,
         "h": 10
       },
