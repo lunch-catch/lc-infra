@@ -1,5 +1,5 @@
 {
-  "uid": "fm-data-stores",
+  "uid": "lc-data-stores",
   "title": "04 데이터 저장소",
   "description": "RDS 와 ElastiCache 다. 익스포터가 보는 것과 CloudWatch 가 보는 것을 나눠 둔다.",
   "tags": [
@@ -404,7 +404,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "rate(mysql_global_status_queries[5m])",
+          "expr": "rate(mysql_global_status_queries[$__rate_interval])",
           "legendFormat": "queries/s",
           "datasource": {
             "type": "prometheus",
@@ -413,7 +413,7 @@
         },
         {
           "refId": "B",
-          "expr": "rate(mysql_global_status_slow_queries[5m])",
+          "expr": "rate(mysql_global_status_slow_queries[$__rate_interval])",
           "legendFormat": "slow/s",
           "datasource": {
             "type": "prometheus",
@@ -649,7 +649,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))",
+          "expr": "rate(redis_keyspace_hits_total[$__rate_interval]) / (rate(redis_keyspace_hits_total[$__rate_interval]) + rate(redis_keyspace_misses_total[$__rate_interval]))",
           "legendFormat": "hit ratio",
           "datasource": {
             "type": "prometheus",
@@ -745,7 +745,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "rate(redis_commands_processed_total[5m])",
+          "expr": "rate(redis_commands_processed_total[$__rate_interval])",
           "legendFormat": "commands/s",
           "datasource": {
             "type": "prometheus",

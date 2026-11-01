@@ -1,5 +1,5 @@
 {
-  "uid": "fm-app-jvm",
+  "uid": "lc-app-jvm",
   "title": "03 앱과 JVM",
   "description": "힙, GC, 커넥션 풀, 톰캣 스레드다. 앱이 느려질 때 원인을 여기서 좁힌다.",
   "tags": [
@@ -280,7 +280,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "rate(jvm_gc_pause_seconds_sum[5m])",
+          "expr": "rate(jvm_gc_pause_seconds_sum[$__rate_interval])",
           "legendFormat": "{{instance}} {{instance_id}} {{action}}",
           "datasource": {
             "type": "prometheus",
