@@ -156,7 +156,7 @@
     {
       "type": "timeseries",
       "title": "릴레이 밀린 노출",
-      "description": "저장했지만 정산으로 아직 넘기지 못한 노출 수다. 늘기만 하면 릴레이가 처리량을 못 따라간다. 노출 수집 v2 부터 있는 지표다. 그 전 버전에서는 비어 있다.",
+      "description": "저장했지만 정산으로 아직 넘기지 못한 노출 수다. 늘기만 하면 릴레이가 처리량을 못 따라간다. 노출 수집 v2 부터 있는 지표다. 그 전 버전에서는 비어 있다. 릴레이는 배치 서버에서만 돌아 배치 서버의 값만 그린다. 앱 서버에도 같은 지표가 0 으로 있다.",
       "gridPos": {
         "x": 0,
         "y": 9,
@@ -195,7 +195,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (instance) (adserving_impression_dispatch_backlog)",
+          "expr": "sum by (instance) (adserving_impression_dispatch_backlog{job=\"batch\"})",
           "legendFormat": "{{instance}}",
           "datasource": {
             "type": "prometheus",
@@ -418,8 +418,8 @@
     },
     {
       "type": "timeseries",
-      "title": "서빙 로그 유실률 (10분)",
-      "description": "버린 카드와 쓰기에 실패한 카드를 내려준 카드 수로 나눴다. 목표 0.1% 를 선으로 그렸다. AdservingServeLogLossHigh 와 같은 식이다.",
+      "title": "서빙 로그 유실률 (분당)",
+      "description": "버린 카드와 쓰기에 실패한 카드를 내려준 카드 수로 나눴다. 다른 패널과 같은 짧은 구간으로 계산한다. 경보 AdservingServeLogLossHigh 는 10분 구간으로 보므로 이 선과 값이 다를 수 있다. 목표 0.1% 를 선으로 그렸다.",
       "id": 5,
       "gridPos": {
         "x": 0,
@@ -473,7 +473,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "((sum(increase(adserving_serve_log_dropped_total[10m])) or vector(0)) + (sum(increase(adserving_serve_log_failed_total[10m])) or vector(0))) / (sum(increase(adserving_served_cards_total[10m])) > 0)",
+          "expr": "((sum(rate(adserving_serve_log_dropped_total[$__rate_interval])) or vector(0)) + (sum(rate(adserving_serve_log_failed_total[$__rate_interval])) or vector(0))) / (sum(rate(adserving_served_cards_total[$__rate_interval])) > 0)",
           "legendFormat": "유실률",
           "datasource": {
             "type": "prometheus",

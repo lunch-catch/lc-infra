@@ -157,7 +157,7 @@
     {
       "type": "timeseries",
       "title": "응답 지연",
-      "description": "k6 가 회차 시작부터 쌓은 분위수다. 램프업이 섞여 있어 회차가 길어질수록 천천히 움직인다. 구간마다의 값은 옆의 API 별 p99 에서 읽는다.",
+      "description": "k6 가 회차 시작부터 쌓은 분위수다. 램프업이 섞여 있어 회차가 길어질수록 천천히 움직인다. 구간마다의 값은 옆의 API 별 p99 에서 읽는다. API 마다 선 하나로 묶었다. 한 API 의 여러 시계열(상태, 구간) 가운데 가장 큰 값이다.",
       "gridPos": {
         "x": 0,
         "y": 9,
@@ -209,8 +209,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "k6_http_req_duration_p99",
-          "legendFormat": "p99 {{status}}",
+          "expr": "max by (api) (k6_http_req_duration_p99{api!=\"\"})",
+          "legendFormat": "p99 {{api}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -218,8 +218,8 @@
         },
         {
           "refId": "B",
-          "expr": "k6_http_req_duration_p95",
-          "legendFormat": "p95 {{status}}",
+          "expr": "max by (api) (k6_http_req_duration_p95{api!=\"\"})",
+          "legendFormat": "p95 {{api}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -227,8 +227,8 @@
         },
         {
           "refId": "C",
-          "expr": "k6_http_req_duration_avg",
-          "legendFormat": "avg {{status}}",
+          "expr": "max by (api) (k6_http_req_duration_avg{api!=\"\"})",
+          "legendFormat": "avg {{api}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -239,7 +239,7 @@
     {
       "type": "timeseries",
       "title": "응답 분해",
-      "description": "waiting 이 서버가 생각한 시간이다. connecting 이 튀면 앱이 아니라 생성기나 ALB 앞단을 봐야 한다.",
+      "description": "waiting 이 서버가 생각한 시간이다. connecting 이 튀면 앱이 아니라 생성기나 ALB 앞단을 봐야 한다. API 마다 선 하나로 묶었다.",
       "gridPos": {
         "x": 12,
         "y": 9,
@@ -278,8 +278,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "k6_http_req_waiting_p99",
-          "legendFormat": "waiting p99 {{status}}",
+          "expr": "max by (api) (k6_http_req_waiting_p99{api!=\"\"})",
+          "legendFormat": "waiting p99 {{api}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -287,8 +287,8 @@
         },
         {
           "refId": "B",
-          "expr": "k6_http_req_connecting_p99",
-          "legendFormat": "connecting p99 {{status}}",
+          "expr": "max by (api) (k6_http_req_connecting_p99{api!=\"\"})",
+          "legendFormat": "connecting p99 {{api}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -296,8 +296,8 @@
         },
         {
           "refId": "C",
-          "expr": "k6_http_req_blocked_p99",
-          "legendFormat": "blocked p99 {{status}}",
+          "expr": "max by (api) (k6_http_req_blocked_p99{api!=\"\"})",
+          "legendFormat": "blocked p99 {{api}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -305,8 +305,8 @@
         },
         {
           "refId": "D",
-          "expr": "k6_http_req_sending_p99",
-          "legendFormat": "sending p99 {{status}}",
+          "expr": "max by (api) (k6_http_req_sending_p99{api!=\"\"})",
+          "legendFormat": "sending p99 {{api}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
