@@ -1,7 +1,7 @@
 {
-  "uid": "fm-loadtest",
+  "uid": "lc-loadtest",
   "title": "05 부하 시험",
-  "description": "k6 가 experimental-prometheus-rw 로 밀어 넣는 값이다. 지표 이름은 k6 1.7.1 에서 실제로 확인했고, 트렌드는 초 단위다. 이 화면만 보지 말고 03 앱과 JVM, 04 데이터 저장소와 같은 시간대를 겹쳐 봐야 p99 가 튄 이유를 읽을 수 있다.",
+  "description": "k6 가 experimental-prometheus-rw 로 밀어 넣는 값이다. 지표 이름은 k6 1.7.1 에서 실제로 확인했고, 트렌드는 초 단위다. k6 의 p95, p99, avg 는 회차 시작부터 쌓은 값이라 유지 구간만 떼어 낼 수 없다. API 별 p99 는 앱 서버의 히스토그램으로 따로 그린다. 유지 구간 한 값은 k6 요약과 run.sh metrics 에서 읽는다. 이 화면만 보지 말고 03 앱과 JVM, 04 데이터 저장소와 같은 시간대를 겹쳐 봐야 p99 가 튄 이유를 읽을 수 있다.",
   "tags": [
     "lunchcatch",
     "loadtest"
@@ -9,7 +9,7 @@
   "editable": false,
   "schemaVersion": 39,
   "version": 1,
-  "refresh": "10s",
+  "refresh": "30s",
   "time": {
     "from": "now-30m",
     "to": "now"
@@ -76,7 +76,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(k6_http_reqs_total[1m]))",
+          "expr": "sum(rate(k6_http_reqs_total[$__rate_interval]))",
           "legendFormat": "요청/초",
           "datasource": {
             "type": "prometheus",
@@ -106,7 +106,7 @@
     {
       "type": "timeseries",
       "title": "처리율 (요청/초)",
-      "description": "k6 가 실제로 보낸 요청 수를 초당으로 본다. 목표 도착률과 차이가 나면 생성기가 부하를 다 못 낸 것이다. 아래 \"생성기가 제 몫을 했는지\" 와 함께 본다.",
+      "description": "k6 가 실제로 보낸 요청 수를 초당으로 본다. 다른 대시보드와 같은 계산 구간($__rate_interval)이다. 목표 도착률과 차이가 나면 생성기가 부하를 다 못 낸 것이다. 아래 \"생성기가 제 몫을 했는지\" 와 함께 본다.",
       "gridPos": {
         "x": 12,
         "y": 1,
@@ -145,7 +145,7 @@
       "targets": [
         {
           "refId": "B",
-          "expr": "sum(rate(k6_http_reqs_total[30s]))",
+          "expr": "sum(rate(k6_http_reqs_total[$__rate_interval]))",
           "legendFormat": "도착/초",
           "datasource": {
             "type": "prometheus",
@@ -157,7 +157,7 @@
     {
       "type": "timeseries",
       "title": "응답 지연",
-      "description": "k6 가 상태 코드마다 선을 따로 집계한다. 오류 응답은 빠르게 끝나 지연을 낮춰 보이게 하므로 실패율과 함께 본다. 빨간 선은 0.4초다.",
+      "description": "부하 생성기가 본 응답 시간이다. k6 가 보낸 히스토그램으로 구간마다 계산해 램프업과 유지가 섞이지 않는다. 앱 서버의 스레드를 기다린 시간까지 들어가, 앱이 잰 API 별 p99 보다 크면 그 차이가 앱 앞의 대기다.",
       "gridPos": {
         "x": 0,
         "y": 9,
@@ -209,8 +209,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "k6_http_req_duration_p99",
-          "legendFormat": "p99 {{status}}",
+          "expr": "histogram_quantile(0.99, sum by (api) (rate(k6_http_req_duration_seconds{api!=\"\"}[$__rate_interval])))",
+          "legendFormat": "p99 {{api}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -218,8 +218,8 @@
         },
         {
           "refId": "B",
-          "expr": "k6_http_req_duration_p95",
-          "legendFormat": "p95 {{status}}",
+          "expr": "histogram_quantile(0.95, sum by (api) (rate(k6_http_req_duration_seconds{api!=\"\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{api}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -227,8 +227,8 @@
         },
         {
           "refId": "C",
-          "expr": "k6_http_req_duration_avg",
-          "legendFormat": "avg {{status}}",
+          "expr": "histogram_avg(sum by (api) (rate(k6_http_req_duration_seconds{api!=\"\"}[$__rate_interval])))",
+          "legendFormat": "avg {{api}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -239,7 +239,7 @@
     {
       "type": "timeseries",
       "title": "응답 분해",
-      "description": "waiting 이 서버가 생각한 시간이다. connecting 이 튀면 앱이 아니라 생성기나 ALB 앞단을 봐야 한다.",
+      "description": "waiting 이 서버가 생각한 시간이다. connecting 이 튀면 앱이 아니라 생성기나 ALB 앞단을 봐야 한다. k6 의 히스토그램으로 구간마다 계산한다.",
       "gridPos": {
         "x": 12,
         "y": 9,
@@ -278,8 +278,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "k6_http_req_waiting_p99",
-          "legendFormat": "waiting p99 {{status}}",
+          "expr": "histogram_quantile(0.99, sum by (api) (rate(k6_http_req_waiting_seconds{api!=\"\"}[$__rate_interval])))",
+          "legendFormat": "waiting p99 {{api}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -287,8 +287,8 @@
         },
         {
           "refId": "B",
-          "expr": "k6_http_req_connecting_p99",
-          "legendFormat": "connecting p99 {{status}}",
+          "expr": "histogram_quantile(0.99, sum by (api) (rate(k6_http_req_connecting_seconds{api!=\"\"}[$__rate_interval])))",
+          "legendFormat": "connecting p99 {{api}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -296,8 +296,8 @@
         },
         {
           "refId": "C",
-          "expr": "k6_http_req_blocked_p99",
-          "legendFormat": "blocked p99 {{status}}",
+          "expr": "histogram_quantile(0.99, sum by (api) (rate(k6_http_req_blocked_seconds{api!=\"\"}[$__rate_interval])))",
+          "legendFormat": "blocked p99 {{api}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -305,8 +305,8 @@
         },
         {
           "refId": "D",
-          "expr": "k6_http_req_sending_p99",
-          "legendFormat": "sending p99 {{status}}",
+          "expr": "histogram_quantile(0.99, sum by (api) (rate(k6_http_req_sending_seconds{api!=\"\"}[$__rate_interval])))",
+          "legendFormat": "sending p99 {{api}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -317,7 +317,7 @@
     {
       "type": "timeseries",
       "title": "실패율",
-      "description": "409 소진과 503 혼잡은 issue.js 가 정상 응답으로 등록해 두어 여기 안 잡힌다. 여기 잡히는 것은 진짜 오류다.",
+      "description": "k6 가 기대한 응답이 아니라고 본 요청의 비율이다. 전에는 상태 코드마다 따로 그려 404 는 100%, 200 은 0% 로만 보였다.",
       "gridPos": {
         "x": 0,
         "y": 17,
@@ -369,8 +369,59 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "k6_http_req_failed_rate",
-          "legendFormat": "실패율 {{status}}",
+          "expr": "(sum(rate(k6_http_reqs_total{expected_response=\"false\"}[$__rate_interval])) or vector(0)) / sum(rate(k6_http_reqs_total[$__rate_interval]))",
+          "legendFormat": "실패율",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "API 별 p99 (앱)",
+      "description": "앱 서버의 히스토그램 버킷으로 계산한 p99 다. k6 의 p99 와 달리 구간마다 새로 계산해 램프업이 섞이지 않는다. lc-backend 가 http.server.requests 의 percentiles-histogram 을 켜야 값이 나온다(lc-backend#1088).",
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"app\"}[$__rate_interval])))",
+          "legendFormat": "{{uri}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -392,8 +443,8 @@
     },
     {
       "type": "timeseries",
-      "title": "버려진 반복",
-      "description": "0 이 아니면 k6 가 계획한 부하를 다 못 보냈다. 이 회차의 수치는 앱이 아니라 생성기의 한계를 잰 것이다. 다른 패널과 달리 이 지표 이름은 실물로 확인하지 못했다. k6 가 드롭이 있을 때만 내보내는데 확인 회차에서 드롭이 안 났다. 첫 회차에 빈 채로 보이면 이름부터 의심한다.",
+      "title": "버려진 반복 (누적)",
+      "description": "0 이 아니면 k6 가 계획한 부하를 다 못 보냈다. 이 회차의 수치는 앱이 아니라 생성기의 한계를 잰 것이다. k6 가 드롭이 있을 때만 이 값을 보내 점이 드물다. 초당으로 바꾸면 구간 안에 점이 모자라 비므로 회차 시작부터 쌓인 수를 그린다. 이름은 k6 1.7.1 에서 확인했다.",
       "gridPos": {
         "x": 0,
         "y": 26,
@@ -445,8 +496,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(k6_dropped_iterations_total[1m]))",
-          "legendFormat": "버려진 반복/초",
+          "expr": "sum(k6_dropped_iterations_total)",
+          "legendFormat": "버려진 반복",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -480,7 +531,24 @@
             }
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "송신 B/s|수신 B/s"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "Bps"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -496,7 +564,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "k6_iteration_duration_p99",
+          "expr": "histogram_quantile(0.99, sum(rate(k6_iteration_duration_seconds[$__rate_interval])))",
           "legendFormat": "반복 p99",
           "datasource": {
             "type": "prometheus",
@@ -505,7 +573,7 @@
         },
         {
           "refId": "B",
-          "expr": "sum(rate(k6_data_sent_total[1m]))",
+          "expr": "sum(rate(k6_data_sent_total[$__rate_interval]))",
           "legendFormat": "송신 B/s",
           "datasource": {
             "type": "prometheus",
@@ -514,7 +582,7 @@
         },
         {
           "refId": "C",
-          "expr": "sum(rate(k6_data_received_total[1m]))",
+          "expr": "sum(rate(k6_data_received_total[$__rate_interval]))",
           "legendFormat": "수신 B/s",
           "datasource": {
             "type": "prometheus",

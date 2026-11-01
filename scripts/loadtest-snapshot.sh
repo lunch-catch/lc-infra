@@ -5,7 +5,7 @@
 #   ./loadtest-snapshot.sh --label f4-1           지금부터 거꾸로 5분
 #   ./loadtest-snapshot.sh --label F-2 --minutes 10
 #   ./loadtest-snapshot.sh --from 1790699360000 --to 1790699480000
-#   ./loadtest-snapshot.sh --dash fm-loadtest     한 장만
+#   ./loadtest-snapshot.sh --dash lc-loadtest     한 장만
 #   AWS_PROFILE=me ./loadtest-snapshot.sh --lt --label r1   팀원 부하 시험 환경(member-env.sh)에서
 #
 #   --lt               부하 시험 환경이다. 접두사가 lunchcatch-lt 이고 운영 계정 가드 대신 AWS_PROFILE 을 요구한다
@@ -39,7 +39,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_ROOT="${OUT_ROOT:-$ROOT/loadtest-runs}"
 LOCAL_PORT="${LOCAL_PORT:-13000}"
 WIDTH="${WIDTH:-1600}"
-HEIGHT="${HEIGHT:-900}"
+# 비워 두면 대시보드마다 패널 배치에서 높이를 잰다. 주면 모든 장을 그 높이로 자른다
+HEIGHT="${HEIGHT:-}"
 
 LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); LT=""
 
@@ -90,9 +91,9 @@ if [ -z "$FROM" ] || [ -z "$TO" ]; then
   FROM=$(( TO - MINUTES * 60 * 1000 ))
 fi
 
-# 기본은 다섯 장 전부다. 회차마다 무엇이 문제였는지 미리 알 수 없다.
+# 기본은 여섯 장 전부다. 회차마다 무엇이 문제였는지 미리 알 수 없다.
 if [ ${#DASH[@]} -eq 0 ]; then
-  DASH=(fm-overview fm-hosts fm-app-jvm fm-data-stores fm-loadtest)
+  DASH=(lc-overview lc-hosts lc-app-jvm lc-data-stores lc-loadtest lc-adserving)
 fi
 
 # 접두사로 고른다. 같은 계정에 운영과 부하 시험 환경이 함께 있으면 Role 만으로는 어느 쪽인지 모른다
@@ -138,19 +139,31 @@ mkdir -p "$dir"
   printf 'label   %s\n' "${LABEL:-없음}"
   printf 'from    %s  (%s)\n' "$FROM" "$(date -u -r $((FROM/1000)) +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '-')"
   printf 'to      %s  (%s)\n' "$TO" "$(date -u -r $((TO/1000)) +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '-')"
-  printf 'size    %sx%s\n' "$WIDTH" "$HEIGHT"
+  printf 'size    %sx%s\n' "$WIDTH" "${HEIGHT:-대시보드 높이}"
 } > "$dir/구간.txt"
+
+#
+# 대시보드 전체가 들어가는 높이를 잰다 (#60).
+#
+# 렌더러는 준 높이의 화면 하나만 찍는다. 900 으로 고정했을 때 06 광고 서빙의 아래 패널이 잘렸다.
+# 그리드 한 칸이 30px 이고 칸 사이가 8px 이다. 가장 아래 패널의 끝에 키오스크 여백을 더한다.
+#
+dash_height() {
+  curl -sf -u "admin:$PW" "http://localhost:$LOCAL_PORT/api/dashboards/uid/$1" \
+    | python3 -c 'import json,sys; p=json.load(sys.stdin)["dashboard"]["panels"]; print(max(x["gridPos"]["y"] + x["gridPos"]["h"] for x in p) * 38 + 64)'
+}
 
 log "2. 렌더 $FROM ~ $TO"
 ok=0; fail=0
 for uid in "${DASH[@]}"; do
   out="$dir/$uid.png"
+  h="${HEIGHT:-$(dash_height "$uid" || echo 900)}"
   code=$(curl -s -o "$out" -w '%{http_code}' --max-time 180 -u "admin:$PW" \
-    "http://localhost:$LOCAL_PORT/render/d/$uid/x?orgId=1&from=$FROM&to=$TO&width=$WIDTH&height=$HEIGHT&kiosk&tz=Asia%2FSeoul&timeout=120" \
+    "http://localhost:$LOCAL_PORT/render/d/$uid/x?orgId=1&from=$FROM&to=$TO&width=$WIDTH&height=$h&kiosk&tz=Asia%2FSeoul&timeout=120" \
     2>/dev/null || echo 000)
   # 그라파나는 렌더러가 없어도 200 을 주고 본문에 오류를 담는다. 매직 바이트로 가른다.
   if [ "$code" = "200" ] && [ "$(head -c 4 "$out" | od -An -tx1 | tr -d ' \n')" = "89504e47" ]; then
-    log "   $uid  $(wc -c < "$out" | tr -d ' ') 바이트"
+    log "   $uid  ${WIDTH}x$h  $(wc -c < "$out" | tr -d ' ') 바이트"
     ok=$((ok+1))
   else
     log "   $uid  실패 (HTTP $code)"

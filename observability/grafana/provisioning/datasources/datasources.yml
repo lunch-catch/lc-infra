@@ -12,6 +12,9 @@ datasources:
     access: proxy
     url: http://prometheus:9090
     isDefault: true
+    jsonData:
+      # prometheus.yml 의 scrape_interval 과 같게 둔다. 패널의 $__rate_interval 이 이 값의 4배(1분)부터 시작한다 (#60)
+      timeInterval: 15s
 
   - name: Loki
     uid: loki

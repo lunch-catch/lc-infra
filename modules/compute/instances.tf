@@ -125,6 +125,22 @@ resource "aws_instance" "load_test" {
     Name = "${var.project}-load-test"
     Role = "load-test"
   }
+
+  /*
+   * 부팅 때 읽는 SSM 값과 그것을 읽을 권한이 먼저 있어야 한다 (#60).
+   *
+   * 이것이 없으면 이 인스턴스는 ALB 만 기다리고 바로 뜬다. prometheus-endpoint 는 모니터링 뒤에,
+   * 모니터링은 RDS 와 캐시 뒤에 생기므로 부팅이 몇 분 앞선다. user-data 가 ParameterNotFound 로
+   * set -e 에 걸려 멈추고 /opt/loadtest/env 의 주소가 __PROM__ 인 채로 남는다.
+   * k6 는 그 주소로 밀다 실패하고 시험은 그대로 돌아, 05 부하 시험 대시보드만 비었다.
+   *
+   * 값은 템플릿에 넣지 않고 순서만 건다. 넣으면 모니터링을 다시 만들 때마다 이 인스턴스도 다시 만들어진다.
+   */
+  depends_on = [
+    aws_ssm_parameter.prometheus_endpoint,
+    aws_ssm_parameter.current_sha,
+    aws_iam_role_policy.read_params,
+  ]
 }
 
 /*

@@ -1,5 +1,5 @@
 {
-  "uid": "fm-adserving",
+  "uid": "lc-adserving",
   "title": "06 광고 서빙",
   "description": "광고 서빙이 장애 때 막지 않고 통과시키거나 버린 횟수다 (lc-infra #4). 정상이면 위 두 줄은 모두 0 이다.",
   "tags": [
@@ -23,7 +23,7 @@
   "panels": [
     {
       "type": "row",
-      "title": "통과시킨 횟수",
+      "title": "노출 저장",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -31,14 +31,12 @@
         "w": 24,
         "h": 1
       },
-      "id": 1,
       "panels": []
     },
     {
       "type": "timeseries",
-      "title": "캐시 규칙 건너뜀 (5분 증가)",
-      "description": "Valkey 명령이 실패해 그 규칙을 건너뛴 횟수다. 정상이면 0 이다. 10분 넘게 이어지면 AdservingCacheBypass 가 use 별로 울린다.",
-      "id": 2,
+      "title": "노출 저장 큐",
+      "description": "서버마다 큐에 쌓인 노출 수다. 계속 늘면 저장이 들어오는 속도를 못 따라간다. 노출 수집 v3 부터 있는 지표다. 그 전 버전에서는 비어 있다.",
       "gridPos": {
         "x": 0,
         "y": 1,
@@ -52,11 +50,13 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "min": 0,
           "custom": {
             "lineWidth": 1,
             "fillOpacity": 6,
-            "showPoints": "never"
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           }
         },
         "overrides": []
@@ -75,8 +75,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (use) (increase(adserving_cache_bypass_total[5m]))",
-          "legendFormat": "{{use}}",
+          "expr": "sum by (instance) (adserving_impression_queue_size)",
+          "legendFormat": "{{instance}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -86,9 +86,8 @@
     },
     {
       "type": "timeseries",
-      "title": "예산 규칙 없이 내보냄 (5분 증가)",
-      "description": "정산의 예산 진행률을 읽지 못해 예산 규칙 없이 피드를 내보낸 횟수다. 예산을 넘긴 캠페인도 나간다. AdservingBudgetUnavailable.",
-      "id": 3,
+      "title": "버리거나 못 쓴 노출 (분당)",
+      "description": "큐가 차서 버린 노출, 끝내 못 쓴 노출, 저장이 실패한 묶음이다. 정상이면 모두 0 이다. 노출 수집 v3 부터 있는 지표다. 그 전 버전에서는 비어 있다.",
       "gridPos": {
         "x": 12,
         "y": 1,
@@ -102,6 +101,226 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance) (rate(adserving_impression_dropped_total[$__rate_interval])) * 60",
+          "legendFormat": "버림 {{instance}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (instance) (rate(adserving_impression_write_lost_total[$__rate_interval])) * 60",
+          "legendFormat": "못 씀 {{instance}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "sum by (instance) (rate(adserving_impression_write_failed_total[$__rate_interval])) * 60",
+          "legendFormat": "실패 묶음 {{instance}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "릴레이 밀린 노출",
+      "description": "저장했지만 정산으로 아직 넘기지 못한 노출 수다. 늘기만 하면 릴레이가 처리량을 못 따라간다. 노출 수집 v2 부터 있는 지표다. 그 전 버전에서는 비어 있다. 릴레이는 배치 서버에서만 돌아 배치 서버의 값만 그린다. 앱 서버에도 같은 지표가 0 으로 있다.",
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance) (adserving_impression_dispatch_backlog{job=\"batch\"})",
+          "legendFormat": "{{instance}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "정산 묶음 시간과 처리량",
+      "description": "릴레이가 정산 한 번에 쓴 평균 시간(왼쪽)과 초당 넘긴 건수다. 처리량이 들어오는 노출보다 낮으면 밀림이 는다. 노출 수집 v2 부터 있는 지표다. 그 전 버전에서는 비어 있다.",
+      "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "넘긴 건수/초|실패 건수/초"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(adserving_impression_dispatch_deduct_seconds_sum[$__rate_interval])) / sum(rate(adserving_impression_dispatch_deduct_seconds_count[$__rate_interval]))",
+          "legendFormat": "정산 평균 시간",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(adserving_impression_dispatch_deduct_batch_sum[$__rate_interval]))",
+          "legendFormat": "넘긴 건수/초",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "sum(rate(adserving_impression_dispatch_failed_total[$__rate_interval]))",
+          "legendFormat": "실패 건수/초",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "통과시킨 횟수",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 24,
+        "h": 1
+      },
+      "id": 1,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "캐시 규칙 건너뜀 (분당)",
+      "description": "Valkey 명령이 실패해 그 규칙을 건너뛴 횟수다. 정상이면 0 이다. 10분 넘게 이어지면 AdservingCacheBypass 가 use 별로 울린다.",
+      "id": 2,
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
           "min": 0,
           "custom": {
             "lineWidth": 1,
@@ -125,7 +344,57 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(increase(adserving_budget_unavailable_total[5m]))",
+          "expr": "sum by (use) (rate(adserving_cache_bypass_total[$__rate_interval]) * 60)",
+          "legendFormat": "{{use}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "예산 규칙 없이 내보냄 (분당)",
+      "description": "정산의 예산 진행률을 읽지 못해 예산 규칙 없이 피드를 내보낸 횟수다. 예산을 넘긴 캠페인도 나간다. AdservingBudgetUnavailable.",
+      "id": 3,
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(adserving_budget_unavailable_total[$__rate_interval]) * 60)",
           "legendFormat": "예산 규칙 없음",
           "datasource": {
             "type": "prometheus",
@@ -140,7 +409,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 9,
+        "y": 26,
         "w": 24,
         "h": 1
       },
@@ -149,12 +418,12 @@
     },
     {
       "type": "timeseries",
-      "title": "서빙 로그 유실률 (10분)",
-      "description": "버린 카드와 쓰기에 실패한 카드를 내려준 카드 수로 나눴다. 목표 0.1% 를 선으로 그렸다. AdservingServeLogLossHigh 와 같은 식이다.",
+      "title": "서빙 로그 유실률 (분당)",
+      "description": "버린 카드와 쓰기에 실패한 카드를 내려준 카드 수로 나눴다. 다른 패널과 같은 짧은 구간으로 계산한다. 경보 AdservingServeLogLossHigh 는 10분 구간으로 보므로 이 선과 값이 다를 수 있다. 목표 0.1% 를 선으로 그렸다.",
       "id": 5,
       "gridPos": {
         "x": 0,
-        "y": 10,
+        "y": 27,
         "w": 12,
         "h": 8
       },
@@ -204,7 +473,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "((sum(increase(adserving_serve_log_dropped_total[10m])) or vector(0)) + (sum(increase(adserving_serve_log_failed_total[10m])) or vector(0))) / (sum(increase(adserving_served_cards_total[10m])) > 0)",
+          "expr": "((sum(rate(adserving_serve_log_dropped_total[$__rate_interval])) or vector(0)) + (sum(rate(adserving_serve_log_failed_total[$__rate_interval])) or vector(0))) / (sum(rate(adserving_served_cards_total[$__rate_interval])) > 0)",
           "legendFormat": "유실률",
           "datasource": {
             "type": "prometheus",
@@ -215,12 +484,12 @@
     },
     {
       "type": "timeseries",
-      "title": "버리거나 실패한 수 (5분 증가)",
+      "title": "버리거나 실패한 수 (분당)",
       "description": "대기열이 차서 버린 카드, serve_log 쓰기 실패, feed_visit_daily 쓰기 실패다. 서버마다 나눠 그렸다.",
       "id": 6,
       "gridPos": {
         "x": 12,
-        "y": 10,
+        "y": 27,
         "w": 12,
         "h": 8
       },
@@ -254,7 +523,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (instance) (increase(adserving_serve_log_dropped_total[5m]))",
+          "expr": "sum by (instance) (rate(adserving_serve_log_dropped_total[$__rate_interval]) * 60)",
           "legendFormat": "버림 {{instance}}",
           "datasource": {
             "type": "prometheus",
@@ -263,7 +532,7 @@
         },
         {
           "refId": "B",
-          "expr": "sum by (instance) (increase(adserving_serve_log_failed_total[5m]))",
+          "expr": "sum by (instance) (rate(adserving_serve_log_failed_total[$__rate_interval]) * 60)",
           "legendFormat": "serve_log 실패 {{instance}}",
           "datasource": {
             "type": "prometheus",
@@ -272,7 +541,7 @@
         },
         {
           "refId": "C",
-          "expr": "sum by (instance) (increase(adserving_feed_visit_failed_total[5m]))",
+          "expr": "sum by (instance) (rate(adserving_feed_visit_failed_total[$__rate_interval]) * 60)",
           "legendFormat": "feed_visit 실패 {{instance}}",
           "datasource": {
             "type": "prometheus",
@@ -288,7 +557,7 @@
       "id": 7,
       "gridPos": {
         "x": 0,
-        "y": 18,
+        "y": 35,
         "w": 12,
         "h": 8
       },
@@ -322,7 +591,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (instance) (rate(adserving_served_cards_total[5m])) * 60",
+          "expr": "sum by (instance) (rate(adserving_served_cards_total[$__rate_interval])) * 60",
           "legendFormat": "{{instance}}",
           "datasource": {
             "type": "prometheus",
@@ -333,12 +602,12 @@
     },
     {
       "type": "timeseries",
-      "title": "노출 캠페인 불일치 (5분 증가)",
+      "title": "노출 캠페인 불일치 (분당)",
       "description": "노출 요청의 캠페인이 serve 기록과 다른 횟수다. 클라이언트 버그나 조작된 요청이다. 판정은 serve 기록으로 해서 알람은 두지 않는다.",
       "id": 8,
       "gridPos": {
         "x": 12,
-        "y": 18,
+        "y": 35,
         "w": 12,
         "h": 8
       },
@@ -372,7 +641,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(increase(adserving_impression_campaign_mismatch_total[5m]))",
+          "expr": "sum(rate(adserving_impression_campaign_mismatch_total[$__rate_interval]) * 60)",
           "legendFormat": "불일치",
           "datasource": {
             "type": "prometheus",
@@ -387,7 +656,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 26,
+        "y": 43,
         "w": 24,
         "h": 1
       },
@@ -401,7 +670,7 @@
       "id": 10,
       "gridPos": {
         "x": 0,
-        "y": 27,
+        "y": 44,
         "w": 24,
         "h": 10
       },

@@ -1,5 +1,5 @@
 {
-  "uid": "fm-dev-logs",
+  "uid": "lc-dev-logs",
   "title": "07 개발 앱 로그",
   "description": "개발 서버 앱 로그(CloudWatch Logs /lunchcatch/dev/app)다. 30일 남는다.",
   "tags": [

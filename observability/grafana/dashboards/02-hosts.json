@@ -1,5 +1,5 @@
 {
-  "uid": "fm-hosts",
+  "uid": "lc-hosts",
   "title": "02 호스트",
   "description": "인스턴스와 컨테이너 자원이다. CPU 크레딧이 이 화면의 핵심이다.",
   "tags": [
@@ -154,7 +154,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval])) * 100)",
           "legendFormat": "{{instance}} {{instance_id}}",
           "datasource": {
             "type": "prometheus",
