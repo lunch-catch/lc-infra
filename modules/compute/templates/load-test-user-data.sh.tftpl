@@ -106,8 +106,8 @@ cat > /opt/loadtest/env <<ENVFILE
 BASE_URL=http://${alb_dns_name}
 K6_PROMETHEUS_RW_SERVER_URL=http://__PROM__:9090/api/v1/write
 K6_PROMETHEUS_RW_PUSH_INTERVAL=5s
-# 괄호가 있어 따옴표가 필요하다. 없으면 이 파일을 source 할 때 구문 오류가 난다.
-K6_PROMETHEUS_RW_TREND_STATS="p(95),p(99),avg,max"
+# 응답 시간을 분위수 값이 아니라 히스토그램으로 보낸다. 분위수 값은 회차 시작부터 쌓여 구간마다 움직이지 않는다(lc-backend#1088)
+K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM=true
 ENVFILE
 
 #
