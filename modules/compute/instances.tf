@@ -62,18 +62,19 @@ resource "aws_instance" "monitoring" {
   }
 
   /*
-   * 모니터링이 읽을 SSM 값이 먼저 있어야 한다. 근거는 main.tf 의 aws_autoscaling_group.batch 에 있다.
+   * 부팅 때 바로 읽는 SSM 값과 그것을 읽을 권한이 먼저 있어야 한다.
    *
-   * 이쪽은 user-data 에 set -e 가 없어 2026-09-26 에 ParameterNotFound 를 두 번 맞고도 떴다.
-   * 죽지 않았을 뿐이고 값이 빈 채로 뜬 것이라 오히려 찾기 어렵다. 그 둘이 db-endpoint 와
-   * cache-endpoint 이고, mysqld-exporter 와 redis-exporter 가 그 값으로 대상을 잡는다.
+   * db-endpoint 와 cache-endpoint 는 일부러 기다리지 않는다 (#78). 그 둘을 기다리면 이 인스턴스가
+   * RDS 와 캐시가 다 만들어진 뒤(13분 남짓)에야 뜨고, 그때부터 관측 이미지 14개를 받느라 12분이 더 든다.
+   * 그동안 앱과 나머지 서버가 놀며 요금을 낸다. 지금은 부팅하자마자 이미지를 받고(monitoring-user-data),
+   * 두 주소는 refresh-monitoring-env 가 컨테이너를 띄우기 직전에 생길 때까지 기다려 읽는다.
+   * 2026-09-26 에 두 값을 빈 채로 읽고 뜬 사고는 그 대기와 user-data 의 set -e 가 막는다.
    *
    * loki-endpoint 와 prometheus-endpoint 는 넣지 않는다. 그 둘의 값이 이 인스턴스의 private_ip
    * 라서 넣으면 순환이 된다. 다른 인스턴스가 모니터링을 찾는 값이고 모니터링 자신은 안 읽는다.
    */
   depends_on = [
-    aws_ssm_parameter.db_endpoint,
-    aws_ssm_parameter.cache_endpoint,
+    aws_iam_role_policy.read_params,
     aws_ssm_parameter.grafana_root_url,
     aws_ssm_parameter.grafana_auth_proxy,
     aws_ssm_parameter.duckdns_hostname,
