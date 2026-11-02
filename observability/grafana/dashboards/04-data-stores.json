@@ -416,7 +416,7 @@
     {
       "type": "timeseries",
       "title": "Slow query (분당)",
-      "description": "long_query_time(1초)을 넘긴 쿼리 수를 분당으로 본다. 0 이면 그 구간에 1초를 넘긴 쿼리가 없었다. 어떤 쿼리였는지는 이 패널로 알 수 없다. 쿼리 원문과 걸린 시간, 락 대기 시간(Lock_time)은 CloudWatch Logs 의 /aws/rds/instance/<project>-db/slowquery 에 있다.",
+      "description": "long_query_time(1초)을 넘긴 쿼리 수를 분당으로 본다. 0 이면 그 구간에 1초를 넘긴 쿼리가 없었다. 어떤 쿼리였는지는 이 패널로 알 수 없다. 쿼리 원문과 걸린 시간, lock wait 시간(Lock_time)은 CloudWatch Logs 의 /aws/rds/instance/<project>-db/slowquery 에 있다.",
       "gridPos": {
         "x": 0,
         "y": 14,
