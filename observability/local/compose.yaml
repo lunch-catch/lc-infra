@@ -1,0 +1,133 @@
+# 대시보드와 로그 패널을 로컬에서 확인하는 구성이다. 운영 관측 스택과 같은 태그와 설정 파일을 쓴다.
+#
+# 앱은 lc-backend 의 Dockerfile 로 굽는다. 그 Dockerfile 은 jar 를 담기만 하므로 lc-backend 에서
+# ./gradlew bootJar 를 먼저 돌린다. 로그는 Alloy 가 컨테이너에서 읽어 가므로 앱도 컨테이너로 띄운다.
+#
+# 쓰는 법은 docs/wiki/팀원-도메인-모니터링.md 에 있다.
+name: lunchcatch-local
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: lunchcatch
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+09:00
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  valkey:
+    image: valkey/valkey:9.0-alpine
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: ${LC_BACKEND_DIR:-../../../lc-backend}
+    depends_on:
+      mysql: {condition: service_healthy}
+      valkey: {condition: service_healthy}
+    ports:
+      - "${APP_PORT:-18080}:8080"
+    environment:
+      # prod 프로필이어야 운영과 같은 JSON 로그가 나온다. loadtest 는 결제를 앱 안의 목으로 받는다.
+      SPRING_PROFILES_ACTIVE: prod,loadtest
+      SPRING_DOCKER_COMPOSE_ENABLED: "false"
+      DB_URL: jdbc:mysql://mysql:3306/lunchcatch
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      VALKEY_HOST: valkey
+      VALKEY_PORT: "6379"
+      JWT_SECRET: ${JWT_SECRET:?이 폴더의 .env 에 JWT_SECRET 을 둔다}
+      TOSS_SECRET_KEY: test_sk_dummy
+      KAKAO_CLIENT_ID: x
+      KAKAO_CLIENT_SECRET: x
+      KAKAO_ADMIN_KEY: x
+      KAKAO_APP_ID: x
+      CDN_BASE_URL: https://cdn.example.com
+      # 로컬은 앱 하나가 배치의 스케줄 작업도 돈다.
+      LUNCHCATCH_SCHEDULER_ENABLED: "true"
+      APP_INSTANCE_ID: local
+
+  prometheus:
+    image: prom/prometheus:v3.13.1
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-19090}:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      # 로컬에서 k6 를 돌릴 때 05 부하 시험 대시보드에 결과가 들어오게 받는다.
+      - --web.enable-remote-write-receiver
+
+  grafana:
+    image: grafana/grafana:12.4.3
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-13000}:3000"
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/etc/grafana/dashboards:ro
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      # 캡처 스크립트(scripts/loadtest-snapshot.sh --local)가 패널을 PNG 로 받는다
+      GF_RENDERING_SERVER_URL: http://renderer:8081/render
+      GF_RENDERING_CALLBACK_URL: http://grafana:3000/
+
+  renderer:
+    image: grafana/grafana-image-renderer:v5.12.4
+    environment:
+      ENABLE_METRICS: "false"
+    shm_size: 256m
+
+  loki:
+    image: grafana/loki:3.7.4
+    volumes:
+      - ../loki/config.yaml:/etc/loki/local-config.yaml:ro
+
+  alloy:
+    image: grafana/alloy:v1.12.1
+    volumes:
+      - ../alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      INSTANCE_ROLE: app
+      GIT_SHA: local
+      LOKI_ENDPOINT: loki
+    command: [run, --server.http.listen-addr=0.0.0.0:12345, /etc/alloy/config.alloy]
+
+  # 02 호스트와 04 데이터 저장소의 패널을 채운다. 운영은 각 서버와 모니터링 서버에서 돈다
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    pid: host
+    volumes:
+      - /:/host:ro
+    command: [--path.rootfs=/host]
+
+  # 맥의 Docker Desktop 에서는 컨테이너 이름을 읽지 못해 컨테이너 메모리 패널이 빈다
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.17.2
+    command: [--mysqld.address=mysql:3306, --mysqld.username=root]
+    environment:
+      MYSQLD_EXPORTER_PASSWORD: root
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.69.0
+    environment:
+      REDIS_ADDR: "redis://valkey:6379"
