@@ -271,7 +271,8 @@ up)
     if mon_ready "$MON"; then ok=1; break; fi
     sleep 20
   done
-  [ -n "$ok" ] || log "   20분 안에 준비되지 않았다. 시험 전에 status 의 Grafana 명령으로 열리는지 본다"
+  # 준비되지 않은 채 완료를 내면 바로 돌린 회차의 지표가 남지 않는다. 시험을 시작하지 못하게 여기서 멈춘다
+  [ -n "$ok" ] || die "모니터링이 20분 안에 준비되지 않았다. 측정을 시작하지 않는다. aws ssm start-session --target $MON 으로 붙어 /var/log/user-data.log 를 본다. 고친 뒤 up 을 다시 부르면 이어서 기다린다"
 
   LT=$(aws ec2 describe-instances --filters "Name=tag:Project,Values=$PROJECT" "Name=tag:Role,Values=load-test" "Name=instance-state-name,Values=running" \
     --query 'Reservations[0].Instances[0].InstanceId' --output text)
