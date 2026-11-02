@@ -108,6 +108,9 @@ K6_PROMETHEUS_RW_SERVER_URL=http://__PROM__:9090/api/v1/write
 K6_PROMETHEUS_RW_PUSH_INTERVAL=5s
 # 응답 시간을 분위수 값이 아니라 히스토그램으로 보낸다. 분위수 값은 회차 시작부터 쌓여 구간마다 움직이지 않는다(lc-backend#1088)
 K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM=true
+# k6 1.7.1 기본 시스템 태그에서 url, name 만 뺀다 (#86). 피드 요청이 URL 에 무작위 위경도를 넣어 두 태그가 요청마다 달라지고,
+# 요청마다 Prometheus 시리즈가 생겨 회차 하나에 515 MB 가 늘었다. 대시보드와 통과 기준은 api, phase, status, expected_response 만 쓴다
+K6_SYSTEM_TAGS=proto,subproto,status,method,group,check,error,error_code,tls_version,scenario,service,expected_response
 ENVFILE
 
 #
