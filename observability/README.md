@@ -38,6 +38,7 @@ curl -s localhost:9090/api/v1/rules | grep -o '"query":"[^"]*"'
 | Grafana | 3000 | 모니터링 |
 | Loki | 3100 | 모니터링 |
 | Pyroscope | 4040 | 모니터링(부하 시험 환경만) |
+| Tempo | 3200(조회), 4317(스팬 받기) | 모니터링(부하 시험 환경만) |
 | Alertmanager | 9093 | 모니터링 |
 | mysqld_exporter | 9104 | 모니터링 |
 | redis_exporter | 9121 | 모니터링 |

@@ -98,16 +98,27 @@ services:
     ports:
       - "127.0.0.1:${PYROSCOPE_PORT:-14040}:4040"
 
+  # 추적 저장소다. 부하 시험 환경과 같은 이미지와 설정이고 로컬은 늘 띄운다
+  tempo:
+    image: grafana/tempo:2.10.8
+    user: "0"
+    command: [-config.file=/etc/tempo/config.yaml]
+    volumes:
+      - ../tempo/config.yaml:/etc/tempo/config.yaml:ro
+
+  # 로컬은 추적 수집(tracing.alloy)까지 읽는다. 앱은 http://alloy:4318 로 스팬을 보낸다
   alloy:
     image: grafana/alloy:v1.12.1
     volumes:
       - ../alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - ../alloy/tracing.alloy:/etc/alloy/tracing.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       INSTANCE_ROLE: app
       GIT_SHA: local
       LOKI_ENDPOINT: loki
-    command: [run, --server.http.listen-addr=0.0.0.0:12345, /etc/alloy/config.alloy]
+      TEMPO_ENDPOINT: tempo
+    command: [run, --server.http.listen-addr=0.0.0.0:12345, /etc/alloy]
 
   # 02 호스트와 04 데이터 저장소의 패널을 채운다. 운영은 각 서버와 모니터링 서버에서 돈다
   node-exporter:

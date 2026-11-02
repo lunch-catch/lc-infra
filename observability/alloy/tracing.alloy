@@ -1,0 +1,73 @@
+// 앱의 스팬을 받아 테일 샘플링 뒤 모니터링 서버의 Tempo 로 보낸다(lunch-catch/lc-infra#72).
+// 추적을 켠 환경(부하 시험 환경)에서만 config.alloy 뒤에 붙는다. compute 모듈의 tracing_enabled 가 정한다.
+
+otelcol.receiver.otlp "app" {
+	http {
+		endpoint = "0.0.0.0:4318"
+	}
+	output {
+		traces = [otelcol.processor.tail_sampling.app.input]
+	}
+}
+
+// 기준은 lc-backend 의 qa-observability-guideline.md 3장이다.
+// 요청 하나의 스팬이 모두 모일 때까지 기다린 뒤 정책 가운데 하나라도 맞으면 남긴다.
+otelcol.processor.tail_sampling "app" {
+	decision_wait = "10s"
+	policy {
+		name = "errors"
+		type = "status_code"
+		status_code {
+			status_codes = ["ERROR"]
+		}
+	}
+	// 피드 p99 목표(300ms)를 넘은 요청은 모두 남긴다
+	policy {
+		name = "slow"
+		type = "latency"
+		latency {
+			threshold_ms = 300
+		}
+	}
+	policy {
+		name = "core-routes"
+		type = "and"
+		and {
+			and_sub_policy {
+				name = "route"
+				type = "string_attribute"
+				string_attribute {
+					key    = "http.route"
+					values = ["/v1/feed", "/v1/impressions"]
+				}
+			}
+			and_sub_policy {
+				name = "ten-percent"
+				type = "probabilistic"
+				probabilistic {
+					sampling_percentage = 10
+				}
+			}
+		}
+	}
+	policy {
+		name = "the-rest"
+		type = "probabilistic"
+		probabilistic {
+			sampling_percentage = 1
+		}
+	}
+	output {
+		traces = [otelcol.exporter.otlp.tempo.input]
+	}
+}
+
+// 앱 서버에서는 LOKI_ENDPOINT 가 모니터링 서버를 가리킨다. 로컬 구성은 TEMPO_ENDPOINT 로 tempo 컨테이너를 준다
+otelcol.exporter.otlp "tempo" {
+	client {
+		endpoint = coalesce(sys.env("TEMPO_ENDPOINT"), sys.env("LOKI_ENDPOINT")) + ":4317"
+		tls {
+			insecure = true
+		}
+	}
+}

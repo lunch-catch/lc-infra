@@ -310,6 +310,13 @@ variable "profiling_enabled" {
   default     = false
 }
 
+variable "tracing_enabled" {
+  description = "모니터링 서버에 추적 저장소(Tempo)를 띄우고 앱과 배치 서버의 Alloy 가 스팬을 받게 할지 여부. 부하 시험 환경만 켠다"
+  type        = bool
+  nullable    = false
+  default     = false
+}
+
 /*
  * 운영 프론트 주소다. 운영 API 의 CORS 허용 출처가 된다 (프론트엔드 배포 문서 6장).
  * www 는 루트로 리다이렉트해 실제로 API 를 부르지 않지만 리다이렉트 전 요청을 막지 않으려고 둔다.

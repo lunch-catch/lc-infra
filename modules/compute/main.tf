@@ -29,7 +29,11 @@ data "aws_ami" "ubuntu_arm" {
  */
 locals {
   common_bootstrap = file("${path.module}/templates/common-bootstrap.sh")
-  alloy_config     = file("${path.module}/../../observability/alloy/config.alloy")
+  # 추적을 켠 환경만 스팬 수집을 뒤에 붙인다. 운영 앱 서버의 user-data 는 바뀌지 않는다(lunch-catch/lc-infra#72)
+  alloy_config = join("\n", concat(
+    [file("${path.module}/../../observability/alloy/config.alloy")],
+    var.tracing_enabled ? [file("${path.module}/../../observability/alloy/tracing.alloy")] : []
+  ))
 
   # 최초 부팅과 재배포가 같은 코드를 쓴다
   refresh_env = templatefile("${path.module}/templates/refresh-env.sh.tftpl", {
@@ -45,6 +49,7 @@ locals {
     region            = var.region
     db_username       = var.db_username
     profiling_enabled = var.profiling_enabled
+    tracing_enabled   = var.tracing_enabled
   })
 
   /*

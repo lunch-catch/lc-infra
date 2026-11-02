@@ -124,6 +124,24 @@ services:
     # 다른 컨테이너가 이미 1.3 GB 를 써서 묶는다. 상한에 닿으면 Pyroscope 만 죽고 Prometheus 와 Loki 는 산다
     mem_limit: 512m
 
+  # 추적 저장소다. tracing 프로필이 켜진 부하 시험 환경에서만 뜬다(refresh-monitoring-env 가 정한다).
+  # 앱 서버의 Alloy 가 테일 샘플링한 스팬을 4317 로 받고, 그라파나가 3200 으로 묻는다(lunch-catch/lc-backend#1099).
+  tempo:
+    image: grafana/tempo:2.10.8
+    container_name: tempo
+    restart: unless-stopped
+    profiles:
+      - tracing
+    user: "0"
+    command: [-config.file=/etc/tempo/config.yaml]
+    ports:
+      - "4317:4317"
+    volumes:
+      - tempo-data:/var/tempo
+      - ./tempo/config.yaml:/etc/tempo/config.yaml:ro
+    # Pyroscope 와 같은 이유로 묶는다. 상한에 닿으면 Tempo 만 죽는다
+    mem_limit: 512m
+
   alertmanager:
     image: prom/alertmanager:v0.28.1
     container_name: alertmanager
@@ -231,6 +249,7 @@ volumes:
   grafana-data:
   loki-data:
   pyroscope-data:
+  tempo-data:
   alertmanager-data:
   caddy-data:
   caddy-config:
