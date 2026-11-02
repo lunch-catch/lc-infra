@@ -303,6 +303,13 @@ variable "load_test_enabled" {
   default     = false
 }
 
+variable "profiling_enabled" {
+  description = "모니터링 서버에 프로파일 저장소(Pyroscope)를 띄울지 여부. 부하 시험 환경만 켠다"
+  type        = bool
+  nullable    = false
+  default     = false
+}
+
 /*
  * 운영 프론트 주소다. 운영 API 의 CORS 허용 출처가 된다 (프론트엔드 배포 문서 6장).
  * www 는 루트로 리다이렉트해 실제로 API 를 부르지 않지만 리다이렉트 전 요청을 막지 않으려고 둔다.

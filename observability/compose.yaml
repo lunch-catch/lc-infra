@@ -109,6 +109,21 @@ services:
       # 기본 설정 자리에 덮어 쓴다. 보존 기간 30일이 들어 있다
       - ./loki/config.yaml:/etc/loki/local-config.yaml:ro
 
+  # 프로파일 저장소다. profiling 프로필이 켜진 부하 시험 환경에서만 뜬다(refresh-monitoring-env 가 정한다).
+  # 앱 서버가 붙인 async-profiler 의 결과를 받아 그라파나의 Drilldown -> Profiles 에서 본다(lunch-catch/lc-backend#1094).
+  pyroscope:
+    image: grafana/pyroscope:2.4.0
+    container_name: pyroscope
+    restart: unless-stopped
+    profiles:
+      - profiling
+    ports:
+      - "4040:4040"
+    volumes:
+      - pyroscope-data:/data
+    # 다른 컨테이너가 이미 1.3 GB 를 써서 묶는다. 상한에 닿으면 Pyroscope 만 죽고 Prometheus 와 Loki 는 산다
+    mem_limit: 512m
+
   alertmanager:
     image: prom/alertmanager:v0.28.1
     container_name: alertmanager
@@ -215,6 +230,7 @@ volumes:
   prometheus-data:
   grafana-data:
   loki-data:
+  pyroscope-data:
   alertmanager-data:
   caddy-data:
   caddy-config:

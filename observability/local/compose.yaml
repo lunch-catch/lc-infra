@@ -92,6 +92,12 @@ services:
     volumes:
       - ../loki/config.yaml:/etc/loki/local-config.yaml:ro
 
+  # 프로파일 저장소다. 부하 시험 환경과 같은 이미지이고 로컬은 늘 띄운다
+  pyroscope:
+    image: grafana/pyroscope:2.4.0
+    ports:
+      - "127.0.0.1:${PYROSCOPE_PORT:-14040}:4040"
+
   alloy:
     image: grafana/alloy:v1.12.1
     volumes:
