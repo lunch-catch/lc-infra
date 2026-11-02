@@ -666,7 +666,7 @@
     {
       "type": "logs",
       "title": "광고 서빙 경고 로그",
-      "description": "지표가 오른 순간의 원인을 본다. 광고 서빙이 남기는 실패 로그(event=ADSERVING_..._FAILED)를 앱과 배치 서버에서 모두 고르고, 한 줄에 하나씩 보이게 message 만 보인다. 스택 트레이스는 Explore 에서 같은 쿼리의 line_format 을 빼고 본다.",
+      "description": "지표가 오른 순간의 원인을 본다. 광고 서빙의 로그(event=ADSERVING_...) 가운데 WARN 과 ERROR 를 앱과 배치 서버에서 모두 고르고, 한 줄에 하나씩 보이게 message 만 보인다. 스택 트레이스는 Explore 에서 같은 쿼리의 line_format 을 빼고 본다.",
       "id": 10,
       "gridPos": {
         "x": 0,
@@ -691,7 +691,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "{container=~\"lunchcatch.*\", role=~\"app|batch\"} |~ \"event=ADSERVING_[A-Z_]*_FAILED\" | json | line_format \"{{.message}}\""
+          "expr": "{container=~\"lunchcatch.*\", role=~\"app|batch\"} |~ \"event=ADSERVING_\" | json | level=~\"WARN|ERROR\" | line_format \"{{.message}}\""
         }
       ]
     }
