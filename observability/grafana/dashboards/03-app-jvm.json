@@ -23,7 +23,7 @@
   "panels": [
     {
       "type": "row",
-      "title": "커넥션 풀",
+      "title": "요청 처리 자원",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -35,7 +35,7 @@
     },
     {
       "type": "timeseries",
-      "title": "HikariCP 커넥션",
+      "title": "DB 커넥션 풀",
       "description": "HikariPendingHigh 임계 9(풀 10 의 90%) 를 선으로 그렸다. 대기가 쌓이면 톰캣 스레드가 먼저 마른다.",
       "gridPos": {
         "x": 0,
@@ -89,7 +89,7 @@
         {
           "refId": "A",
           "expr": "hikaricp_connections_active",
-          "legendFormat": "active {{instance}} {{instance_id}}",
+          "legendFormat": "사용 중 {{instance}} {{instance_id}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -98,7 +98,7 @@
         {
           "refId": "B",
           "expr": "hikaricp_connections_idle",
-          "legendFormat": "idle {{instance}} {{instance_id}}",
+          "legendFormat": "유휴 {{instance}} {{instance_id}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -107,7 +107,7 @@
         {
           "refId": "C",
           "expr": "hikaricp_connections_pending",
-          "legendFormat": "pending {{instance}} {{instance_id}}",
+          "legendFormat": "기다리는 스레드 {{instance}} {{instance_id}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -117,7 +117,7 @@
     },
     {
       "type": "timeseries",
-      "title": "톰캣 스레드",
+      "title": "톰캣 작업 스레드",
       "description": "TomcatThreadsHigh 알람이 (미정) 이다. 정상 구간의 사용률을 여기서 읽어 채운다.",
       "gridPos": {
         "x": 12,
@@ -155,7 +155,7 @@
         {
           "refId": "A",
           "expr": "tomcat_threads_busy_threads",
-          "legendFormat": "busy {{instance}} {{instance_id}}",
+          "legendFormat": "처리 중 {{instance}} {{instance_id}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -164,7 +164,64 @@
         {
           "refId": "B",
           "expr": "tomcat_threads_config_max_threads",
-          "legendFormat": "max {{instance}} {{instance_id}}",
+          "legendFormat": "상한 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "DB 커넥션 얻기 시간",
+      "description": "DB 커넥션을 얻기까지 기다린 시간이다. 위의 기다리는 스레드는 몇 개가 기다리는지를, 이 패널은 얼마나 오래 기다렸는지를 본다.",
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, instance_id) (rate(hikaricp_connections_acquire_seconds_sum[$__rate_interval])) / sum by (instance, instance_id) (rate(hikaricp_connections_acquire_seconds_count[$__rate_interval]))",
+          "legendFormat": "평균 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "max by (instance, instance_id) (hikaricp_connections_acquire_seconds_max)",
+          "legendFormat": "최대 {{instance}} {{instance_id}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -178,7 +235,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 9,
+        "y": 17,
         "w": 24,
         "h": 1
       },
@@ -190,7 +247,7 @@
       "description": "",
       "gridPos": {
         "x": 0,
-        "y": 10,
+        "y": 18,
         "w": 12,
         "h": 8
       },
@@ -223,8 +280,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (instance) (jvm_memory_used_bytes{area=\"heap\"})",
-          "legendFormat": "used {{instance}} {{instance_id}}",
+          "expr": "sum by (instance, instance_id) (jvm_memory_used_bytes{area=\"heap\"})",
+          "legendFormat": "사용 {{instance}} {{instance_id}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -232,8 +289,8 @@
         },
         {
           "refId": "B",
-          "expr": "sum by (instance) (jvm_memory_max_bytes{area=\"heap\"})",
-          "legendFormat": "max {{instance}} {{instance_id}}",
+          "expr": "sum by (instance, instance_id) (jvm_memory_max_bytes{area=\"heap\"})",
+          "legendFormat": "상한 {{instance}} {{instance_id}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -243,11 +300,11 @@
     },
     {
       "type": "timeseries",
-      "title": "GC 일시정지",
-      "description": "초당 GC 정지 시간이다. 0.1 이면 10% 를 GC 에 쓰는 것이다.",
+      "title": "GC 로 멈춘 시간 비율과 최대 멈춤",
+      "description": "왼쪽은 GC 로 멈춘 시간의 비율이다. 10% 면 시간의 10% 를 GC 에 썼다. 오른쪽은 GC 한 번이 가장 길게 멈춘 시간이다. 비율이 낮아도 한 번의 긴 멈춤은 p99 를 튀게 한다.",
       "gridPos": {
         "x": 12,
-        "y": 10,
+        "y": 18,
         "w": 12,
         "h": 8
       },
@@ -257,14 +314,31 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
+          "unit": "percentunit",
           "custom": {
             "lineWidth": 1,
             "fillOpacity": 6,
             "showPoints": "never"
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "최대 멈춤.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -280,8 +354,17 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "rate(jvm_gc_pause_seconds_sum[$__rate_interval])",
-          "legendFormat": "{{instance}} {{instance_id}} {{action}}",
+          "expr": "sum by (instance, instance_id) (rate(jvm_gc_pause_seconds_sum[$__rate_interval]))",
+          "legendFormat": "비율 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "max by (instance, instance_id) (jvm_gc_pause_seconds_max)",
+          "legendFormat": "최대 멈춤 {{instance}} {{instance_id}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -295,7 +378,7 @@
       "description": "서버마다 JVM 의 전체 플랫폼 스레드 수를 그린다. 스레드가 새면 보통 한 서버에서 먼저 늘어 이 패널에서 잡힌다. 가상 스레드는 들어가지 않는다.",
       "gridPos": {
         "x": 0,
-        "y": 18,
+        "y": 26,
         "w": 12,
         "h": 8
       },
@@ -343,7 +426,7 @@
       "description": "",
       "gridPos": {
         "x": 12,
-        "y": 18,
+        "y": 26,
         "w": 12,
         "h": 8
       },
@@ -393,7 +476,7 @@
       "description": "어느 종류의 스레드가 언제부터 늘었는지 본다. 종류는 스레드 이름 끝의 숫자를 지운 것이다(http-nio-8080-exec-12 는 http-nio-8080-exec). 앱과 배치로 나눠 서버를 합쳐 쌓는다. 종류가 50 을 넘으면 그 뒤는 other 로 센다(lc-backend#1095).",
       "gridPos": {
         "x": 0,
-        "y": 26,
+        "y": 34,
         "w": 12,
         "h": 10
       },
@@ -450,7 +533,7 @@
       "description": "스레드 수가 늘 때 무엇이 쌓이는지 가른다. blocked 가 늘면 잠금 경합이다. waiting 과 timed-waiting 이 늘면 무엇을 기다리며 쌓이는 것이다. 앱과 배치로 나눠 서버를 합쳤으니 한 대만 늘었는지는 서버별 스레드 수에서 본다. 어느 풀이 늘었는지는 그 서버에서 8081 의 스레드 덤프로 본다(curl -s localhost:8081/actuator/threaddump).",
       "gridPos": {
         "x": 12,
-        "y": 26,
+        "y": 34,
         "w": 12,
         "h": 10
       },
@@ -502,7 +585,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 44,
         "w": 24,
         "h": 1
       },
@@ -514,7 +597,7 @@
       "description": "BatchNotRun 임계 1800초를 선으로 그렸다. 배치는 실패가 아니라 조용히 멈추는 것이 문제라 이 값으로 본다.",
       "gridPos": {
         "x": 0,
-        "y": 37,
+        "y": 45,
         "w": 24,
         "h": 8
       },

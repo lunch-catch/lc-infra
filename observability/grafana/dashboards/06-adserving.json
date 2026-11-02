@@ -87,7 +87,7 @@
     {
       "type": "timeseries",
       "title": "버리거나 못 쓴 노출 (분당)",
-      "description": "큐가 차서 버린 노출, 끝내 못 쓴 노출, 저장이 실패한 묶음이다. 정상이면 모두 0 이다. 노출 수집 v3 부터 있는 지표다. 그 전 버전에서는 비어 있다.",
+      "description": "큐가 차서 버린 노출, 끝내 못 쓴 노출(왼쪽, 노출 건수)과 저장이 실패한 묶음(오른쪽, 묶음 수)이다. 정상이면 모두 0 이다. 노출 수집 v3 부터 있는 지표다. 그 전 버전에서는 비어 있다.",
       "gridPos": {
         "x": 12,
         "y": 1,
@@ -110,7 +110,24 @@
             }
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "실패 묶음.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -145,7 +162,7 @@
         {
           "refId": "C",
           "expr": "sum by (instance) (rate(adserving_impression_write_failed_total[$__rate_interval])) * 60",
-          "legendFormat": "실패 묶음 {{instance}}",
+          "legendFormat": "실패 묶음(묶음 수) {{instance}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -292,7 +309,7 @@
     },
     {
       "type": "row",
-      "title": "통과시킨 횟수",
+      "title": "장애로 규칙을 건너뛴 횟수",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -305,7 +322,7 @@
     },
     {
       "type": "timeseries",
-      "title": "캐시 규칙 건너뜀 (분당)",
+      "title": "캐시 장애로 건너뛴 규칙 (분당)",
       "description": "Valkey 명령이 실패해 그 규칙을 건너뛴 횟수다. 정상이면 0 이다. 10분 넘게 이어지면 AdservingCacheBypass 가 use 별로 울린다.",
       "id": 2,
       "gridPos": {
@@ -355,8 +372,8 @@
     },
     {
       "type": "timeseries",
-      "title": "예산 규칙 없이 내보냄 (분당)",
-      "description": "정산의 예산 진행률을 읽지 못해 예산 규칙 없이 피드를 내보낸 횟수다. 예산을 넘긴 캠페인도 나간다. AdservingBudgetUnavailable.",
+      "title": "정산에서 예산을 못 읽은 횟수",
+      "description": "광고 서빙이 정산에서 그날 예산(예약액과 단가)을 읽지 못한 횟수다. 00:00 후보 적재 끝과 10분마다 읽어 10분 창으로 센다. 못 읽으면 이전 값을 쓴다. 값이 처음부터 없으면 그동안 피드가 예산 규칙 없이 나간다. AdservingBudgetUnavailable.",
       "id": 3,
       "gridPos": {
         "x": 12,
@@ -394,8 +411,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(adserving_budget_unavailable_total[$__rate_interval]) * 60)",
-          "legendFormat": "예산 규칙 없음",
+          "expr": "sum(increase(adserving_budget_unavailable_total[10m]))",
+          "legendFormat": "못 읽은 횟수",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -418,7 +435,7 @@
     },
     {
       "type": "timeseries",
-      "title": "서빙 로그 유실률 (분당)",
+      "title": "서빙 로그 유실률",
       "description": "버린 카드와 쓰기에 실패한 카드를 내려준 카드 수로 나눴다. 다른 패널과 같은 짧은 구간으로 계산한다. 경보 AdservingServeLogLossHigh 는 10분 구간으로 보므로 이 선과 값이 다를 수 있다. 목표 0.1% 를 선으로 그렸다.",
       "id": 5,
       "gridPos": {
@@ -484,8 +501,8 @@
     },
     {
       "type": "timeseries",
-      "title": "버리거나 실패한 수 (분당)",
-      "description": "대기열이 차서 버린 카드, serve_log 쓰기 실패, feed_visit_daily 쓰기 실패다. 서버마다 나눠 그렸다.",
+      "title": "서빙 로그와 첫 접속 위치를 못 쓴 수 (분당)",
+      "description": "대기열이 차서 버린 카드, 서빙 로그(serve_log) 쓰기 실패, 첫 접속 위치(feed_visit_daily) 쓰기 실패다. 첫 접속 위치는 회원마다 그날 첫 피드 요청의 위치로, 추천 인원이 읽는다. 서버마다 나눠 그렸다.",
       "id": 6,
       "gridPos": {
         "x": 12,
@@ -533,7 +550,7 @@
         {
           "refId": "B",
           "expr": "sum by (instance) (rate(adserving_serve_log_failed_total[$__rate_interval]) * 60)",
-          "legendFormat": "serve_log 실패 {{instance}}",
+          "legendFormat": "서빙 로그 실패 {{instance}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -542,7 +559,7 @@
         {
           "refId": "C",
           "expr": "sum by (instance) (rate(adserving_feed_visit_failed_total[$__rate_interval]) * 60)",
-          "legendFormat": "feed_visit 실패 {{instance}}",
+          "legendFormat": "첫 접속 위치 실패 {{instance}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -665,8 +682,8 @@
     },
     {
       "type": "logs",
-      "title": "광고 서빙 경고 로그",
-      "description": "지표가 오른 순간의 원인을 본다. 광고 서빙의 로그(event=ADSERVING_...) 가운데 WARN 과 ERROR 를 앱과 배치 서버에서 모두 고르고, 한 줄에 하나씩 보이게 message 만 보인다. 스택 트레이스는 Explore 에서 같은 쿼리의 line_format 을 빼고 본다.",
+      "title": "광고 서빙 경고와 오류 로그",
+      "description": "지표가 오른 순간의 원인을 본다. 광고 서빙의 로그(event=ADSERVING_...) 가운데 WARN 과 ERROR 를 앱과 배치 서버에서 모두 고른다. 한 줄에 하나씩 보이게 message 만 보인다. 스택 트레이스는 Explore 에서 같은 쿼리의 line_format 을 빼고 본다.",
       "id": 10,
       "gridPos": {
         "x": 0,

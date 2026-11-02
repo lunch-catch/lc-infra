@@ -3,17 +3,21 @@
 region: ap-northeast-2
 period_seconds: 60
 range_seconds: 300
+# 기본 delay_seconds(600초)는 10분보다 오래된 값만 가져와 대시보드가 10분 늦는다.
+# ALB 지표는 1 ~ 2분 안에 CloudWatch 에 모여 ALB 에만 120초를 준다. 5분 단위인 RDS, ElastiCache, EC2 크레딧은 그대로 둔다
 
 metrics:
   - aws_namespace: AWS/ApplicationELB
     aws_metric_name: HTTPCode_ELB_5XX_Count
     aws_dimensions: [LoadBalancer]
     aws_statistics: [Sum]
+    delay_seconds: 120
 
   - aws_namespace: AWS/ApplicationELB
     aws_metric_name: HTTPCode_ELB_502_Count
     aws_dimensions: [LoadBalancer]
     aws_statistics: [Sum]
+    delay_seconds: 120
 
   # 백분위는 Statistics 가 아니라 ExtendedStatistics 로 넘긴다.
   # p99 를 aws_statistics 에 두면 CloudWatch 가 InvalidParameterValue 로 거절해
@@ -23,11 +27,13 @@ metrics:
     aws_dimensions: [LoadBalancer]
     aws_statistics: [Average]
     aws_extended_statistics: [p99]
+    delay_seconds: 120
 
   - aws_namespace: AWS/ApplicationELB
     aws_metric_name: ConsumedLCUs
     aws_dimensions: [LoadBalancer]
     aws_statistics: [Sum]
+    delay_seconds: 120
 
   - aws_namespace: AWS/RDS
     aws_metric_name: FreeableMemory

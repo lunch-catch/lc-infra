@@ -154,7 +154,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval])) * 100)",
+          "expr": "100 - (avg by (instance, instance_id) (rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval])) * 100)",
           "legendFormat": "{{instance}} {{instance_id}}",
           "datasource": {
             "type": "prometheus",
@@ -281,7 +281,7 @@
     },
     {
       "type": "timeseries",
-      "title": "load1",
+      "title": "부하 평균 (1분)",
       "description": "",
       "gridPos": {
         "x": 12,
