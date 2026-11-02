@@ -692,7 +692,7 @@ ALB 삭제와 AZ 장애는 주입하지 않는다. 전자는 복구에 시간이
 | 대상 그룹 정상 호스트 수 | CloudWatch `HealthyHostCount` |
 | 응답 코드 분포 | ALB 지표 또는 k6 결과 |
 | DB 커넥션 오류 | 애플리케이션 로그 |
-| 쓰기 경로 응답시간 | `http_server_requests_seconds_bucket` 의 쓰기 엔드포인트. 4.2절의 커밋 지연이 여기 실린다 |
+| 쓰기 경로 응답시간 | `http_server_requests_histogram_seconds_bucket` 의 쓰기 엔드포인트. 4.2절의 커밋 지연이 여기 실린다 |
 
 `hikaricp_connections_pending`이 치솟는데 `tomcat_threads_busy_threads`가 상한에 붙어 있으면, 스레드 고갈이 진행 중이라는 신호다.
 
