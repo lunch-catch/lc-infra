@@ -136,6 +136,16 @@ resource "aws_db_instance" "main" {
       error_message = "aws ssm put-parameter --name /${var.project}/db-password --type SecureString --value '<비밀번호>' --overwrite 를 먼저 실행하라."
     }
   }
+
+  /*
+   * 느린 쿼리 로그 그룹과 순서를 건다 (#76).
+   *
+   * 순서가 없으면 Terraform 이 둘을 함께 만들고 함께 지운다. 2026-11-02 의 down 에서 로그 그룹이 먼저 지워졌는데
+   * Multi-AZ RDS 는 지워지는 동안에도 느린 쿼리를 내보내 AWS 가 같은 이름의 그룹을 다시 만들었다(보존 무기한).
+   * 다음 up 은 그 그룹과 이름이 부딪혀 ResourceAlreadyExistsException 으로 멈췄다.
+   * 이 순서로 만들 때는 그룹이 먼저 생기고, 지울 때는 RDS 가 다 지워진 뒤에 그룹을 지운다.
+   */
+  depends_on = [aws_cloudwatch_log_group.rds_slowquery]
 }
 
 /*
