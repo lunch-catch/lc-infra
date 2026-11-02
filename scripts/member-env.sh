@@ -201,6 +201,23 @@ image_exists() {
     "https://ghcr.io/v2/$BACKEND_REPO/manifests/$1"
 }
 
+#
+# 모니터링 서버 안에서 Prometheus 와 Grafana 가 응답하는지 SSM 으로 묻는다.
+# 두 포트는 밖에 열려 있지 않아 이 길밖에 없다. 부팅 직후 SSM 에이전트가 아직 등록되지 않았으면 실패로 센다.
+#
+mon_ready() {
+  local cmd status
+  cmd=$(aws ssm send-command --instance-ids "$1" --document-name AWS-RunShellScript \
+    --parameters '{"commands":["curl -fs localhost:9090/-/ready && curl -fs localhost:3000/api/health"]}' \
+    --query Command.CommandId --output text 2> /dev/null) || return 1
+  for _ in $(seq 1 6); do
+    sleep 3
+    status=$(aws ssm get-command-invocation --command-id "$cmd" --instance-id "$1" --query Status --output text 2> /dev/null || echo Pending)
+    case "$status" in Pending|InProgress|Delayed) ;; *) break ;; esac
+  done
+  [ "$status" = "Success" ]
+}
+
 expires_at() {
   [ -n "$HOURS" ] || return 0
   date -u -d "+$HOURS hours" +%Y-%m-%dT%H:%M:%S 2> /dev/null || date -u -v+"$HOURS"H +%Y-%m-%dT%H:%M:%S
@@ -238,6 +255,23 @@ up)
     sleep 10
   done
   [ -n "$ok" ] || log "   10분 안에 응답하지 않았다. status 와 앱 로그를 본다"
+
+  #
+  # 모니터링이 준비될 때까지 기다린다 (#76).
+  #
+  # 모니터링 서버는 관측 컨테이너 이미지를 열 개 넘게 받느라 앱보다 늦게 뜬다. 2026-11-02 에는 부팅 뒤 12분이 걸렸다.
+  # 기다리지 않고 완료를 내면 바로 돌린 첫 회차는 k6 지표도 서버 지표도 Prometheus 에 남지 않는다.
+  # 그 회차를 run.sh metrics 와 캡처로 되살릴 길이 없어 여기서 막는다.
+  #
+  MON=$(aws ec2 describe-instances --filters "Name=tag:Project,Values=$PROJECT" "Name=tag:Role,Values=monitoring" "Name=instance-state-name,Values=running" \
+    --query 'Reservations[0].Instances[0].InstanceId' --output text)
+  log "5. 모니터링 대기 $MON (Prometheus, Grafana)"
+  ok=""
+  for _ in $(seq 1 50); do
+    if mon_ready "$MON"; then ok=1; break; fi
+    sleep 20
+  done
+  [ -n "$ok" ] || log "   20분 안에 준비되지 않았다. 시험 전에 status 의 Grafana 명령으로 열리는지 본다"
 
   LT=$(aws ec2 describe-instances --filters "Name=tag:Project,Values=$PROJECT" "Name=tag:Role,Values=load-test" "Name=instance-state-name,Values=running" \
     --query 'Reservations[0].Instances[0].InstanceId' --output text)
