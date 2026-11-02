@@ -21,3 +21,10 @@ datasources:
     type: loki
     access: proxy
     url: http://loki:3100
+
+  # Pyroscope 는 부하 시험 환경에서만 뜬다. 운영에서는 이 데이터 소스를 고르면 연결 오류가 난다
+  - name: Pyroscope
+    uid: pyroscope
+    type: grafana-pyroscope-datasource
+    access: proxy
+    url: http://pyroscope:4040

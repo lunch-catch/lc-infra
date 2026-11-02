@@ -122,6 +122,10 @@ else
   CADDY_BASIC_AUTH_HASH=$(printf '%s' "$CADDY_BASIC_AUTH_HASH" | sed 's/\$/$$/g')
 fi
 
+%{ if profiling_enabled ~}
+# 부하 시험 환경은 프로파일 저장소(Pyroscope)를 함께 띄운다(lunch-catch/lc-infra#71)
+COMPOSE_PROFILES=$${COMPOSE_PROFILES:+$COMPOSE_PROFILES,}profiling
+%{ endif ~}
 install -d -m 0755 "$D"
 cat > "$D/.env" <<ENV
 DB_ENDPOINT=$(get db-endpoint)

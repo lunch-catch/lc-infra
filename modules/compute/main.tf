@@ -41,9 +41,10 @@ locals {
 
   # 모니터링도 같은 이유로 갱신 경로가 필요하다. 다만 읽는 값과 쓰는 자리가 달라 별도다
   refresh_monitoring_env = templatefile("${path.module}/templates/refresh-monitoring-env.sh.tftpl", {
-    project     = var.project
-    region      = var.region
-    db_username = var.db_username
+    project           = var.project
+    region            = var.region
+    db_username       = var.db_username
+    profiling_enabled = var.profiling_enabled
   })
 
   /*

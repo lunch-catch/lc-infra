@@ -74,6 +74,7 @@ module "compute" {
 
   app_image_repository = var.app_image_repository
   load_test_enabled    = var.load_test_enabled
+  profiling_enabled    = true
 }
 
 module "observability" {
