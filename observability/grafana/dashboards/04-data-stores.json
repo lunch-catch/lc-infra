@@ -467,8 +467,8 @@
     },
     {
       "type": "timeseries",
-      "title": "InnoDB 행 락 대기",
-      "description": "쿼리가 다른 트랜잭션이 잡은 행을 기다린 횟수(분당)와 한 번 기다린 평균 시간(오른쪽 축), 지금 기다리는 수다. 모두 0 이면 그 구간에 행 락 대기가 없었다. slow query 가 늘었는데 이 값이 0 이면 느린 까닭은 락이 아니라 쿼리 자체다.",
+      "title": "InnoDB row lock wait",
+      "description": "쿼리가 다른 트랜잭션이 잡은 행을 기다린 row lock wait 횟수(분당)와 한 번 기다린 평균 시간(오른쪽 축), 지금 기다리는 수다. 모두 0 이면 그 구간에 row lock wait 가 없었다. slow query 가 늘었는데 이 값이 0 이면 느린 까닭은 lock 이 아니라 쿼리 자체다.",
       "gridPos": {
         "x": 12,
         "y": 14,
@@ -496,7 +496,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "평균 대기 ms"
+              "options": "평균 wait (ms)"
             },
             "properties": [
               {
@@ -526,7 +526,7 @@
         {
           "refId": "A",
           "expr": "sum(rate(mysql_global_status_innodb_row_lock_waits[$__rate_interval])) * 60",
-          "legendFormat": "대기/분",
+          "legendFormat": "row lock wait/분",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -535,7 +535,7 @@
         {
           "refId": "B",
           "expr": "sum(rate(mysql_global_status_innodb_row_lock_time[$__rate_interval])) / sum(rate(mysql_global_status_innodb_row_lock_waits[$__rate_interval]))",
-          "legendFormat": "평균 대기 ms",
+          "legendFormat": "평균 wait (ms)",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -544,7 +544,7 @@
         {
           "refId": "C",
           "expr": "sum(mysql_global_status_innodb_row_lock_current_waits)",
-          "legendFormat": "지금 대기",
+          "legendFormat": "현재 wait",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
