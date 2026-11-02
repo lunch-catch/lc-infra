@@ -208,6 +208,21 @@ resource "aws_vpc_security_group_ingress_rule" "loki_from_hosts" {
   description                  = "Alloy log push"
 }
 
+// 앱과 배치 서버의 Alloy 가 테일 샘플링한 스팬을 Tempo 로 민다. 로그와 같은 방향이다(lunch-catch/lc-infra#72)
+resource "aws_vpc_security_group_ingress_rule" "tempo_from_hosts" {
+  for_each = {
+    app   = aws_security_group.app.id
+    batch = aws_security_group.batch.id
+  }
+
+  security_group_id            = aws_security_group.mon.id
+  referenced_security_group_id = each.value
+  from_port                    = 4317
+  to_port                      = 4317
+  ip_protocol                  = "tcp"
+  description                  = "Alloy span push to Tempo"
+}
+
 // 앱 서버에 붙인 async-profiler 가 프로파일을 Pyroscope 로 민다. 로그와 같은 방향이다(lunch-catch/lc-infra#71)
 resource "aws_vpc_security_group_ingress_rule" "pyroscope_from_hosts" {
   for_each = {

@@ -126,6 +126,10 @@ fi
 # 부하 시험 환경은 프로파일 저장소(Pyroscope)를 함께 띄운다(lunch-catch/lc-infra#71)
 COMPOSE_PROFILES=$${COMPOSE_PROFILES:+$COMPOSE_PROFILES,}profiling
 %{ endif ~}
+%{ if tracing_enabled ~}
+# 부하 시험 환경은 추적 저장소(Tempo)를 함께 띄운다(lunch-catch/lc-infra#72)
+COMPOSE_PROFILES=$${COMPOSE_PROFILES:+$COMPOSE_PROFILES,}tracing
+%{ endif ~}
 install -d -m 0755 "$D"
 cat > "$D/.env" <<ENV
 DB_ENDPOINT=$(get db-endpoint)
