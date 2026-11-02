@@ -7,8 +7,10 @@
 #   ./loadtest-snapshot.sh --from 1790699360000 --to 1790699480000
 #   ./loadtest-snapshot.sh --dash lc-loadtest     한 장만
 #   AWS_PROFILE=me ./loadtest-snapshot.sh --lt --label r1   팀원 부하 시험 환경(member-env.sh)에서
+#   ./loadtest-snapshot.sh --local --label l1              로컬 구성(observability/local)에서
 #
 #   --lt               부하 시험 환경이다. 접두사가 lunchcatch-lt 이고 운영 계정 가드 대신 AWS_PROFILE 을 요구한다
+#   --local            로컬 구성이다. 터널 없이 localhost 의 그라파나(GRAFANA_PORT, 기본 13000)를 admin 으로 찍는다
 #   --label <이름>     저장 폴더에 붙인다
 #   --minutes <분>     지금부터 거꾸로 몇 분 (기본 5)
 #   --from / --to      유닉스 밀리초로 구간을 직접 준다
@@ -42,7 +44,7 @@ WIDTH="${WIDTH:-1600}"
 # 비워 두면 대시보드마다 패널 배치에서 높이를 잰다. 주면 모든 장을 그 높이로 자른다
 HEIGHT="${HEIGHT:-}"
 
-LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); LT=""
+LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); LT=""; LOCAL=""
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -51,6 +53,7 @@ die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 while [ $# -gt 0 ]; do
   case "$1" in
     --lt)      LT=1; shift ;;
+    --local)   LOCAL=1; shift ;;
     --label)   LABEL="${2:-}"; shift 2 ;;
     --minutes) MINUTES="${2:-}"; shift 2 ;;
     --from)    FROM="${2:-}"; shift 2 ;;
@@ -61,7 +64,10 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-if [ -n "$LT" ]; then
+if [ -n "$LOCAL" ]; then
+  # 로컬 구성은 AWS 를 부르지 않는다
+  LOCAL_PORT="${GRAFANA_PORT:-13000}"
+elif [ -n "$LT" ]; then
   #
   # 팀원 부하 시험 환경이다 (member-env.sh, lc-infra #52). 그 사람의 계정이라 계정 ID 를 미리 알 수 없다.
   # 대신 프로필을 반드시 받는다. 빠뜨렸을 때 기본 자격증명의 엉뚱한 계정으로 가지 않게 하려는 것이다.
@@ -107,28 +113,33 @@ TUNNEL_PID=""
 cleanup() { [ -n "$TUNNEL_PID" ] && kill "$TUNNEL_PID" 2>/dev/null || true; }
 trap cleanup EXIT
 
-id=$(mon_id)
-[ "$id" != "None" ] && [ -n "$id" ] || die "running 인 $PROJECT 모니터링 인스턴스가 없다"
+if [ -n "$LOCAL" ]; then
+  curl -sf "http://localhost:$LOCAL_PORT/api/health" > /dev/null 2>&1 || die "localhost:$LOCAL_PORT 에 그라파나가 없다. observability/local 을 띄운다"
+  PW=admin
+else
+  id=$(mon_id)
+  [ "$id" != "None" ] && [ -n "$id" ] || die "running 인 $PROJECT 모니터링 인스턴스가 없다"
 
-log "1. 터널 $LOCAL_PORT -> $id:3000"
-aws ssm start-session --target "$id" --region "$REGION" \
-  --document-name AWS-StartPortForwardingSession \
-  --parameters "{\"portNumber\":[\"3000\"],\"localPortNumber\":[\"$LOCAL_PORT\"]}" \
-  > /dev/null 2>&1 &
-TUNNEL_PID=$!
+  log "1. 터널 $LOCAL_PORT -> $id:3000"
+  aws ssm start-session --target "$id" --region "$REGION" \
+    --document-name AWS-StartPortForwardingSession \
+    --parameters "{\"portNumber\":[\"3000\"],\"localPortNumber\":[\"$LOCAL_PORT\"]}" \
+    > /dev/null 2>&1 &
+  TUNNEL_PID=$!
 
-deadline=$(( $(date +%s) + 60 ))
-until curl -sf "http://localhost:$LOCAL_PORT/api/health" > /dev/null 2>&1; do
-  [ "$(date +%s)" -ge "$deadline" ] && die "터널이 안 열렸다. session-manager-plugin 이 있나"
-  kill -0 "$TUNNEL_PID" 2>/dev/null || die "터널 프로세스가 죽었다"
-  sleep 2
-done
-log "   열렸다"
+  deadline=$(( $(date +%s) + 60 ))
+  until curl -sf "http://localhost:$LOCAL_PORT/api/health" > /dev/null 2>&1; do
+    [ "$(date +%s)" -ge "$deadline" ] && die "터널이 안 열렸다. session-manager-plugin 이 있나"
+    kill -0 "$TUNNEL_PID" 2>/dev/null || die "터널 프로세스가 죽었다"
+    sleep 2
+  done
+  log "   열렸다"
 
-# 비어 있으면 compose 의 기본값이 admin 이다.
-PW=$(aws ssm get-parameter --name "/$PROJECT/grafana-admin-password" --region "$REGION" \
-      --with-decryption --query 'Parameter.Value' --output text 2>/dev/null || true)
-[ -n "$PW" ] && [ "$PW" != "None" ] || PW=admin
+  # 비어 있으면 compose 의 기본값이 admin 이다.
+  PW=$(aws ssm get-parameter --name "/$PROJECT/grafana-admin-password" --region "$REGION" \
+        --with-decryption --query 'Parameter.Value' --output text 2>/dev/null || true)
+  [ -n "$PW" ] && [ "$PW" != "None" ] || PW=admin
+fi
 
 stamp=$(date -u +%Y-%m-%dT%H-%M-%SZ)
 dir="$OUT_ROOT/${stamp}${LABEL:+_$LABEL}/grafana"

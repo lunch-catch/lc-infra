@@ -20,3 +20,21 @@ scrape_configs:
       - source_labels: [__name__]
         regex: adserving_impression_dispatch.*
         action: keep
+
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels: {instance: local-host, role: app}
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels: {instance: local-host}
+
+  - job_name: mysqld
+    static_configs:
+      - targets: ["mysqld-exporter:9104"]
+
+  - job_name: redis
+    static_configs:
+      - targets: ["redis-exporter:9121"]
