@@ -18,6 +18,18 @@ output "private_subnet_ids" {
   value       = { for k, s in aws_subnet.private : k => s.id }
 }
 
+/*
+ * 값은 private_subnet_ids 와 같고, NAT 와 라우팅이 붙은 뒤에야 정해진다 (#76).
+ *
+ * 서브넷이 생겨도 NAT 경로가 붙기 전에는 밖으로 나가지 못한다. 그 사이에 뜬 서버는 user-data 의
+ * apt-get 이 Network is unreachable 로 멈춘다. 2026-11-02 에 RDS 를 기다리지 않게 바꾼(#78) 모니터링이 그렇게 죽었다.
+ * 서버를 띄우는 compute 는 이것을 받아 경로가 생긴 뒤에 뜬다. RDS 와 캐시는 밖으로 나갈 일이 없어 그대로 둔다.
+ */
+output "private_subnet_ids_routed" {
+  description = "NAT 경로가 붙은 프라이빗 서브넷 ID. 값은 private_subnet_ids 와 같다"
+  value       = { for k, a in aws_route_table_association.private : k => a.subnet_id }
+}
+
 output "security_group_ids" {
   description = "역할별 보안 그룹 ID"
 

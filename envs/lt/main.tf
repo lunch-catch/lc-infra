@@ -59,7 +59,7 @@ module "compute" {
   project             = var.project
   region              = var.region
   public_subnet_ids   = module.network.public_subnet_ids
-  private_subnet_ids  = module.network.private_subnet_ids
+  private_subnet_ids  = module.network.private_subnet_ids_routed
   security_group_ids  = module.network.security_group_ids
   deletion_protection = false
 
