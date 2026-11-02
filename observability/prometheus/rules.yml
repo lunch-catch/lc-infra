@@ -96,7 +96,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          description: "커넥션 풀 대기가 90% 를 넘었다. 느린 쿼리를 확인하라"
+          description: "커넥션 풀 대기가 90% 를 넘었다. slow query 를 확인하라"
 
       # 캐시는 Degradable 이라 죽어도 서비스는 돈다. 강등 경로가 실제로 동작하는지 확인한다.
       - alert: CacheConnectionFailed
