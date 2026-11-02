@@ -26,6 +26,13 @@ module "data" {
   db_security_group_id    = module.network.security_group_ids["db"]
   cache_security_group_id = module.network.security_group_ids["cache"]
   deletion_protection     = false
+
+  /*
+   * 프리 티어 무료 플랜 계정은 자동 백업 보존 기간 7일(모듈 기본값)로는 RDS 를 만들지 못한다 (#76). 운영도 무료 플랜이던 동안 같은 이유로 1을 썼다.
+   *   FreeTierRestrictionError: The specified backup retention period exceeds the maximum available to free tier customers.
+   * 팀원 계정은 대부분 갓 만든 무료 플랜이다. 시험이 끝나면 지우는 환경이라 7일 보존이 필요 없어 어느 플랜에서나 1로 둔다.
+   */
+  db_backup_retention_days = 1
 }
 
 module "edge" {
