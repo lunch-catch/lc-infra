@@ -1,4 +1,4 @@
-# BatchNotRun 의 주기별 임계값을 확인한다 (lc-infra #44).
+# BatchNotRun 의 주기별 임계값(lc-infra #44)과 정산, 분석 경보의 1차(lc-infra #43)를 확인한다.
 #   docker run --rm -v "$PWD/observability/prometheus:/p" --entrypoint promtool prom/prometheus:v3.13.1 test rules /p/rules_test.yml
 #
 # 값은 마지막 성공 시각(초)이다. 0 은 시험 시작 때 성공하고 그 뒤로 성공하지 않은 작업,
@@ -70,3 +70,143 @@ tests:
             exp_annotations: {description: "배치 b1 의 CouponIssueCloseJob.closeCoupons() 가 주기를 넘겨 성공하지 못했다"}
           - exp_labels: {severity: warning, instance: b1, scheduler: "EventLogRetentionJob.purgeExpiredEvents()"}
             exp_annotations: {description: "배치 b1 의 EventLogRetentionJob.purgeExpiredEvents() 가 주기를 넘겨 성공하지 못했다"}
+
+  # 정산과 분석의 "한 건이라도" 경보. 30분에 한 건 오르고 121분에 서버가 다시 떠 카운터가 0 으로 돌아간다.
+  #   20분  평소(0): 울리지 않는다
+  #   40분  한 건 오름: 울린다
+  #   100분 오른 뒤 1시간이 지남: 해소된다
+  #   125분 카운터 초기화(1 -> 0): 줄어든 것을 증가로 보지 않아 울리지 않는다
+  # 같은 카운터의 다른 결과(성공, error 등)는 늘어도 울리지 않는다.
+  - interval: 1m
+    input_series:
+      - series: 'billing_payment_recheck_exhausted_total{job="batch", instance="b1"}'
+        values: '0x30 1x90 0x60'
+      - series: 'billing_pg_recon_total{job="batch", instance="b1", result="mismatch"}'
+        values: '0x30 1x90 0x60'
+      - series: 'billing_pg_recon_total{job="batch", instance="b1", result="recovered"}'
+        values: '0x180'
+      - series: 'billing_pg_recon_total{job="batch", instance="b1", result="error"}'
+        values: '0+1x180'
+      - series: 'analytics_aggregation_total{job="batch", instance="b1", result="failed"}'
+        values: '0x30 1x90 0x60'
+      - series: 'analytics_aggregation_total{job="batch", instance="b1", result="success"}'
+        values: '0+1x180'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: BillingRecheckExhausted
+        exp_alerts: []
+      - eval_time: 40m
+        alertname: BillingRecheckExhausted
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations: {description: "결제 재조회를 다 쓰고도 승인 결과를 모르는 결제가 생겼다. PG 관리자 화면에서 상태를 확인하고 손으로 확정하라"}
+      - eval_time: 100m
+        alertname: BillingRecheckExhausted
+        exp_alerts: []
+      - eval_time: 125m
+        alertname: BillingRecheckExhausted
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: BillingPgReconMismatch
+        exp_alerts: []
+      - eval_time: 40m
+        alertname: BillingPgReconMismatch
+        exp_alerts:
+          - exp_labels: {severity: warning, result: mismatch}
+            exp_annotations: {description: "PG 대사에서 mismatch 가 나왔다. mismatch 는 손으로 맞추고, recovered 는 어긋난 원인을 확인하라"}
+      - eval_time: 100m
+        alertname: BillingPgReconMismatch
+        exp_alerts: []
+      - eval_time: 125m
+        alertname: BillingPgReconMismatch
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: AnalyticsAggregationFailed
+        exp_alerts: []
+      - eval_time: 40m
+        alertname: AnalyticsAggregationFailed
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations: {description: "일 집계가 실패했다. 배치 로그의 ANALYTICS_DAILY_AGGREGATION 이벤트로 원인을 확인하라"}
+      - eval_time: 100m
+        alertname: AnalyticsAggregationFailed
+        exp_alerts: []
+      - eval_time: 125m
+        alertname: AnalyticsAggregationFailed
+        exp_alerts: []
+
+  # 시리즈가 없을 때. 카운터가 아직 등록되지 않은 서버나 개발 환경에서 울리지 않는다.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="batch", instance="b1"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: BillingRecheckExhausted
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: BillingPgReconMismatch
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: AnalyticsAggregationFailed
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: AnalyticsPendingDatesHigh
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: AnalyticsConsistencyViolation
+        exp_alerts: []
+
+  # 밀린 날짜. 배치 b1 이 20분부터 60분까지 3 이고 그 뒤 0 이다. API 서버 a1 은 5 지만 집계를 돌지 않아 보지 않는다.
+  #   15분  0: 울리지 않는다
+  #   25분  3 이 된 지 5분: for 10분이 안 차 울리지 않는다
+  #   35분  3 이 15분째: 울린다
+  #   70분  0 으로 돌아옴: 해소된다
+  - interval: 1m
+    input_series:
+      - series: 'analytics_aggregation_pending_dates{job="batch", instance="b1"}'
+        values: '0x20 3x40 0x30'
+      - series: 'analytics_aggregation_pending_dates{job="app", instance="a1"}'
+        values: '5x90'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: AnalyticsPendingDatesHigh
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: AnalyticsPendingDatesHigh
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: AnalyticsPendingDatesHigh
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations: {description: "집계하지 못한 날짜가 3 일 쌓였다. 일 집계가 며칠째 실패하고 있다. 통계 화면이 그만큼 비어 있다"}
+      - eval_time: 70m
+        alertname: AnalyticsPendingDatesHigh
+        exp_alerts: []
+
+  # 정합성 위반. 배치 두 대 중 마지막으로 집계에 성공한 서버의 값만 본다.
+  #   처음 30분: b2 가 더 늦게 성공했고(200) 위반이 0 이다. b1 에는 예전 실행의 위반 4 가 남아 있지만 울리지 않는다
+  #   30분 뒤: b1 이 다시 성공해(300) 마지막 서버가 되고 위반이 2 다. 울린다
+  #   60분 뒤: b1 의 다음 실행이 위반 0 을 냈다. 해소된다
+  - interval: 1m
+    input_series:
+      - series: 'batch_job_last_success_timestamp_seconds{job="batch", instance="b1", instance_id="i-1", scheduler="DailyAggregationJob.run()"}'
+        values: '100x30 300x30 400x30'
+      - series: 'batch_job_last_success_timestamp_seconds{job="batch", instance="b2", instance_id="i-2", scheduler="DailyAggregationJob.run()"}'
+        values: '200x90'
+      - series: 'analytics_consistency_violations{job="batch", instance="b1", instance_id="i-1", check="ledger_sum"}'
+        values: '4x30 2x30 0x30'
+      - series: 'analytics_consistency_violations{job="batch", instance="b2", instance_id="i-2", check="ledger_sum"}'
+        values: '0x90'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: AnalyticsConsistencyViolation
+        exp_alerts: []
+      - eval_time: 45m
+        alertname: AnalyticsConsistencyViolation
+        exp_alerts:
+          - exp_labels: {severity: warning, check: ledger_sum}
+            exp_annotations: {description: "집계 정합성 검사 ledger_sum 가 위반 2 건을 찾았다. 집계 결과를 믿기 전에 원천 데이터와 맞춰 보라"}
+      - eval_time: 75m
+        alertname: AnalyticsConsistencyViolation
+        exp_alerts: []
