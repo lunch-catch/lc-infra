@@ -339,7 +339,7 @@
         {
           "refId": "A",
           "expr": "mysql_global_status_threads_connected",
-          "legendFormat": "connected",
+          "legendFormat": "연결",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -348,7 +348,7 @@
         {
           "refId": "B",
           "expr": "mysql_global_status_threads_running",
-          "legendFormat": "running",
+          "legendFormat": "쿼리 실행 중 스레드",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -357,7 +357,7 @@
         {
           "refId": "C",
           "expr": "mysql_global_variables_max_connections",
-          "legendFormat": "max",
+          "legendFormat": "상한",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -405,7 +405,7 @@
         {
           "refId": "A",
           "expr": "rate(mysql_global_status_queries[$__rate_interval])",
-          "legendFormat": "queries/s",
+          "legendFormat": "쿼리/초",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -414,7 +414,7 @@
         {
           "refId": "B",
           "expr": "rate(mysql_global_status_slow_queries[$__rate_interval])",
-          "legendFormat": "slow/s",
+          "legendFormat": "느린 쿼리/초",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -591,7 +591,7 @@
         {
           "refId": "A",
           "expr": "redis_memory_used_bytes",
-          "legendFormat": "used",
+          "legendFormat": "사용",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -600,7 +600,7 @@
         {
           "refId": "B",
           "expr": "redis_memory_max_bytes",
-          "legendFormat": "max",
+          "legendFormat": "상한",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -650,7 +650,7 @@
         {
           "refId": "A",
           "expr": "rate(redis_keyspace_hits_total[$__rate_interval]) / (rate(redis_keyspace_hits_total[$__rate_interval]) + rate(redis_keyspace_misses_total[$__rate_interval]))",
-          "legendFormat": "hit ratio",
+          "legendFormat": "적중률",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -661,7 +661,7 @@
     {
       "type": "timeseries",
       "title": "연결 수",
-      "description": "",
+      "description": "Valkey 에 지금 붙어 있는 연결 수다. 열고 바로 닫는 연결은 이 값에 보이지 않아 아래 새 연결 수로 본다.",
       "gridPos": {
         "x": 0,
         "y": 32,
@@ -698,7 +698,7 @@
         {
           "refId": "A",
           "expr": "redis_connected_clients",
-          "legendFormat": "clients",
+          "legendFormat": "연결된 클라이언트",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -746,7 +746,118 @@
         {
           "refId": "A",
           "expr": "rate(redis_commands_processed_total[$__rate_interval])",
-          "legendFormat": "commands/s",
+          "legendFormat": "명령/초",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Valkey 명령 지연",
+      "description": "앱이 Valkey 명령 한 번을 기다린 시간이다(앱의 lettuce_seconds). 위의 초당 명령은 Valkey 가 처리한 명령 수뿐이다.",
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (db_operation) (rate(lettuce_seconds_sum[$__rate_interval])) / sum by (db_operation) (rate(lettuce_seconds_count[$__rate_interval]))",
+          "legendFormat": "평균 {{db_operation}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "max by (db_operation) (lettuce_seconds_max)",
+          "legendFormat": "최대 {{db_operation}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Valkey 새 연결 수 (분당)",
+      "description": "Valkey 가 받아들인 새 연결 수다. 앱이 연결을 다시 쓰면 0 에 가깝다. 파이프라인마다 연결을 새로 열면 요청 수에 맞춰 오른다(lc-backend#1065).",
+      "gridPos": {
+        "x": 0,
+        "y": 50,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(redis_connections_received_total[$__rate_interval])) * 60",
+          "legendFormat": "새 연결/분",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
