@@ -473,7 +473,7 @@
     {
       "type": "timeseries",
       "title": "종류별 스레드 수",
-      "description": "어느 종류의 스레드가 언제부터 늘었는지 본다. 종류는 스레드 이름 끝의 숫자를 지운 것이다(http-nio-8080-exec-12 는 http-nio-8080-exec). 앱과 배치로 나눠 서버를 합쳐 쌓는다. 종류가 50 을 넘으면 그 뒤는 other 로 센다(lc-backend#1095).",
+      "description": "백엔드 개발자가 볼 스레드만 종류별로 그리고 나머지는 '그 밖' 으로 합친다. 요청(http-nio-8080-exec), Valkey I/O(lettuce-*EventLoop), 스케줄러(scheduling), 개발자가 만든 작업 스레드(노출과 서빙 로그 저장, 퍼널 이벤트, 쿠폰)다. 종류는 스레드 이름 끝의 숫자를 지운 것이다(http-nio-8080-exec-12 는 http-nio-8080-exec). 앱과 배치로 나눠 서버를 합쳐 쌓는다(lc-backend#1095). 작업 스레드를 새로 만들면 두 쿼리의 kind 목록에 그 이름을 더한다. 모든 종류는 Explore 에서 jvm_threads_kind_threads 로 본다.",
       "gridPos": {
         "x": 0,
         "y": 34,
@@ -518,8 +518,17 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (job, kind) (jvm_threads_kind_threads{job=~\"app|batch\"})",
+          "expr": "sum by (job, kind) (jvm_threads_kind_threads{job=~\"app|batch\", kind=~\"http-nio-8080-exec|lettuce-.*EventLoop|scheduling|impression-writer|serve-log-writer|funnel-event|coupon-batch|coupon-http-recovery|coupon-reservation-waiter|coupon-sold-out\"})",
           "legendFormat": "{{job}} {{kind}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (job) (jvm_threads_kind_threads{job=~\"app|batch\", kind!~\"http-nio-8080-exec|lettuce-.*EventLoop|scheduling|impression-writer|serve-log-writer|funnel-event|coupon-batch|coupon-http-recovery|coupon-reservation-waiter|coupon-sold-out\"})",
+          "legendFormat": "{{job}} 그 밖",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
