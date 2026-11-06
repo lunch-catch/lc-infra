@@ -29,8 +29,10 @@ otelcol.processor.tail_sampling "app" {
 			threshold_ms = 300
 		}
 	}
+	// 핵심 거래 경로는 실패하면 돈이나 데이터를 잃는 요청이다(lc-backend 의 qa-reliability-guideline.md SLO 등급).
+	// 노출은 정산 차감으로 이어져 여기에 든다. 피드는 조회라 일반 요청과 같이 1% 만 남긴다(lunch-catch/lc-infra#96).
 	policy {
-		name = "core-routes"
+		name = "core-transactions"
 		type = "and"
 		and {
 			and_sub_policy {
@@ -38,7 +40,7 @@ otelcol.processor.tail_sampling "app" {
 				type = "string_attribute"
 				string_attribute {
 					key    = "http.route"
-					values = ["/v1/feed", "/v1/impressions"]
+					values = ["/v1/impressions"]
 				}
 			}
 			and_sub_policy {
