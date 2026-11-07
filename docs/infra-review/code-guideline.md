@@ -270,7 +270,7 @@ ASG가 인스턴스를 교체할 때 시작 템플릿의 태그가 고정되어 
 * `INF-12-03` SSM `current-sha` 파라미터에 `ignore_changes = [value]` 가 걸려 있는가
   값은 배포 스크립트가 갱신한다. 이 줄이 없으면 다음 `apply` 가 값을 `bootstrap` 으로 되돌려 전 인스턴스가 구버전으로 기동한다.
 * `INF-12-04` 앱 ASG 에 `ignore_changes = [desired_capacity]` 가 걸려 있는가
-  배포 중 desired 가 일시적으로 2가 된다. 이 줄이 없으면 `apply` 가 배포를 되돌린다.
+  배포 중 desired 가 일시적으로 desired + 1(평소 2면 3)이 되고, 오토스케일링 정책도 desired 를 바꾼다. 이 줄이 없으면 `apply` 가 배포와 확장을 되돌린다.
 * `INF-12-05` 앱 ASG 가 `min_size` 2, `desired_capacity` 2, `max_size` 3, `health_check_type` `ELB` 인가
   `min_size` 가 1이면 한산한 구간에 앱이 단일 장애점이다. `max_size` 3 이 확장 상한이자 배포 여유를 겸한다. 배포가 desired + 1 로 신규를 띄우므로 상한이 desired 보다 커야 배포 절차가 성립한다.
   2026-10 이전 기준은 0, 1, 2 였다. 오토스케일링(`INF-39`)을 넣으며 바꿨다.

@@ -21,12 +21,12 @@ QA_LINK = "https://github.com/lunch-catch/lc-backend/blob/main/docs/software-qua
 
 # 번호 -> (문서 이름, 링크, 원문, 층위)
 items = {}
-for line in INF_DOC.read_text().splitlines():
+for line in INF_DOC.read_text(encoding="utf-8").splitlines():
     m = re.match(r"^\* `(INF-\d+-\d+)` (.+)$", line)
     if m:
         items[m.group(1)] = ("code-guideline.md", INF_LINK, m.group(2).strip(), "")
 for f in sorted(QA_DIR.glob("qa-*-guideline.md")):
-    for line in f.read_text().splitlines():
+    for line in f.read_text(encoding="utf-8").splitlines():
         m = re.match(r"^\* `\[([^]]+)\]` `([A-Z]+-\d+-\d+)` (.+)$", line)
         if m:
             items[m.group(2)] = (f.name, QA_LINK + f.name, m.group(3).strip(), m.group(1))
@@ -52,4 +52,6 @@ def expand(m):
     return block([x.strip() for x in m.group(2).split(",")], indent)
 
 
-sys.stdout.write(re.sub(r"^( *)\{\{([^}]+)\}\}$", expand, TEMPLATE.read_text(), flags=re.M))
+# 운영체제 기본 인코딩과 상관없이 같은 결과를 낸다
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stdout.write(re.sub(r"^( *)\{\{([^}]+)\}\}$", expand, TEMPLATE.read_text(encoding="utf-8"), flags=re.M))
