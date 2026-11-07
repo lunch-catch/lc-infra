@@ -29,8 +29,11 @@ otelcol.processor.tail_sampling "app" {
 			threshold_ms = 300
 		}
 	}
+	// 핵심 거래 경로는 실패하면 돈이나 데이터를 잃는 요청이다(lc-backend 의 qa-reliability-guideline.md SLO 등급).
+	// 노출과 정산의 결제와 환불이 여기에 든다. 피드는 조회라 일반 요청과 같이 1% 만 남긴다(lunch-catch/lc-infra#96).
+	// 경로 목록은 lc-backend 의 docs/observability/트레이싱과_프로파일링_설계.md 4장이 갖는다.
 	policy {
-		name = "core-routes"
+		name = "core-transactions"
 		type = "and"
 		and {
 			and_sub_policy {
@@ -38,7 +41,17 @@ otelcol.processor.tail_sampling "app" {
 				type = "string_attribute"
 				string_attribute {
 					key    = "http.route"
-					values = ["/v1/feed", "/v1/impressions"]
+					values = [
+						"/v1/admin/payments/{paymentId}:recheck",
+						"/v1/admin/point-adjustments",
+						"/v1/admin/refund-requests/{refundRequestId}:approve",
+						"/v1/admin/refund-requests/{refundRequestId}:reject",
+						"/v1/admin/settlement-mismatches/{mismatchId}:closeWithoutAdjustment",
+						"/v1/impressions",
+						"/v1/owner/payments",
+						"/v1/owner/payments/{paymentId}:confirm",
+						"/v1/owner/refund-requests",
+					]
 				}
 			}
 			and_sub_policy {
