@@ -65,6 +65,8 @@ services:
       # 관리자 1명당 템플릿 생성과 수정을 분당 몇 번까지 받을지다. 시연 촬영에서 연달아 호출해도 걸리지 않게 개발과 같이 올렸다 (lc-infra #32)
       TEMPLATE_GENERATION_RATE_LIMIT: "20"
       APP_NAME: "${project}"
+      # 배포 버전이다. 이미지 태그와 같은 커밋 해시를 넘겨 로그 필드와 지표 태그의 version 이 된다
+      APP_VERSION: "$${GIT_SHA}"
       APP_INSTANCE_ID: "$${APP_INSTANCE_ID}"
 %{ if role == "batch" ~}
       # 배치 스케줄러 스위치. SSM batch-scheduler-enabled 에서 온다.
