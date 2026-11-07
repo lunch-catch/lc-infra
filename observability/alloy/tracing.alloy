@@ -21,12 +21,29 @@ otelcol.processor.tail_sampling "app" {
 			status_codes = ["ERROR"]
 		}
 	}
-	// 피드 p99 목표(300ms)를 넘은 요청은 모두 남긴다
+	// 피드 p99 목표(300ms)를 넘은 HTTP 요청은 모두 남긴다. http.route 가 있는 트레이스만 요청이다.
+	// @Scheduled 작업은 오래 걸리는 것이 정상인 것이 많고 기준 초과를 지표로 판정해 이 규칙에서 뺀다(lunch-catch/lc-infra#104).
+	// 작업의 판정 기준은 lc-backend#1128 이 갖는다.
 	policy {
-		name = "slow"
-		type = "latency"
-		latency {
-			threshold_ms = 300
+		name = "slow-requests"
+		type = "and"
+		and {
+			and_sub_policy {
+				name = "request"
+				type = "string_attribute"
+				string_attribute {
+					key                    = "http.route"
+					values                 = [".+"]
+					enabled_regex_matching = true
+				}
+			}
+			and_sub_policy {
+				name = "over-300ms"
+				type = "latency"
+				latency {
+					threshold_ms = 300
+				}
+			}
 		}
 	}
 	// 핵심 거래 경로는 실패하면 돈이나 데이터를 잃는 요청이다(lc-backend 의 qa-reliability-guideline.md SLO 등급).
