@@ -1,0 +1,240 @@
+# CodeRabbit 자동 코드 리뷰 설정 (lc-infra #102).
+#
+# fresh-market 에서는 이 리뷰를 LLM 으로 돌렸다(fm-infra 의 .github/llm-verify, verify.sh).
+# lunchcatch 는 lc-backend 와 같이 CodeRabbit 으로 돌린다.
+#
+# 판정 기준은 이 파일이 아니라 두 곳이 갖는다. 이 파일은 그것을 CodeRabbit 에 전달하는 배선이다.
+#   docs/infra-review/code-guideline.md (INF-)   이 인프라의 확정 결정이 코드에 부과하는 제약
+#   lc-backend docs/software-quality (FLX-, OBS-, REL- 등)   일반 품질 속성. 이 저장소는 [인프라] 항목을 본다
+# 규칙을 바꿀 때는 가이드 문서를 먼저 고친다. 그다음 이 파일을 직접 고치지 않고 템플릿에서 다시 만든다.
+#   python3 scripts/coderabbit-items.py docs/infra-review/coderabbit-template.yaml <lc-backend 작업 사본> > .coderabbit.yaml
+# 템플릿의 {{번호,번호}} 자리에 가이드 원문이 들어간다. 손으로 옮기면 가이드를 고칠 때 어긋난다.
+#
+# 스키마: https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json
+
+language: ko-KR
+
+# 250자 상한이 있어 핵심만 적는다. 나머지는 아래 path_instructions 의 공통 항목에 있다
+tone_instructions: >-
+  제목, 본문, 근거, 인용까지 모든 문장을 한국어로 쓴다. 가이드 문장을 영어로 옮기지 않고
+  한국어 원문을 그대로 인용한다. 지적마다 [BLOCKER], [MAJOR], [MINOR], [NIT] 를 앞에 붙인다.
+  리소스 이름, 변수, 파일 경로, 규칙 번호는 원문 그대로 둔다.
+
+reviews:
+  # lc-backend 와 같다. 지적이 많으면 BLOCKER 와 MAJOR 부터 본다
+  profile: chill
+
+  # 병합을 막는 것은 결정론적 검사(terraform.yml 의 fmt 와 validate, registry-check.yml)뿐이다.
+  # LLM 판정은 재현율이 측정되지 않아 막지 않고 지적만 남긴다(docs/verification/verification-guideline.md)
+  request_changes_workflow: false
+  commit_status: false
+  fail_commit_status: false
+
+  high_level_summary: true
+  high_level_summary_instructions: >-
+    한국어로 쓴다. 무엇을 바꿨는지와 왜 바꿨는지를 각각 한 문장으로 적고,
+    리소스와 모듈 이름은 원문 그대로 둔다. 릴리스 노트 문투를 쓰지 않는다.
+  review_status: true
+  collapse_walkthrough: true
+  abort_on_close: true
+  sequence_diagrams: false
+  estimate_code_review_effort: true
+  poem: false
+
+  pre_merge_checks:
+    # 이 저장소에는 docstring 을 다는 언어가 없다
+    docstrings:
+      mode: "off"
+
+  auto_review:
+    enabled: true
+    # 초안에는 돌지 않는다. 작성 중인 PR 에 지적이 쌓이면 읽지 않게 된다
+    drafts: false
+    auto_incremental_review: true
+
+  path_filters:
+    # 그림과 자동 생성물은 사람이 고치는 코드가 아니다
+    - "!**/*.drawio"
+    - "!**/*.png"
+    - "!**/.terraform.lock.hcl"
+    - "!loadtest-runs/**"
+
+  path_instructions:
+    # --- 모든 파일 ------------------------------------------------------------
+    - path: "**"
+      instructions: |
+        모든 문장을 한국어로 쓴다. 요약, 워크스루, 지적, 근거, 인용이 모두 대상이다.
+        가이드와 설계 문서의 문장을 영어로 번역해 인용하지 않는다. 한국어 원문을 그대로 옮기고
+        어느 항목인지 번호로 가리킨다.
+
+        판정 기준은 두 곳의 점검 항목으로 한정한다. 가이드에 없는 항목은 지적하지 않는다.
+        새 기준이 필요하면 가이드를 먼저 고치라고 제안한다.
+          docs/infra-review/code-guideline.md 의 INF- 항목 (이 저장소)
+          lc-backend 의 docs/software-quality/qa-*-guideline.md 항목
+        *-rationale.md 와 docs/system-design 은 설명을 보강할 때만 참고하고, 그것을 근거로 새 지적을 만들지 않는다.
+
+        docs/software-quality 의 항목에는 층위 표기가 붙어 있다. 이 저장소는 [인프라] 만 쓰고,
+        그중 아래 경로 지시가 번호를 직접 열거한 것만 쓴다. 파일 하나로 판정되는 항목만 열어 두었다.
+        [코드] 와 [설계] 는 lc-backend 의 리뷰가 본다. [프로세스] 는 기록을 봐야 판정되어 쓰지 않는다.
+        열거되지 않은 번호로는 지적하지 않고, 필요하면 사람이 볼 사안이라고만 한 줄 적는다.
+
+        품질 속성 가이드의 수치에는 등급이 붙어 있다. 등급 C 는 근거 없이 정한 예시값이므로
+        그 수치를 어겼다고 지적하지 않는다. 설정이 있는지 없는지는 보되 값의 적정성은 보지 않는다.
+        이 저장소의 확정값은 docs/system-design 과 INF- 항목이 정한다. 둘이 다르게 말하면 INF- 가 이긴다.
+
+        런타임 상태를 조회해야 판정되는 것(docs/infra-review/preflight-guideline.md)과
+        사람의 판단이나 시험이 필요한 것(operation-guideline.md)은 지적하지 않는다.
+
+        한 사안은 한 번만 지적한다. INF- 항목과 품질 속성 항목이 같은 문제를 다루면
+        더 구체적인 INF- 만 쓰고 품질 속성은 보류한다(docs/infra-review/INFRAREVIEW.md 의 중복 지적 방지).
+
+        지적마다 근거를 아래 모양으로 붙인다. 문서별로 묶는다. 문서 이름을 링크로 걸고 그 문서의 항목만
+        목록으로 나열한다. 전체 경로를 본문에 적지 않는다. 링크 주소에만 둔다. 목록 앞뒤에 빈 줄을 둔다.
+
+          근거 [code-guideline.md](https://github.com/lunch-catch/lc-infra/blob/main/docs/infra-review/code-guideline.md)
+
+          - `INF-12-11` 22번 포트를 여는 인바운드 규칙이 없는가
+
+        항목 내용은 가이드 문서의 문장을 그대로 옮긴다. 요약하거나 번역하거나 고쳐 쓰지 않는다.
+        번호와 문서를 추측하지 않는다. 가이드에서 찾지 못하면 그 지적을 만들지 않는다.
+        저장소 이름은 lc-infra 다. 품질 속성 문서의 링크는 lc-backend 를 가리킨다.
+
+        저장소 규칙(CLAUDE.md)을 함께 본다. 이것은 가이드 항목이 아니라 저장소 작업 규칙이라 번호 없이 지적한다.
+          문서와 주석에 em dash 와 가운데점(U+00B7)을 쓰지 않는다. 화살표는 ->, <-, <-> 로 쓴다.
+          주석은 문장 수로 판단한다. 한 문장이면 한 줄 주석이고, 둘 이상이면 블록 주석이다.
+          Terraform 의 블록 주석은 /* 와 */ 를 각각 한 줄에 두고 본문 줄을 " * " 로 시작한다.
+          문서의 제목을 질문으로 쓰지 않는다.
+          AWS 계정 ID(12자리 숫자)를 새로 저장소에 넣지 않는다. 저장소가 PUBLIC 이다. 이미 있는 운영 계정 기본값은 지적하지 않는다.
+
+        외부 링크(AWS 문서, 블로그)는 사람을 위한 참고다. 가져오지 말고 가이드 본문으로만 판단한다.
+
+    # --- Terraform -------------------------------------------------------------
+    - path: "**/*.tf"
+      instructions: |
+        code-guideline.md 12장(인프라 코드)이 이 경로의 주된 기준이다. 나머지 장의 판정 대상은 lc-backend 코드다.
+
+        구조를 알고 본다. envs/prod 와 envs/lt 가 같은 modules/{network,data,edge,compute,observability} 를 조립한다.
+        모듈은 출력과 변수로만 이어지고, 환경마다 다른 값은 envs/*/main.tf 와 tfvars 가 넘긴다.
+        envs/lt 는 팀원 부하 시험 환경이다. 시험이 끝나면 지우는 환경이라 아래를 일부러 다르게 둔다. 지적하지 않는다.
+          deletion_protection = false (INF-12-06, INF-12-15 의 보호 장치)
+          db_backup_retention_days = 1 (무료 플랜 계정의 RDS 제약)
+          도메인과 ACM 없음 (INF-12-18, INF-12-22)
+          k6 부하 생성기 인스턴스와 자동 정리 스케줄
+        dev/ 와 bootstrap/ 은 별도 루트다. 12장의 앱 ASG, RDS 항목은 envs/prod 와 modules 를 본다.
+
+        prevent_destroy 는 변수로 바꿀 수 없어 모듈에 두지 않는다. 운영의 파괴 가드는 envs/prod 의
+        terraform_data.destroy_guard 하나가 맡고, AWS 쪽 보호는 deletion_protection 변수 하나가 묶는다.
+
+        이 경로에서 쓸 항목이다.
+
+        {{INF-12-01,INF-12-02,INF-12-03,INF-12-04,INF-12-05,INF-12-06,INF-12-08,INF-12-09,INF-12-10,INF-12-11,INF-12-12,INF-12-13,INF-12-14,INF-12-15,INF-12-16,INF-12-17,INF-12-18,INF-12-19,INF-12-20,INF-12-21,INF-12-22,INF-12-23,INF-12-24,INF-12-25,INF-11-07}}
+
+        {{FLX-4-01,FLX-4-02,OBS-3-06,REL-4-05,REL-5-01,REL-5-02,REL-5-04}}
+
+    # --- 서버 부팅과 앱 실행 템플릿 -----------------------------------------------
+    - path: "modules/**/templates/**"
+      instructions: |
+        인스턴스가 부팅할 때 도는 user-data 와, 앱과 배치를 띄우는 compose, systemd 템플릿이다.
+        Terraform 의 templatefile 이 렌더링하므로 셸의 ${...} 는 $${...} 로 적어야 한다. 그대로 두면 렌더링이 실패하거나 값이 사라진다.
+        common-bootstrap.sh 가 set -euo pipefail 을 건다. 없을 수 있는 값을 읽다 멈추지 않는지 본다.
+        비밀값은 SSM 에서 읽어 파일 권한을 좁혀 두고 로그(user-data.log)에 남기지 않는다.
+
+        이 경로에서 쓸 항목이다.
+
+        {{INF-5-01,INF-5-02,INF-5-03,INF-5-04,INF-7-01,INF-7-02,INF-12-07,INF-12-08,INF-12-26,INF-12-27,INF-9-05}}
+
+        {{FLX-4-02,OBS-7-03,REL-5-03,PERF-4-04}}
+
+    # --- 운영 스크립트 ----------------------------------------------------------
+    - path: "scripts/**"
+      instructions: |
+        배포, 롤백, 환경 기동과 종료, 캡처 스크립트다. 엉뚱한 계정에 쓰지 않도록 계정이나 AWS_PROFILE 을 확인하는 가드가 있는지 본다.
+        terraform plan 과 apply 를 확인 없이 잇거나, 지우는 명령이 대상 확인 없이 도는지 본다.
+        zsh 에서도 쓰이므로 따옴표 없는 변수 펼치기에 기대지 않는다.
+
+        이 경로에서 쓸 항목이다.
+
+        {{INF-7-03,INF-7-04}}
+
+        {{FLX-4-02}}
+
+    # --- 경보 규칙 -------------------------------------------------------------
+    - path: "observability/prometheus/**"
+      instructions: |
+        rules.yml 을 고치면 rules_test.yml 의 promtool 시험도 함께 고쳤는지 본다.
+        경보마다 평소, 임계 초과, 시리즈 없음, 카운터 초기화, 해소를 확인한다(lc-infra #43).
+        경보에는 description 에 할 일을 적고, 규칙 위 주석에 임계값의 근거를 적는다.
+        카운터가 처음 오를 때 시계열이 생기면 increase 가 첫 건을 놓친다. 백엔드가 기동 때 0 으로 등록하는지 근거를 확인한다.
+
+        이 경로에서 쓸 항목이다.
+
+        {{INF-8-03}}
+
+        {{OBS-6-02,DI-7-02,OBS-4-04}}
+
+    # --- 관측 스택 설정 ---------------------------------------------------------
+    - path: "observability/{compose.yaml,alloy/**,loki/**,tempo/**,alertmanager/**,cloudwatch/**,Caddyfile}"
+      instructions: |
+        모니터링 서버의 관측 스택이다. 서버가 t4g.small(2 GB)이라 컨테이너를 더하거나 메모리 상한을 바꾸면 남는 메모리를 본다.
+        이미지 태그는 패치 버전까지 고정한다. latest 를 쓰지 않는다(기술 스택 확정 문서 6장).
+        부하 시험 환경에서만 뜨는 컨테이너는 compose 프로필로 묶는다.
+
+        이 경로에서 쓸 항목이다.
+
+        {{INF-9-04,INF-9-05}}
+
+        {{OBS-3-01,OBS-3-06,OBS-4-04,OBS-5-03}}
+
+    # --- 대시보드 --------------------------------------------------------------
+    - path: "observability/grafana/**"
+      instructions: |
+        대시보드 JSON 의 규약은 docs/wiki/팀원-도메인-모니터링.md 2.3절이 갖는다. uid 는 lc-{도메인},
+        시계열의 계산 구간은 $__rate_interval, 패널마다 description 을 둔다. 근거는 그 문서의 절 번호로 단다.
+        대시보드 파일은 json.dumps(ensure_ascii=False, indent=2) 형식을 유지한다.
+        k6 지표는 api, phase, testid, status, expected_response 라벨만 남는다(lc-infra #86). url 과 name 으로 묶지 않는다.
+
+        이 경로에서 쓸 항목이다.
+
+        {{OBS-4-01}}
+
+    # --- 문서 -----------------------------------------------------------------
+    - path: "**/*.md"
+      instructions: |
+        문서는 위 저장소 규칙(CLAUDE.md)으로만 본다. 가이드 항목으로 지적하지 않는다.
+        docs/wiki 는 팀원이 그대로 따라 하는 순서다. 명령과 경로가 지금 코드와 맞는지 본다.
+        docs/infra-review 의 항목을 고치면 이 파일의 경로별 항목 목록도 다시 만들었는지 본다(scripts/coderabbit-items.py).
+
+  tools:
+    # 한국어 산문에 영어 기준 지적이 쏟아진다. 문서 규칙은 CLAUDE.md 가 소유한다
+    markdownlint:
+      enabled: false
+    languagetool:
+      enabled: false
+    # Terraform 과 셸, 워크플로는 도구가 먼저 본다. LLM 지적과 겹치면 도구 쪽을 남긴다
+    tflint:
+      enabled: true
+    shellcheck:
+      enabled: true
+    actionlint:
+      enabled: true
+    gitleaks:
+      enabled: true
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    #
+    # 반드시 files 와 applyTo 를 쓰는 객체 형태로 적는다. 문자열 항목은 그 가이드를 자기 디렉터리 안에만 적용한다.
+    # lc-backend: 로 시작하는 항목은 다른 저장소의 기본 브랜치 파일을 읽는다. CodeRabbit 앱이 lc-backend 를 읽을 수 있어야 한다.
+    #
+    filePatterns:
+      # 저장소 작업 규칙과 리뷰 진입점. 모든 변경에 적용한다
+      - files: "CLAUDE.md,docs/infra-review/INFRAREVIEW.md,docs/infra-review/code-guideline.md"
+        applyTo: "**"
+
+      # 일반 품질 속성. 이 저장소는 [인프라] 항목만 path_instructions 가 연 경로에서 쓴다
+      - files: "lc-backend:docs/software-quality/qa-*-guideline.md,lc-backend:docs/software-quality/quality-attributes.md"
+        applyTo: "**/*.tf,modules/**,scripts/**,observability/**"
