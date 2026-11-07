@@ -21,7 +21,8 @@ otelcol.processor.tail_sampling "app" {
 			status_codes = ["ERROR"]
 		}
 	}
-	// 피드 p99 목표(300ms)를 넘은 HTTP 요청은 모두 남긴다. http.route 가 있는 트레이스만 요청이다.
+	// 500ms 를 넘은 HTTP 요청은 모두 남긴다. http.route 가 있는 트레이스만 요청이다.
+	// 목표가 없는 API 의 기준(500ms)을 모든 API 에 공통으로 건다. 피드(목표 300ms)의 300~500ms 는 나머지 규칙(1%)만 따른다.
 	// @Scheduled 작업은 오래 걸리는 것이 정상인 것이 많고 기준 초과를 지표로 판정해 이 규칙에서 뺀다(lunch-catch/lc-infra#104).
 	// 작업의 판정 기준은 lc-backend#1128 이 갖는다.
 	policy {
@@ -38,10 +39,10 @@ otelcol.processor.tail_sampling "app" {
 				}
 			}
 			and_sub_policy {
-				name = "over-300ms"
+				name = "over-500ms"
 				type = "latency"
 				latency {
-					threshold_ms = 300
+					threshold_ms = 500
 				}
 			}
 		}
