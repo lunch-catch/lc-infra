@@ -42,9 +42,12 @@ Claude CLI 모드에서 친다. 다른 CLI 를 쓰면 터미널에서 넘긴다.
 `--full` 은 커밋이 아니라 **점검 항목**을 넓힌다. 기본은 infra 항목만 보고,
 `--full` 이면 common 의 품질 속성 항목까지 본다.
 
-## PR 때는 LLM 판정이 돌지 않는다
+## PR 때는 CodeRabbit 이 리뷰하고, 막는 것은 결정론적 검사뿐이다
 
-이 저장소의 CI 는 **결정론적인 검사만** 하고, 그것만 병합을 막는다.
+PR 이 열리면 CodeRabbit 이 리뷰한다(lc-infra #102). fresh-market 의 LLM 판정(G-PR)을 대신한다.
+기준과 설정은 `docs/infra-review/INFRAREVIEW.md` 의 "PR 리뷰" 가 설명한다. **CodeRabbit 은 병합을 막지 않는다.** 재현율을 재지 않은 판정이라 지적만 남긴다.
+
+병합을 막는 것은 CI 의 **결정론적인 검사**뿐이다.
 
 | 워크플로 | 언제 | 차단 |
 |---|---|---|
@@ -54,7 +57,7 @@ Claude CLI 모드에서 친다. 다른 CLI 를 쓰면 터미널에서 넘긴다.
 
 `terraform plan` 은 AWS 자격증명이 있을 때만 돈다. 없으면 건너뛰고 `fmt` 와 `validate` 만으로 판정한다.
 
-**커버리지와 정적 분석 게이트는 없다.** 그 둘과 LLM 판정(G-PR)은 `lc-backend` 가 맡는다. 여기에는 테스트할 애플리케이션 코드가 없다.
+**커버리지와 정적 분석 게이트는 없다.** 그 둘은 `lc-backend` 가 맡는다. 여기에는 테스트할 애플리케이션 코드가 없다.
 
 ## 점검 항목을 고쳤을 때
 
@@ -73,6 +76,12 @@ OK  infra 98건. 문서와 레지스트리가 일치한다
 ```
 
 잊어도 `registry-check.yml` 이 잡지만, 그때는 PR 이 막힌다.
+
+항목 문장을 고쳤으면 CodeRabbit 설정도 다시 만든다. 그쪽은 검사가 잡아 주지 않는다.
+
+```bash
+python3 scripts/coderabbit-items.py docs/infra-review/coderabbit-template.yaml ../lc-backend > .coderabbit.yaml
+```
 
 **항목 줄 아래 들여쓴 줄은 판정 기준으로 함께 실린다.**
 
@@ -94,6 +103,6 @@ OK  infra 98건. 문서와 레지스트리가 일치한다
 
 ## 관련 문서
 
-* 판정 절차: common 저장소의 `docs/verification/g-local.md`
-* 설계 근거: common 저장소의 `docs/software-quality/qa-llm-verification.md`
-* backend 쪽 검증: `lc-backend` 의 `docs/verification/verification-guide.md`
+* PR 리뷰 기준과 설정: [INFRAREVIEW.md](../infra-review/INFRAREVIEW.md) 의 "PR 리뷰", 저장소 루트의 `.coderabbit.yaml`
+* 일반 품질 속성: `lc-backend` 의 `docs/software-quality/`
+* backend 쪽 리뷰 규약: `lc-backend` 의 `docs/CODEREVIEW.md`

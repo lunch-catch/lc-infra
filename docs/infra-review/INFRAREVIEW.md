@@ -10,7 +10,7 @@
 
 이 디렉터리는 그중 판정 가능한 것만 뽑아 형식을 통일한다.
 **system-design 문서는 수정하지 않는다.** 저쪽이 rationale, 이쪽이 guideline 역할이다.
-`lunch-catch/lc-backend`의 `docs/code-architecture/`가 guideline과 rationale을 짝지은 것과 같은 구조다.
+`lunch-catch/lc-backend`의 `docs/code-convention/`과 `docs/software-quality/`가 guideline과 rationale을 짝지은 것과 같은 구조다.
 
 ## 문서 구성
 
@@ -58,20 +58,23 @@ k8s manifest 는 판정 대상이 아니다. 오케스트레이션을 EC2 와 Co
 
 | 저장소 | 다루는 것 |
 |--------|-----------|
-| `lunch-catch/.github` | 일반 품질 속성. "얼마나 잘 하는가" (성능, 신뢰성, 보안 등 217건) |
-| `lunch-catch/lc-backend` | 코드 관용과 패턴. "어떻게 쓰는가" (250건) |
+| `lunch-catch/lc-backend` 의 `docs/software-quality/` | 일반 품질 속성. "얼마나 잘 하는가" (성능, 신뢰성, 보안 등 225건) |
+| `lunch-catch/lc-backend` 의 `docs/code-convention/` | 코드 관용과 패턴. "어떻게 쓰는가" |
 | **`lunch-catch/lc-infra`** | **이 인프라의 확정 결정이 코드에 부과하는 제약** |
 
 겹칠 때의 소유 기준은 **더 구체적이고 근거가 강한 쪽**이다.
 
 | 사안 | 소유 |
 |------|------|
-| 타임아웃이 설정되어 있는가 (일반) | `.github`의 `REL-2-*` |
+| 타임아웃이 설정되어 있는가 (일반) | `software-quality`의 `REL-2-*` |
 | 타임아웃 값이 확정값과 일치하는가 | **이 저장소** |
-| 트랜잭션 안에서 외부 API를 호출하지 않는가 | `.github`의 `DI-4-*` |
+| 트랜잭션 안에서 외부 API를 호출하지 않는가 | `software-quality`의 `DI-4-*` |
 | 배치 상태 전이가 조건부 UPDATE인가 | **이 저장소** |
 
-일반 기준은 `.github`이 갖고, **이 인프라에서만 성립하는 제약**을 여기가 갖는다.
+일반 기준은 lc-backend 의 `software-quality` 가 갖고, **이 인프라에서만 성립하는 제약**을 여기가 갖는다.
+
+품질 속성은 원래 공통 저장소(`lunch-catch/.github`)에 있었다. lc-backend 로 옮겨 고친 뒤로는 그쪽이 원본이고, 공통 저장소에는 레지스트리 생성기(`gen_items.py`)만 남았다.
+품질 속성 항목에는 층위 표기(`[코드]`, `[설계]`, `[인프라]`, `[프로세스]`)가 붙어 있다. `[코드]` 는 lc-backend 의 리뷰가 보고, 인프라 파일로 판정되는 `[인프라]` 항목은 이 저장소의 리뷰가 본다(아래 "PR 리뷰").
 
 ### 중복 지적 방지
 
@@ -85,11 +88,7 @@ k8s manifest 는 판정 대상이 아니다. 오케스트레이션을 EC2 와 Co
 | 락 획득과 작업 트랜잭션 분리 | `INF-1-07` | `DI-4-03` 트랜잭션이 필요 이상으로 길지 않은가 |
 | 스케일 인 시 배치 중단 방지 | `INF-2-01`, `INF-2-02` | `FLX-2-01` 스케줄러 중복 실행 방지 |
 
-이 관계는 `lunch-catch/.github`의 `items.yml`에 `defers_to` 필드로 기계 판독 가능하게 기록되어 있다.
-
-```yaml
-- {id: DI-2-01, ..., defers_to: [INF-1-04, INF-1-05], title: "갱신 손실 ..."}
-```
+PR 리뷰(CodeRabbit)는 이 원칙을 `.coderabbit.yaml` 의 공통 지시로 받는다. INF- 항목과 품질 속성 항목이 같은 사안이면 INF- 만 쓴다.
 
 **항목을 지우지 않는 이유가 있다.**
 `DI-2-01`은 배치가 아닌 일반 코드에도 적용된다. 배치 맥락에서만 양보하는 것이지 불필요한 항목이 아니다.
@@ -108,3 +107,21 @@ k8s manifest 는 판정 대상이 아니다. 오케스트레이션을 EC2 와 Co
 분류 기준을 "판정 대상이 어디 있는가"로 잡으면 이 저장소에 남는 항목이 거의 없어진다.
 `INF-3`, `INF-4`, `INF-5`도 전부 backend의 `application.yml`과 `compose.yml`이 대상이기 때문이다.
 **기준은 "어느 결정에서 파생됐는가"다.**
+
+## PR 리뷰
+
+PR 이 열리면 CodeRabbit 이 리뷰한다(lc-infra #102). fresh-market 에서 LLM 으로 돌리던 G-PR 을 대신한다. 병합은 막지 않고 지적만 남긴다.
+
+| 무엇 | 어디 |
+|------|------|
+| 리뷰 설정 | 저장소 루트의 `.coderabbit.yaml` |
+| 설정의 원본 | `docs/infra-review/coderabbit-template.yaml`. 경로마다 쓸 항목 번호만 적는다 |
+| 항목 원문 넣기 | `scripts/coderabbit-items.py` 가 이 디렉터리의 `code-guideline.md` 와 lc-backend 의 `docs/software-quality` 에서 원문을 가져와 `.coderabbit.yaml` 을 만든다 |
+
+판정 기준은 `code-guideline.md` 의 `INF-` 항목과, 품질 속성의 `[인프라]` 항목 중 파일 하나로 판정되는 것뿐이다. 경로마다 쓸 번호를 템플릿이 열거한다. `preflight-guideline.md` 와 `operation-guideline.md` 는 런타임 조회와 사람 판단이 필요해 리뷰가 보지 않는다.
+
+**항목을 고치면 `.coderabbit.yaml` 도 다시 만든다.** 원문을 손으로 옮기지 않는다.
+
+```bash
+python3 scripts/coderabbit-items.py docs/infra-review/coderabbit-template.yaml ../lc-backend > .coderabbit.yaml
+```

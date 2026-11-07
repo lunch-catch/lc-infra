@@ -170,7 +170,7 @@ ASG가 인스턴스를 교체할 때 시작 템플릿의 태그가 고정되어 
 
 점검 항목과 근거를 **`lunch-catch/lc-backend` 가 소유한다.** 판정 대상이 그 저장소의 `build.gradle` 이다.
 
-[be 의 build-gate-guideline.md](https://github.com/lunch-catch/lc-backend/blob/main/docs/code-architecture/build-gate-guideline.md)
+[be 의 build-gate-guideline.md](https://github.com/lunch-catch/lc-backend/blob/main/docs/code-convention/build-gate-guideline.md)
 
 커버리지(service 패키지 메서드 100%)와 정적 분석(신규 `Blocker` 0건)이 **병합을 차단한다.**
 이 문서의 다른 항목과 달리 LLM 이 아니라 도구가 판정한다.
@@ -244,7 +244,7 @@ ASG가 인스턴스를 교체할 때 시작 템플릿의 태그가 고정되어 
   대상 조회가 상태와 생성 시각 복합 인덱스를 타는지 본다. 없으면 매 주기 풀스캔이다.
   `INF-1-01`의 외부 부수효과형이므로 1장의 락 항목이 모두 적용된다.
 
-`INF-11-06`는 `lunch-catch/.github`의 `SEC-3-04`(파일 업로드에서 확장자, MIME 타입, 크기, 저장 경로를 검증하는가)와 겹친다.
+`INF-11-06`는 `lunch-catch/lc-backend` 의 `docs/software-quality` 의 `SEC-3-04`(파일 업로드에서 확장자, MIME 타입, 크기, 저장 경로를 검증하는가)와 겹친다.
 **업로드가 앱을 거치지 않는다는 이 인프라의 조건 때문에 검증 지점이 서명 시점으로 옮겨진 것이므로 여기가 더 구체적이다.**
 
 `INF-11-11`은 `SEC-1-02`(검증을 클라이언트가 보낸 식별자가 아니라 인증 주체 기준으로 하는가)의 이미지 흐름 적용이다.
@@ -270,11 +270,13 @@ ASG가 인스턴스를 교체할 때 시작 템플릿의 태그가 고정되어 
 * `INF-12-03` SSM `current-sha` 파라미터에 `ignore_changes = [value]` 가 걸려 있는가
   값은 배포 스크립트가 갱신한다. 이 줄이 없으면 다음 `apply` 가 값을 `bootstrap` 으로 되돌려 전 인스턴스가 구버전으로 기동한다.
 * `INF-12-04` 앱 ASG 에 `ignore_changes = [desired_capacity]` 가 걸려 있는가
-  배포 중 desired 가 일시적으로 2가 된다. 이 줄이 없으면 `apply` 가 배포를 되돌린다.
-* `INF-12-05` 앱 ASG 가 `min_size` 0, `desired_capacity` 1, `max_size` 2, `health_check_type` `ELB` 인가
-  `max_size` 가 2여야 배포 절차가 성립한다. desired 를 2로 두면 신규를 띄울 자리가 없다.
-* `INF-12-06` ALB 에 `enable_deletion_protection` 과 `prevent_destroy` 가 둘 다 있는가
-  IaC 도입으로 오히려 커진 위험이다. 잘못된 변수 파일로 destroy 를 돌리면 ALB 가 사라지고 DNS 이름이 바뀐다. 두 겹으로 막는다.
+  배포 중 desired 가 일시적으로 desired + 1(평소 2면 3)이 되고, 오토스케일링 정책도 desired 를 바꾼다. 이 줄이 없으면 `apply` 가 배포와 확장을 되돌린다.
+* `INF-12-05` 앱 ASG 가 `min_size` 2, `desired_capacity` 2, `max_size` 3, `health_check_type` `ELB` 인가
+  `min_size` 가 1이면 한산한 구간에 앱이 단일 장애점이다. `max_size` 3 이 확장 상한이자 배포 여유를 겸한다. 배포가 desired + 1 로 신규를 띄우므로 상한이 desired 보다 커야 배포 절차가 성립한다.
+  2026-10 이전 기준은 0, 1, 2 였다. 오토스케일링(`INF-39`)을 넣으며 바꿨다.
+* `INF-12-06` ALB 의 `enable_deletion_protection` 이 `deletion_protection` 변수를 따르고, `envs/prod` 에 `prevent_destroy` 가 걸린 파괴 가드(`terraform_data.destroy_guard`)가 있는가
+  IaC 도입으로 오히려 커진 위험이다. 잘못된 변수 파일로 destroy 를 돌리면 ALB 가 사라지고 DNS 이름이 바뀐다. AWS 쪽 삭제 보호와 Terraform 쪽 파괴 가드 두 겹으로 막는다.
+  `prevent_destroy` 는 변수로 바꿀 수 없어 모듈 안에 두면 부하 시험 환경까지 묶인다. 그래서 운영 루트에 가드 하나만 둔다(lc-infra #50). 부하 시험 환경(`envs/lt`)은 `deletion_protection = false` 라 이 항목의 대상이 아니다.
 * `INF-12-07` 앱 시작 템플릿의 user-data 에 `batch` 프로필이 없는가
   스케줄러가 배치 서버에서만 돈다는 전제가 이 문자열 하나에 걸려 있다. 앱 ASG 에 들어가면 앱 대수만큼 스케줄러가 돈다. 점유가 중복 실행은 막지만 앱이 점유 경쟁에 끼어든다.
 * `INF-12-08` 앱 시작 템플릿이 이미지 태그를 고정하지 않고 SSM 에서 읽는가
@@ -293,8 +295,9 @@ ASG가 인스턴스를 교체할 때 시작 템플릿의 태그가 고정되어 
 * `INF-12-14` CloudWatch 알람이 7개 이하이고 전부 단일 지표인가
   앱 스케일링 정책이 자동으로 만드는 알람 2개까지 센다. 상한은 무료 한도(리전마다 10개)가 아니라 "모니터링 인스턴스가 죽어도 알아야 하는 것만 둔다"는 원칙에서 나온다. 2026-10-06 에 배치 대수 부족 알람을 더하며 6 에서 7 로 올렸다(`INF-42`). 상한을 올린 것이라 6 이하로 통과한 과거 판정은 그대로 참이다.
   이상 탐지, 복합 알람, 고해상도 알람, 커스텀 지표 전송, CloudWatch 대시보드는 쓰지 않는다. 각각 별도 과금이다.
-* `INF-12-15` RDS 에 `multi_az`, `backup_retention_period` 7, `deletion_protection`, `skip_final_snapshot = false` 가 있는가
+* `INF-12-15` 운영 RDS 가 `multi_az` 이고, `deletion_protection` 이 켜져 있고, `skip_final_snapshot` 이 `deletion_protection` 의 반대이며, `backup_retention_period` 가 변수로 7(확정값)인가
   자동 백업은 인스턴스를 지우면 함께 사라진다. 최종 스냅샷을 건너뛰면 되돌릴 수단이 없다.
+  값은 모듈 변수가 받는다. 프리 티어 무료 플랜 계정은 백업 보존 7을 거부해 그동안만 1로 낮춘다. 부하 시험 환경(`envs/lt`)은 지우는 환경이라 `deletion_protection = false`, 보존 1이 맞다(lc-infra #76).
 * `INF-12-16` RDS 파라미터 그룹에 `max_connections` 를 지정하지 않았는가
   기본 파라미터 그룹의 공식을 그대로 쓴다. 1 GiB 에서 커넥션당 12MB 라 공식보다 높게 잡으면 OOM 이 난다.
 * `INF-12-17` 캐시가 `aws_elasticache_cluster` 가 아니라 `aws_elasticache_replication_group` 인가
@@ -327,5 +330,6 @@ ASG가 인스턴스를 교체할 때 시작 템플릿의 태그가 고정되어 
 * 근거와 확정값: `docs/system-design/`
 * 실행 전 자동 점검: [preflight-guideline.md](./preflight-guideline.md)
 * 도입 판정과 검증 계획: [operation-guideline.md](./operation-guideline.md)
-* 일반 품질 속성 점검: `lunch-catch/.github`의 `docs/software-quality/`
-* 코드 관용과 패턴: `lunch-catch/lc-backend`의 `docs/code-architecture/`
+* 일반 품질 속성 점검: `lunch-catch/lc-backend`의 `docs/software-quality/`
+* 코드 관용과 패턴: `lunch-catch/lc-backend`의 `docs/code-convention/`
+* PR 리뷰 설정: 저장소 루트의 `.coderabbit.yaml` ([INFRAREVIEW.md](./INFRAREVIEW.md) 의 PR 리뷰)
