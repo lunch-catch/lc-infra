@@ -56,6 +56,9 @@ services:
       # 로컬은 앱 하나가 배치의 스케줄 작업도 돈다.
       LUNCHCATCH_SCHEDULER_ENABLED: "true"
       APP_INSTANCE_ID: local
+      # 운영과 같게 JVM 시간대를 서울로 둔다. 빠지면 DB 시각이 9시간 밀려 저장되고 읽힌다(modules/compute 의 compose 주석).
+      # 트레이싱 에이전트는 JDK_JAVA_OPTIONS 로 들어와 이 값과 겹치지 않는다
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Seoul
 
   prometheus:
     image: prom/prometheus:v3.13.1
