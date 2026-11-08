@@ -175,11 +175,11 @@
     {
       "type": "timeseries",
       "title": "DB 커넥션 얻기 시간",
-      "description": "DB 커넥션을 얻기까지 기다린 시간이다. 위의 기다리는 스레드는 몇 개가 기다리는지를, 이 패널은 얼마나 오래 기다렸는지를 본다. 붉은 점선은 기준(품질 문서의 커넥션 획득 3초)이다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다.",
+      "description": "DB 커넥션을 얻기까지 기다린 시간이다. 위의 기다리는 스레드는 몇 개가 기다리는지를, 이 패널은 얼마나 오래 기다렸는지를 본다. 3초(`connection-timeout`)를 넘기면 기다리다 실패하므로 이 그래프는 3초를 넘지 않는다. 실패한 횟수는 오른쪽 패널이 센다.",
       "gridPos": {
         "x": 0,
         "y": 9,
-        "w": 24,
+        "w": 16,
         "h": 8
       },
       "datasource": {
@@ -195,37 +195,7 @@
             "showPoints": "never"
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "기준"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "red"
-                }
-              },
-              {
-                "id": "custom.lineStyle",
-                "value": {
-                  "fill": "dash",
-                  "dash": [
-                    10,
-                    10
-                  ]
-                }
-              },
-              {
-                "id": "custom.fillOpacity",
-                "value": 0
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "options": {
         "legend": {
@@ -256,11 +226,51 @@
             "type": "prometheus",
             "uid": "prometheus"
           }
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "커넥션을 얻지 못하고 시간 제한에 걸린 횟수 (분당)",
+      "description": "풀에서 커넥션을 시간 제한(`connection-timeout`, 3초) 안에 얻지 못해 실패한 횟수다. 0 이 정상이다. 한 건이라도 생기면 `HikariConnectionTimeout` 경보가 울린다.",
+      "gridPos": {
+        "x": 16,
+        "y": 9,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
         },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
         {
-          "refId": "C",
-          "expr": "max(overrun_threshold_seconds{kind=\"global\", name=\"connection-acquire\"})",
-          "legendFormat": "기준",
+          "refId": "A",
+          "expr": "sum by (instance, instance_id) (rate(hikaricp_connections_timeout_total[$__rate_interval])) * 60",
+          "legendFormat": "{{instance}} {{instance_id}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"

@@ -210,3 +210,24 @@ tests:
       - eval_time: 75m
         alertname: AnalyticsConsistencyViolation
         exp_alerts: []
+
+  # HikariConnectionTimeout 은 커넥션을 시간 제한 안에 얻지 못한 실패가 한 건이라도 생기면 울린다(#111).
+  #   처음 10분: 실패가 없다
+  #   10분에 한 건 실패한다. 울린다
+  #   그 뒤 5분이 지나 증가가 0 이 되면 해소된다
+  - interval: 1m
+    input_series:
+      - series: 'hikaricp_connections_timeout_total{job="app", instance="a1", instance_id="i-1", pool="HikariPool-1"}'
+        values: '0x10 1x20'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HikariConnectionTimeout
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: HikariConnectionTimeout
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: a1, instance_id: i-1}
+            exp_annotations: {description: "a1 에서 커넥션을 시간 제한 안에 얻지 못해 요청이 실패했다. 풀 크기와 오래 쥔 커넥션을 확인하라"}
+      - eval_time: 25m
+        alertname: HikariConnectionTimeout
+        exp_alerts: []

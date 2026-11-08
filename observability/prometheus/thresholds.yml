@@ -1,37 +1,14 @@
-# 기준 초과를 가르는 기준이다(lc-infra #107). 06 기준 초과 대시보드와 부하 시험의 판정(lc-backend #1128)이 읽는다.
+# 기준 초과를 가르는 기준 가운데 인프라가 갖는 것이다(lc-infra #107, #111). 06 기준 초과 대시보드와 03 앱과 JVM 이 읽는다.
 #
-# 이름은 앱이 내보내는 API 의 목표(kind="api", lc-backend #1165)와 같은 overrun_threshold_seconds 다.
-# 여기에는 앱이 아니라 인프라가 갖는 기준을 둔다. 작업의 기준은 알리는 문턱이라, 앱이 내보내면 앱이 멈출 때 기준도 사라져
-# 그 작업이 멈춘 것을 알리지 못한다. 품질 문서의 [인프라] 항목 값도 여기 둔다.
-#
-# 이름별 값이 없는 작업은 name="default" 와 견준다. 도메인이 마감이나 대기 시간을 정하면 이름별로 더한다(lc-backend #1131).
+# 이름은 앱이 내보내는 기준(lc-backend 의 lunchcatch.observability.targets)과 같은 overrun_threshold_seconds 다.
+# API 목표, 릴레이와 워커의 대기 시간, cron 의 마감은 앱 설정이 kind="api"|"relay"|"worker"|"job" 으로 낸다.
+# 작업을 정의한 코드와 그 기준을 같은 저장소에서 함께 고치려는 것이다.
+# 여기에는 품질 문서의 [인프라] 항목 값만 둔다. 인프라 담당이 정하고 경보를 받는다.
+# 커넥션 획득 대기(REL-2-03)는 두지 않는다. 시간 제한(connection-timeout)은 앱 설정이 갖고, 03 과 경보는 시간 제한에 걸린 횟수로 본다(#111).
 groups:
   - name: overrun-thresholds
     rules:
-      # 아웃박스 릴레이의 가장 오래 기다린 미발행 건의 대기 시간이다. 품질 문서 데이터 무결성의 아웃박스 발행 지연 5초다
-      - record: overrun_threshold_seconds
-        expr: vector(5)
-        labels: {kind: relay, name: default}
-      - record: overrun_threshold_seconds
-        expr: vector(5)
-        labels: {kind: relay, name: adserving.impression}
-
-      # 비동기 워커의 가장 오래 기다린 일의 대기 시간이다. 릴레이와 같은 뒤에서 처리하는 늦음이라 같은 값을 둔다
-      - record: overrun_threshold_seconds
-        expr: vector(5)
-        labels: {kind: worker, name: default}
-
-      # cron 작업의 실행 한 번이 끝나야 하는 시간이다. 가장 자주 도는 cron(후보 예산 갱신, 10분마다)이 다음 실행 전에 끝나야 한다
-      - record: overrun_threshold_seconds
-        expr: vector(600)
-        labels: {kind: job, name: default}
-
       # GC 한 번의 멈춤이다. 품질 문서 성능 효율성 PERF-4-04 의 GC 일시정지 p99 200ms 다
       - record: overrun_threshold_seconds
         expr: vector(0.2)
         labels: {kind: global, name: gc-pause}
-
-      # 커넥션을 얻기까지 기다린 시간이다. 품질 문서 신뢰성 REL-2-03 의 DB 커넥션 획득 3초다(등급 C)
-      - record: overrun_threshold_seconds
-        expr: vector(3)
-        labels: {kind: global, name: connection-acquire}
