@@ -1,6 +1,6 @@
 {
   "uid": "lc-billing-analytics",
-  "title": "07 정산과 분석",
+  "title": "08 정산과 분석",
   "description": "정산(결제 승인, 재조회, 웹훅, PG 대사, 노출 차감)과 분석(일 집계, 정합성, 퍼널 이벤트)의 결과를 라벨별로 그린다. 경보 규칙은 rules.yml 의 billing, analytics 그룹이다 (lc-infra #43).",
   "tags": [
     "lunchcatch",

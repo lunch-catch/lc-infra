@@ -1,6 +1,6 @@
 {
   "uid": "lc-adserving",
-  "title": "06 광고 서빙",
+  "title": "07 광고 서빙",
   "description": "광고 서빙이 장애 때 막지 않고 통과시키거나 버린 횟수다 (lc-infra #4). 정상이면 위 두 줄은 모두 0 이다.",
   "tags": [
     "lunchcatch"

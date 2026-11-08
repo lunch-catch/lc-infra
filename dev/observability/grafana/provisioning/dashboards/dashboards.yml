@@ -10,12 +10,3 @@ providers:
     updateIntervalSeconds: 30
     options:
       path: /etc/grafana/dashboards/common
-
-  # 개발에만 있는 대시보드다
-  - name: lunchcatch-dev
-    type: file
-    disableDeletion: false
-    allowUiUpdates: false
-    updateIntervalSeconds: 30
-    options:
-      path: /etc/grafana/dashboards/dev
