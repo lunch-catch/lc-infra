@@ -63,6 +63,8 @@ services:
       - "127.0.0.1:${PROMETHEUS_PORT:-19090}:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # 06 기준 초과가 읽는 기준은 운영과 같은 파일을 쓴다. 알람 규칙(rules.yml)은 로컬에 두지 않는다
+      - ../prometheus/thresholds.yml:/etc/prometheus/thresholds.yml:ro
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       # 로컬에서 k6 를 돌릴 때 05 부하 시험 대시보드에 결과가 들어오게 받는다.
