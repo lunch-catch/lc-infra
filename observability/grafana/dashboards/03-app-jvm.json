@@ -175,7 +175,7 @@
     {
       "type": "timeseries",
       "title": "DB 커넥션 얻기 시간",
-      "description": "DB 커넥션을 얻기까지 기다린 시간이다. 위의 기다리는 스레드는 몇 개가 기다리는지를, 이 패널은 얼마나 오래 기다렸는지를 본다.",
+      "description": "DB 커넥션을 얻기까지 기다린 시간이다. 위의 기다리는 스레드는 몇 개가 기다리는지를, 이 패널은 얼마나 오래 기다렸는지를 본다. 붉은 점선은 기준(품질 문서의 커넥션 획득 3초)이다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다.",
       "gridPos": {
         "x": 0,
         "y": 9,
@@ -195,7 +195,37 @@
             "showPoints": "never"
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "기준"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -222,6 +252,15 @@
           "refId": "B",
           "expr": "max by (instance, instance_id) (hikaricp_connections_acquire_seconds_max)",
           "legendFormat": "최대 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "max(overrun_threshold_seconds{kind=\"global\", name=\"connection-acquire\"})",
+          "legendFormat": "기준",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -301,7 +340,7 @@
     {
       "type": "timeseries",
       "title": "GC 로 멈춘 시간 비율과 최대 멈춤",
-      "description": "왼쪽은 GC 로 멈춘 시간의 비율이다. 10% 면 시간의 10% 를 GC 에 썼다. 오른쪽은 GC 한 번이 가장 길게 멈춘 시간이다. 비율이 낮아도 한 번의 긴 멈춤은 p99 를 튀게 한다.",
+      "description": "왼쪽은 GC 로 멈춘 시간의 비율이다. 10% 면 시간의 10% 를 GC 에 썼다. 오른쪽은 GC 한 번이 가장 길게 멈춘 시간이다. 비율이 낮아도 한 번의 긴 멈춤은 p99 를 튀게 한다. 붉은 점선은 최대 멈춤의 기준(품질 문서의 GC 일시정지 p99 200ms)이다. 패널은 최대 멈춤이라 최대가 선 아래면 기준 안이다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다.",
       "gridPos": {
         "x": 12,
         "y": 18,
@@ -337,6 +376,35 @@
                 "value": "right"
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "최대 멈춤 기준"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
           }
         ]
       },
@@ -365,6 +433,15 @@
           "refId": "B",
           "expr": "max by (instance, instance_id) (jvm_gc_pause_seconds_max)",
           "legendFormat": "최대 멈춤 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "max(overrun_threshold_seconds{kind=\"global\", name=\"gc-pause\"})",
+          "legendFormat": "최대 멈춤 기준",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
