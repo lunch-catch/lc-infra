@@ -13,5 +13,3 @@ tests:
         exp_samples:
           - labels: 'overrun_threshold_seconds{kind="global", name="gc-pause"}'
             value: 0.2
-          - labels: 'overrun_threshold_seconds{kind="global", name="connection-acquire"}'
-            value: 3

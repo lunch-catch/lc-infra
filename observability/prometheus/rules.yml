@@ -98,6 +98,15 @@ groups:
         annotations:
           description: "커넥션 풀 대기가 90% 를 넘었다. slow query 를 확인하라"
 
+      # 풀에서 커넥션을 시간 제한(앱의 connection-timeout) 안에 얻지 못해 요청이 실패했다. 정상이면 0 이다.
+      # 시간 제한 값은 앱 설정 한 곳에만 둔다. 여기서는 걸린 횟수만 본다(#111).
+      - alert: HikariConnectionTimeout
+        expr: sum by (instance, instance_id) (increase(hikaricp_connections_timeout_total[5m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          description: "{{ $labels.instance }} 에서 커넥션을 시간 제한 안에 얻지 못해 요청이 실패했다. 풀 크기와 오래 쥔 커넥션을 확인하라"
+
       # 캐시는 Degradable 이라 죽어도 서비스는 돈다. 강등 경로가 실제로 동작하는지 확인한다.
       - alert: CacheConnectionFailed
         expr: redis_up == 0

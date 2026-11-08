@@ -4,6 +4,7 @@
 # API 목표, 릴레이와 워커의 대기 시간, cron 의 마감은 앱 설정이 kind="api"|"relay"|"worker"|"job" 으로 낸다.
 # 작업을 정의한 코드와 그 기준을 같은 저장소에서 함께 고치려는 것이다.
 # 여기에는 품질 문서의 [인프라] 항목 값만 둔다. 인프라 담당이 정하고 경보를 받는다.
+# 커넥션 획득 대기(REL-2-03)는 두지 않는다. 시간 제한(connection-timeout)은 앱 설정이 갖고, 03 과 경보는 시간 제한에 걸린 횟수로 본다(#111).
 groups:
   - name: overrun-thresholds
     rules:
@@ -11,8 +12,3 @@ groups:
       - record: overrun_threshold_seconds
         expr: vector(0.2)
         labels: {kind: global, name: gc-pause}
-
-      # 커넥션을 얻기까지 기다린 시간이다. 품질 문서 신뢰성 REL-2-03 의 DB 커넥션 획득 3초다(등급 C)
-      - record: overrun_threshold_seconds
-        expr: vector(3)
-        labels: {kind: global, name: connection-acquire}
