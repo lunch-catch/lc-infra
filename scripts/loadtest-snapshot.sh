@@ -21,9 +21,11 @@
 #   --diag <회차>      진단 회차(트레이싱이나 프로파일링을 켠 회차)를 찍는다. 회차 이름은 프로파일의 run 라벨이다.
 #                      06 기준 초과를 렌더러로, Call Tree(wall, cpu)와 트레이스 화면을 브라우저 자동화(scripts/diag-capture)로 찍는다.
 #                      그림은 --out 폴더에 바로 diag-{회차}-*.png 로 둔다. 결과 문서 옆에 두려는 것이다(lc-infra #106)
+#                      회차 구간의 Redis 명령별 호출 수, 서버 평균, 서버 p99 와 느린 명령 건수를 diag-{회차}-redis.txt 로 남긴다(lc-infra #116)
 #   --trace <ID>       --diag 와 함께 찍을 트레이스 ID. 여러 번 줄 수 있다. 결과 문서의 진단 표에 적은 가장 느린 트레이스다
 #   --expand <함수>    --diag 의 Call Tree 에서 펼칠 함수. 여러 번 줄 수 있다. 기준을 넘은 API 의 컨트롤러 메서드와 작업 메서드다.
-#                      그 줄에서 단계마다 Total 이 가장 큰 자식만 따라 끝까지 펼친다. 주지 않으면 맨 위 줄만 보인다
+#                      그 줄에서 큰 갈래를 펼치고 Self 가 큰 줄에서 멈춘다. 기준은 scripts/diag-capture/capture.py 가 갖는다.
+#                      주지 않으면 맨 위 줄만 보인다
 #
 # 왜 이 스크립트가 필요한가.
 #
@@ -225,6 +227,70 @@ if [ -n "$DIAG" ]; then
     ok=$((ok + 2 + ${#TRACES[@]}))
   else
     log "   진단 화면 실패"
+    fail=$((fail+1))
+  fi
+fi
+
+#
+# 진단 회차의 Redis 명령별 서버 처리 시간이다 (#116).
+#
+# 트레이스의 Redis 스팬은 앱이 보내고 받기까지의 시간이라, 서버에서 쓴 시간인지 앱 쪽에서 기다린 시간인지 가르지 못한다.
+# redis-exporter 가 이미 15초마다 모아 둔 지표를 회차가 끝난 뒤 읽기만 하므로 Redis 에 명령을 보내지 않는다.
+# 느린 명령의 내용(SLOWLOG GET)은 Redis 에 직접 붙어야 해서 남기지 않고 건수만 남긴다.
+#
+redis_query() {
+  curl -sf -G -u "admin:$PW" "http://localhost:$LOCAL_PORT/api/datasources/proxy/uid/prometheus/api/v1/query" \
+    --data-urlencode "query=$1" --data-urlencode "time=$2"
+}
+
+if [ -n "$DIAG" ]; then
+  log "2-2. Redis 명령별 서버 처리 시간 ($DIAG)"
+  w=$(( (TO - FROM) / 1000 ))s
+  at=$(( TO / 1000 ))
+  out="$dir/${prefix}redis.txt"
+  if calls=$(redis_query "sum by (cmd) (increase(redis_commands_total[$w]))" "$at") \
+      && spent=$(redis_query "sum by (cmd) (increase(redis_commands_duration_seconds_total[$w]))" "$at") \
+      && p99=$(redis_query "histogram_quantile(0.99, sum by (cmd, le) (increase(redis_commands_latencies_usec_bucket[$w])))" "$at") \
+      && slow_end=$(redis_query "max(redis_slowlog_last_id)" "$at") \
+      && slow_start=$(redis_query "max(redis_slowlog_last_id)" "$(( FROM / 1000 ))"); then
+    CALLS="$calls" SPENT="$spent" P99="$p99" SLOW_END="$slow_end" SLOW_START="$slow_start" FROM="$FROM" TO="$TO" python3 - > "$out" <<'PY'
+import json, os, unicodedata
+from datetime import datetime, timedelta, timezone
+
+def series(name):
+    return {r["metric"].get("cmd", ""): float(r["value"][1]) for r in json.loads(os.environ[name])["data"]["result"]}
+
+def scalar(name):
+    result = json.loads(os.environ[name])["data"]["result"]
+    return int(float(result[0]["value"][1])) if result else None
+
+# 한글은 칸 두 개를 차지한다. 글자 수로 채우면 머리와 값의 열이 어긋난다
+def pad(text, width, right=False):
+    room = " " * max(0, width - sum(2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in text))
+    return room + text if right else text + room
+
+kst = timezone(timedelta(hours=9))
+when = lambda ms: datetime.fromtimestamp(int(ms) / 1000, kst).strftime("%Y-%m-%d %H:%M:%S")
+calls, spent, p99 = series("CALLS"), series("SPENT"), series("P99")
+start, end = scalar("SLOW_START"), scalar("SLOW_END")
+print(f"구간    {when(os.environ['FROM'])} ~ {when(os.environ['TO'])} (KST)")
+print("서버 처리 시간은 Redis 가 명령을 실행한 시간이다. 앱이 보내고 받기까지 기다린 시간은 들지 않는다")
+print()
+print(pad("명령", 24) + pad("호출 수", 12, True) + pad("서버 평균(ms)", 16, True) + pad("서버 p99(ms)", 16, True))
+for cmd, n in sorted(calls.items(), key=lambda kv: -kv[1]):
+    if n < 1:
+        continue
+    q = p99.get(cmd)
+    q = f"{q / 1000:.3f}" if q is not None and q == q else "-"
+    print(f"{cmd:<24}{n:>12.0f}{spent.get(cmd, 0) * 1000 / n:>16.3f}{q:>16}")
+print()
+slow = "알 수 없음" if start is None or end is None else f"{end - start} 건"
+print(f"느린 명령(slowlog-log-slower-than 을 넘은 명령)  {slow}")
+PY
+    log "   $(basename "$out")"
+    ok=$((ok+1))
+  else
+    log "   Redis 지표 실패. redis-exporter 가 떠 있는지 보라"
     fail=$((fail+1))
   fi
 fi
