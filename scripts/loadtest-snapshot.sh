@@ -8,6 +8,8 @@
 #   ./loadtest-snapshot.sh --dash lc-loadtest     한 장만
 #   AWS_PROFILE=me ./loadtest-snapshot.sh --lt --label r1   팀원 부하 시험 환경(member-env.sh)에서
 #   ./loadtest-snapshot.sh --local --label l1              로컬 구성(observability/local)에서
+#   ./loadtest-snapshot.sh --lt --diag v3-run1-profile --from <ms> --to <ms> --trace <ID> --out <결과 문서 폴더>
+#                                                  진단 회차의 Call Tree, 트레이스 화면, 06 기준 초과를 찍는다
 #
 #   --lt               부하 시험 환경이다. 접두사가 lunchcatch-lt 이고 운영 계정 가드 대신 AWS_PROFILE 을 요구한다
 #   --local            로컬 구성이다. 터널 없이 localhost 의 그라파나(GRAFANA_PORT, 기본 13000)를 admin 으로 찍는다
@@ -16,6 +18,12 @@
 #   --from / --to      유닉스 밀리초로 구간을 직접 준다
 #   --dash <uid>       그 대시보드만. 여러 번 줄 수 있다
 #   --out <경로>       저장 위치 (기본 loadtest-runs/)
+#   --diag <회차>      진단 회차(트레이싱이나 프로파일링을 켠 회차)를 찍는다. 회차 이름은 프로파일의 run 라벨이다.
+#                      06 기준 초과를 렌더러로, Call Tree(wall, cpu)와 트레이스 화면을 브라우저 자동화(scripts/diag-capture)로 찍는다.
+#                      그림은 --out 폴더에 바로 diag-{회차}-*.png 로 둔다. 결과 문서 옆에 두려는 것이다(lc-infra #106)
+#   --trace <ID>       --diag 와 함께 찍을 트레이스 ID. 여러 번 줄 수 있다. 결과 문서의 진단 표에 적은 가장 느린 트레이스다
+#   --expand <함수>    --diag 의 Call Tree 에서 펼칠 함수. 여러 번 줄 수 있다. 기준을 넘은 API 의 컨트롤러 메서드와 작업 메서드다.
+#                      그 줄에서 단계마다 Total 이 가장 큰 자식만 따라 끝까지 펼친다. 주지 않으면 맨 위 줄만 보인다
 #
 # 왜 이 스크립트가 필요한가.
 #
@@ -44,7 +52,7 @@ WIDTH="${WIDTH:-1600}"
 # 비워 두면 대시보드마다 패널 배치에서 높이를 잰다. 주면 모든 장을 그 높이로 자른다
 HEIGHT="${HEIGHT:-}"
 
-LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); LT=""; LOCAL=""
+LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); LT=""; LOCAL=""; DIAG=""; TRACES=(); EXPANDS=()
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -60,6 +68,9 @@ while [ $# -gt 0 ]; do
     --to)      TO="${2:-}"; shift 2 ;;
     --dash)    DASH+=("${2:-}"); shift 2 ;;
     --out)     OUT_ROOT="${2:-}"; shift 2 ;;
+    --diag)    DIAG="${2:-}"; shift 2 ;;
+    --trace)   TRACES+=("${2:-}"); shift 2 ;;
+    --expand)  EXPANDS+=("${2:-}"); shift 2 ;;
     *) die "모르는 인자: $1" ;;
   esac
 done
@@ -97,8 +108,13 @@ if [ -z "$FROM" ] || [ -z "$TO" ]; then
   FROM=$(( TO - MINUTES * 60 * 1000 ))
 fi
 
+[ $(( ${#TRACES[@]} + ${#EXPANDS[@]} )) -eq 0 ] || [ -n "$DIAG" ] || die "--trace 와 --expand 는 --diag 와 함께 준다"
+
+# 진단 회차는 06 기준 초과만 찍는다. 측정 회차는 트레이싱을 꺼 그 대시보드의 트레이싱 표가 비어 찍지 않는다(lc-infra #94).
 # 기본은 여섯 장 전부다. 회차마다 무엇이 문제였는지 미리 알 수 없다.
-if [ ${#DASH[@]} -eq 0 ]; then
+if [ -n "$DIAG" ]; then
+  DASH=(lc-overrun)
+elif [ ${#DASH[@]} -eq 0 ]; then
   DASH=(lc-overview lc-hosts lc-app-jvm lc-data-stores lc-loadtest lc-adserving)
 fi
 
@@ -142,7 +158,13 @@ else
 fi
 
 stamp=$(date -u +%Y-%m-%dT%H-%M-%SZ)
-dir="$OUT_ROOT/${stamp}${LABEL:+_$LABEL}/grafana"
+if [ -n "$DIAG" ]; then
+  dir="$OUT_ROOT"
+  prefix="diag-$DIAG-"
+else
+  dir="$OUT_ROOT/${stamp}${LABEL:+_$LABEL}/grafana"
+  prefix=""
+fi
 mkdir -p "$dir"
 
 # 무엇을 자른 구간인지 남긴다. 파일 이름만으로는 나중에 회차를 못 짚는다.
@@ -151,7 +173,7 @@ mkdir -p "$dir"
   printf 'from    %s  (%s)\n' "$FROM" "$(date -u -r $((FROM/1000)) +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '-')"
   printf 'to      %s  (%s)\n' "$TO" "$(date -u -r $((TO/1000)) +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '-')"
   printf 'size    %sx%s\n' "$WIDTH" "${HEIGHT:-대시보드 높이}"
-} > "$dir/구간.txt"
+} > "$dir/${prefix}구간.txt"
 
 #
 # 대시보드 전체가 들어가는 높이를 잰다 (#60).
@@ -167,7 +189,8 @@ dash_height() {
 log "2. 렌더 $FROM ~ $TO"
 ok=0; fail=0
 for uid in "${DASH[@]}"; do
-  out="$dir/$uid.png"
+  out="$dir/${prefix}$uid.png"
+  [ -n "$DIAG" ] && out="$dir/${prefix}overrun.png"
   h="${HEIGHT:-$(dash_height "$uid" || echo 900)}"
   code=$(curl -s -o "$out" -w '%{http_code}' --max-time 180 -u "admin:$PW" \
     "http://localhost:$LOCAL_PORT/render/d/$uid/x?orgId=1&from=$FROM&to=$TO&width=$WIDTH&height=$h&kiosk&tz=Asia%2FSeoul&timeout=120" \
@@ -182,6 +205,29 @@ for uid in "${DASH[@]}"; do
     rm -f "$out"; fail=$((fail+1))
   fi
 done
+
+#
+# 진단 회차의 Call Tree 와 트레이스 화면이다 (#106).
+#
+# 렌더러는 URL 을 열어 찍기만 해서 Drilldown 의 Call Tree 를 누르지 못한다. 그래서 브라우저 자동화(Playwright)를 쓴다.
+# 팀원 기계에 설치하지 않게 공식 이미지에 얹은 이미지(scripts/diag-capture)를 그때 짓는다. 바뀐 것이 없으면 캐시를 쓴다.
+#
+if [ -n "$DIAG" ]; then
+  log "2-1. 진단 화면 ($DIAG, 트레이스 ${#TRACES[@]} 개)"
+  docker build -q -t lunchcatch-diag-capture "$ROOT/scripts/diag-capture" > /dev/null || die "진단 캡처 이미지를 짓지 못했다"
+  trace_args=()
+  for t in ${TRACES[@]+"${TRACES[@]}"}; do trace_args+=(--trace "$t"); done
+  for f in ${EXPANDS[@]+"${EXPANDS[@]}"}; do trace_args+=(--expand "$f"); done
+  # 비밀번호는 값을 명령행에 두지 않고 환경변수 이름만 넘긴다. 명령행은 도는 동안 프로세스 목록에 보인다
+  if GRAFANA_PASSWORD="$PW" docker run --rm -e GRAFANA_PASSWORD -v "$(cd "$dir" && pwd):/out" lunchcatch-diag-capture \
+      --grafana "http://localhost:$LOCAL_PORT" --run "$DIAG" --from "$FROM" --to "$TO" --out /out \
+      ${trace_args[@]+"${trace_args[@]}"} >&2; then
+    ok=$((ok + 2 + ${#TRACES[@]}))
+  else
+    log "   진단 화면 실패"
+    fail=$((fail+1))
+  fi
+fi
 
 log "3. $dir"
 log "   성공 $ok / 실패 $fail"
