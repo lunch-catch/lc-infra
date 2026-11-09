@@ -218,8 +218,9 @@ if [ -n "$DIAG" ]; then
   trace_args=()
   for t in ${TRACES[@]+"${TRACES[@]}"}; do trace_args+=(--trace "$t"); done
   for f in ${EXPANDS[@]+"${EXPANDS[@]}"}; do trace_args+=(--expand "$f"); done
-  if docker run --rm -v "$(cd "$dir" && pwd):/out" lunchcatch-diag-capture \
-      --grafana "http://localhost:$LOCAL_PORT" --password "$PW" --run "$DIAG" --from "$FROM" --to "$TO" --out /out \
+  # 비밀번호는 값을 명령행에 두지 않고 환경변수 이름만 넘긴다. 명령행은 도는 동안 프로세스 목록에 보인다
+  if GRAFANA_PASSWORD="$PW" docker run --rm -e GRAFANA_PASSWORD -v "$(cd "$dir" && pwd):/out" lunchcatch-diag-capture \
+      --grafana "http://localhost:$LOCAL_PORT" --run "$DIAG" --from "$FROM" --to "$TO" --out /out \
       ${trace_args[@]+"${trace_args[@]}"} >&2; then
     ok=$((ok + 2 + ${#TRACES[@]}))
   else

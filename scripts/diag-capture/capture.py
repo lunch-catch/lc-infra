@@ -4,13 +4,14 @@
 렌더러는 URL 을 열어 찍기만 하고 누르지 못한다. Call Tree 는 Drilldown 에서 눌러야 나오고 그 상태가 URL 에 남지 않아
 브라우저 자동화로 찍는다. 트레이스 화면은 URL 로 열리지만 같은 브라우저로 함께 찍는다.
 
-    python capture.py --grafana http://localhost:13000 --password <admin 비밀번호> --run <회차> --from <ms> --to <ms> \
+    GRAFANA_PASSWORD=<admin 비밀번호> python capture.py --grafana http://localhost:13000 --run <회차> --from <ms> --to <ms> \
         --out <폴더> [--trace <트레이스 ID> ...] [--expand <함수> ...]
 """
 import argparse
 import base64
 import io
 import json
+import os
 import re
 import urllib.parse
 from pathlib import Path
@@ -52,7 +53,8 @@ def main():
     args = parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    auth = "Basic " + base64.b64encode(f"admin:{args.password}".encode()).decode()
+    # 비밀번호는 인자로 받지 않는다. 인자는 도는 동안 호스트의 프로세스 목록에 보인다
+    auth = "Basic " + base64.b64encode(f"admin:{os.environ['GRAFANA_PASSWORD']}".encode()).decode()
     with sync_playwright() as p:
         # 컨테이너 안의 localhost 는 호스트가 아니다. Grafana 의 root_url 이 localhost 라 페이지가 그 주소로 파일을 받으므로 호스트로 돌린다
         browser = p.chromium.launch(args=["--host-resolver-rules=MAP localhost host.docker.internal"])
@@ -73,7 +75,6 @@ def main():
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--grafana", required=True)
-    parser.add_argument("--password", required=True)
     parser.add_argument("--run", required=True, help="프로파일의 run 라벨")
     parser.add_argument("--from", dest="frm", required=True, help="유닉스 밀리초")
     parser.add_argument("--to", required=True, help="유닉스 밀리초")
