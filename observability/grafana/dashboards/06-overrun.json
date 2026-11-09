@@ -46,8 +46,8 @@
     {
       "id": 1,
       "type": "timeseries",
-      "title": "기준을 넘은 그래프: API 마다 p99 응답 시간",
-      "description": "요청을 받은 API 마다 실선이 p99 응답 시간이고 같은 이름의 점선이 그 API 의 목표다. 목표는 기준 지표(overrun_threshold_seconds{kind=\"api\"})에서 읽고, 그 API 의 값이 없으면 기본값(name=default)을 쓴다. 실선이 점선 위로 올라가면 기준 초과다. 요청이 없는 동안은 0 으로 그린다. p99 는 1분 창의 히스토그램(http_server_requests_histogram_seconds)으로 낸다. 목표의 이름은 메서드와 경로라서 경로만으로 맞춘다. 같은 경로에 메서드가 여럿이면 가장 큰 목표가 그려진다",
+      "title": "기준을 넘은 API",
+      "description": "그 API 의 목표를 넘은 순간의 p99 만 점으로 그린다. 목표는 앱이 내보내는 기준 지표(overrun_threshold_seconds{kind=\"api\"})이고 목표가 없는 API 는 그 기본값(name=default)이다. 비어 있으면 넘은 API 가 없다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -65,17 +65,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max by (uri) (histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[1m]))) >= 0) or count by (uri) (http_server_requests_seconds_count{job=\"app\"}) * 0",
+          "expr": "(histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[1m]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[1m]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})))",
           "legendFormat": "{{uri}}"
-        },
-        {
-          "refId": "Z",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\")) and on(uri) count by (uri) (http_server_requests_seconds_count{job=\"app\"}) or count by (uri) (http_server_requests_seconds_count{job=\"app\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"}))",
-          "legendFormat": "기준 {{uri}}"
         }
       ],
       "fieldConfig": {
@@ -83,7 +74,7 @@
           "unit": "s",
           "min": 0,
           "custom": {
-            "drawStyle": "lines",
+            "drawStyle": "points",
             "pointSize": 4,
             "lineWidth": 1,
             "fillOpacity": 0,
@@ -99,33 +90,7 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "기준.*"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "red"
-                }
-              },
-              {
-                "id": "custom.lineStyle",
-                "value": {
-                  "fill": "dash",
-                  "dash": [
-                    10,
-                    10
-                  ]
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "options": {
         "legend": {
