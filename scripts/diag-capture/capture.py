@@ -98,7 +98,10 @@ def capture_call_tree(page, grafana, run, frm, to, metric, expand, path):
     for name in expand:
         expand_hot_branches(page, name)
     page.evaluate("window.scrollTo(0, 0)")
-    stitch_table(page, path)
+    if expand:
+        stitch_rows(page, path, expand)
+    else:
+        stitch_table(page, path)
 
 
 def expand_hot_branches(page, name):
@@ -194,6 +197,80 @@ def hide_menu(page):
     if close.count():
         close.first.click()
         page.wait_for_timeout(500)
+
+
+# 그려진 줄마다 표 안에서의 위치, 높이, 글자를 읽는다. 위치는 내린 만큼을 더해 표 맨 위에서 잰다
+ROW_SPANS = """e => {
+  const top = e.getBoundingClientRect().top;
+  return Array.from(document.querySelectorAll('[role=row]')).slice(1).map(r => {
+    const box = r.getBoundingClientRect();
+    return [Math.round(box.top - top + e.scrollTop), Math.round(box.height), r.innerText.replace(/\\n/g, ' ')];
+  });
+}"""
+
+
+def stitch_rows(page, path, expand):
+    """
+    펼친 표에서 볼 줄만 골라 한 장으로 잇는다(작성자가 2026-11-09 대화에서 정했다).
+    큰 갈래를 펼치면 Grafana 는 그 아래 자식을 모두 보여 주어, 0.01% 짜리 형제 줄이 그림의 절반을 넘는다.
+    그래서 맨 위 total 줄과, 펼친 진입점 안에서 진입점 Total 의 ENTRY_FLOOR_SHARE 이상인 줄만 남긴다.
+    표가 스크롤할 때 줄을 다시 그려 화면에서 숨길 수 없으므로, 표를 한 화면씩 내리며 찍은 그림에서 줄을 오려 잇는다.
+    """
+    sizes = page.evaluate(MARK_TABLE)
+    if not sizes:
+        page.screenshot(path=str(path), full_page=True)
+        return
+    bottom = page.locator("[data-capture=table]").bounding_box()
+    page.set_viewport_size({"width": VIEWPORT["width"], "height": int(bottom["y"] + bottom["height"]) + 40})
+    page.evaluate("window.scrollTo(0, 0)")
+    page.evaluate(MARK_TABLE)
+    page.wait_for_timeout(500)
+    table = page.locator("[data-capture=table]")
+    box = table.bounding_box()
+    first = Image.open(io.BytesIO(page.screenshot(full_page=True)))
+    rows, scrolled = {}, 0
+    while True:
+        shot = Image.open(io.BytesIO(page.screenshot(clip=box)))
+        scale = shot.height / box["height"]
+        for top, height, text in table.evaluate(ROW_SPANS):
+            shown = top - scrolled
+            if top not in rows and shown >= 0 and shown + height <= box["height"]:
+                rows[top] = (text, shot.crop((0, int(shown * scale), shot.width, int((shown + height) * scale))))
+        visible, total = table.evaluate("e => [e.clientHeight, e.scrollHeight]")
+        if scrolled + visible >= total:
+            break
+        # 화면 끝에 걸쳐 잘린 줄을 다음 화면에서 온전히 찍도록 한 줄 높이만큼 덜 내린다
+        scrolled += max(visible - 40, 20)
+        # 표 끝에서는 브라우저가 내릴 수 있는 만큼만 내린다. 실제로 내린 위치를 읽어 줄의 자리를 잰다
+        scrolled = table.evaluate("(e, y) => { e.scrollTop = y; return e.scrollTop; }", scrolled)
+        page.wait_for_timeout(300)
+    ordered = [rows[top] for top in sorted(rows)]
+    kept = kept_rows([text for text, _ in ordered], expand)
+    first_top = int(box["y"] + min(rows) if rows else box["y"])
+    pieces = [first.crop((0, 0, first.width, first_top))] + [ordered[i][1] for i in kept]
+    canvas = Image.new("RGB", (first.width, sum(piece.height for piece in pieces)), (17, 18, 23))
+    y = 0
+    for index, piece in enumerate(pieces):
+        canvas.paste(piece, (0 if index == 0 else int(box["x"]), y))
+        y += piece.height
+    canvas.save(path)
+    print(f"  {len(ordered) - len(kept)} 줄을 뺐다(진입점 Total 의 {ENTRY_FLOOR_SHARE:.0%} 미만이거나 진입점 바깥)", flush=True)
+
+
+# 맨 위 total 줄과, 펼친 진입점마다 그 진입점 안에서 진입점 Total 의 ENTRY_FLOOR_SHARE 이상인 줄의 순번이다
+def kept_rows(texts, expand):
+    kept = {0}
+    for start, text in enumerate(texts):
+        if function_name(text) not in expand:
+            continue
+        floor = shares(text)[1] * ENTRY_FLOOR_SHARE
+        kept.add(start)
+        for i in range(start + 1, len(texts)):
+            if depth(texts[i]) <= depth(text):
+                break
+            if shares(texts[i])[1] >= floor:
+                kept.add(i)
+    return sorted(kept)
 
 
 def stitch_table(page, path):
