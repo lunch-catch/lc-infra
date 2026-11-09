@@ -1,0 +1,40 @@
+# compose.lt-like.yaml 이 쓰는 Prometheus 설정이다. prometheus.yml 과 배치를 긁는 곳만 다르다. 한쪽을 고치면 다른 쪽도 같은 PR 에서 고친다
+global:
+  scrape_interval: 15s
+
+rule_files:
+  - /etc/prometheus/thresholds.yml
+
+scrape_configs:
+  - job_name: app
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["app:8081"]
+        labels:
+          instance: local-app
+
+  # 이 구성은 배치를 따로 띄운다. 부하 시험 환경처럼 배치 컨테이너를 그대로 긁는다
+  - job_name: batch
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["batch:8081"]
+        labels:
+          instance: local-batch
+
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels: {instance: local-host, role: app}
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels: {instance: local-host}
+
+  - job_name: mysqld
+    static_configs:
+      - targets: ["mysqld-exporter:9104"]
+
+  - job_name: redis
+    static_configs:
+      - targets: ["redis-exporter:9121"]
