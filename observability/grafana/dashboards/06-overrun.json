@@ -721,6 +721,100 @@
       "panels": []
     },
     {
+      "id": 134,
+      "type": "timeseries",
+      "title": "기준을 넘은 그래프: cron 작업마다 시작 뒤 지난 시간",
+      "description": "도는 중인 cron 작업마다 실선이 시작 뒤 지난 시간이고 같은 이름의 점선이 그 작업의 마감이다. 실선이 점선 위로 올라가면 그 작업이 멈췄거나 늦은 것이다. 끝나면 선이 끊긴다. 시작 시각은 앱이 실행마다 내보내는 batch_job_running_since_seconds{scheduler}(돌지 않으면 0, lc-backend#1175)에서 읽는다. 마감은 기준 지표(overrun_threshold_seconds{kind=\"job\"})에서 읽고, 그 작업의 값이 없으면 기본값(name=default)을 쓴다. 지표는 15초마다 모아 그보다 짧게 끝난 실행은 그려지지 않는다. 지난 시간은 지금 시각이 아니라 표본을 모은 시각에서 뺀다. 지금 시각으로 빼면 다음 수집까지 같은 표본이 쓰여 이미 끝난 실행도 15초까지 자라 보인다. 끝난 실행의 걸린 시간은 오른쪽 표가 본다. 표와 같이 cron 이 아닌 작업(아웃박스 릴레이, sendHeartbeat, takeOverStale)은 이름으로 뺀다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 10,
+        "x": 0,
+        "y": 38
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (scheduler) ((timestamp(batch_job_running_since_seconds{job=\"app\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) - batch_job_running_since_seconds{job=\"app\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (batch_job_running_since_seconds{job=\"app\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"} > 0))",
+          "legendFormat": "{{scheduler}}"
+        },
+        {
+          "refId": "Z",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (scheduler) (batch_job_running_since_seconds{job=\"app\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"} > 0) * 0 + on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_running_since_seconds{job=\"app\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"})))",
+          "legendFormat": "기준 {{scheduler}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "lines",
+            "pointSize": 4,
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "기준.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
       "id": 131,
       "type": "table",
       "title": "기준을 넘은 cron 작업",
@@ -732,7 +826,7 @@
       "gridPos": {
         "h": 9,
         "w": 10,
-        "x": 0,
+        "x": 10,
         "y": 38
       },
       "targets": [
@@ -853,21 +947,6 @@
           }
         }
       ]
-    },
-    {
-      "id": 132,
-      "type": "text",
-      "title": "트레이싱",
-      "gridPos": {
-        "h": 9,
-        "w": 10,
-        "x": 10,
-        "y": 38
-      },
-      "options": {
-        "mode": "markdown",
-        "content": "작업은 테일 샘플링에서 오류가 아니면 1% 만 남아 기준을 넘은 실행의 트레이스가 거의 없다. 그래서 표를 두지 않는다. 기준을 넘은 작업은 왼쪽 표가 고르고, 작업 이름을 누르면 Explore 에서 남은 트레이스를 본다."
-      }
     },
     {
       "id": 133,
