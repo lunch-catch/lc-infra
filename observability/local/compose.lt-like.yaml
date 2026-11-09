@@ -1,0 +1,57 @@
+# 부하 시험 환경(lc-infra 의 modules/compute, modules/data)을 흉내 내는 로컬 구성이다(lc-infra #123).
+# 측정 회차에서 트레이싱과 프로파일링을 켤지의 비용을 로컬에서 잴 때 쓴다(lc-backend #1177).
+#
+#   docker compose -f compose.yaml -f compose.lt-like.yaml up -d --build
+#
+# 앱과 배치는 t3.small(2 vCPU, 2GB), MySQL 은 db.t4g.micro(2 vCPU, 1GB), Valkey 는 cache.t4g.micro(0.5GB)에 맞춘다.
+# 맞출 수 없는 것이 있다. 비교에 쓸 때는 이 차이를 함께 적는다.
+#   - t3 와 t4g 의 CPU 크레딧. 로컬은 크레딧이 바닥나 느려지는 일이 없다
+#   - 네트워크 지연. 로컬은 컨테이너 사이가 같은 기계 안이다
+#   - 관리형 DB 와 캐시의 설정. RDS 의 파라미터 그룹과 ElastiCache 의 maxmemory 와 2노드를 흉내 내지 않는다
+#   - 부하 발생기(k6)와 관측 도구가 같은 Mac 의 CPU 를 나눠 쓴다. 부하 시험 환경은 둘이 다른 인스턴스다
+#   - 앱은 한 대다. 부하 시험 환경은 두 대에서 세 대다
+services:
+  app:
+    cpus: 2
+    mem_limit: 2g
+    environment:
+      # 부하 시험 환경처럼 스케줄 작업은 배치만 돈다
+      LUNCHCATCH_SCHEDULER_ENABLED: "false"
+      # 부하 시험 환경의 JVM 옵션과 같다(modules/compute 의 compose 템플릿)
+      JAVA_TOOL_OPTIONS: >-
+        -XX:MaxRAMPercentage=60
+        -XX:+ExitOnOutOfMemoryError
+        -Dnetworkaddress.cache.ttl=5
+        -Dnetworkaddress.cache.negative.ttl=1
+        -Duser.timezone=Asia/Seoul
+
+  # 앱과 같은 이미지를 배치 프로필로 띄운다. 스케줄러는 batch 프로필이 켠다
+  batch:
+    extends:
+      file: compose.yaml
+      service: app
+    ports: !reset []
+    cpus: 2
+    mem_limit: 2g
+    environment:
+      SPRING_PROFILES_ACTIVE: prod,loadtest,batch
+      LUNCHCATCH_SCHEDULER_ENABLED: "true"
+      APP_INSTANCE_ID: local-batch
+      JAVA_TOOL_OPTIONS: >-
+        -XX:MaxRAMPercentage=60
+        -XX:+ExitOnOutOfMemoryError
+        -Dnetworkaddress.cache.ttl=5
+        -Dnetworkaddress.cache.negative.ttl=1
+        -Duser.timezone=Asia/Seoul
+
+  mysql:
+    cpus: 2
+    mem_limit: 1g
+
+  valkey:
+    mem_limit: 512m
+
+  # 배치를 따로 긁는 설정으로 바꾼다
+  prometheus:
+    volumes:
+      - ./prometheus.lt-like.yml:/etc/prometheus/prometheus.yml:ro
