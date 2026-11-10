@@ -1,6 +1,6 @@
 # 기준 초과를 가르는 기준 가운데 인프라가 갖는 것이다(lc-infra #107, #111). 06 기준 초과 대시보드와 03 앱과 JVM 이 읽는다.
 #
-# 이름은 앱이 내보내는 기준(lc-backend 의 lunchcatch.observability.targets)과 같은 overrun_threshold_seconds 다.
+# 이름은 앱이 내보내는 기준(lc-backend 의 lunchcatch.observability.targets)과 같은 overrun_threshold_seconds 다. 시간이 아닌 비율은 overrun_threshold_ratio 로 둔다.
 # API 목표, 릴레이와 워커의 대기 시간, cron 의 마감은 앱 설정이 kind="api"|"relay"|"worker"|"job" 으로 낸다.
 # 작업을 정의한 코드와 그 기준을 같은 저장소에서 함께 고치려는 것이다.
 # 여기에는 품질 문서의 [인프라] 항목 값만 둔다. 인프라 담당이 정하고 경보를 받는다.
@@ -12,3 +12,18 @@ groups:
       - record: overrun_threshold_seconds
         expr: vector(0.2)
         labels: {kind: global, name: gc-pause}
+      # 트랜잭션 시간의 상한이다. 품질 문서 데이터 무결성 DI-4-03 의 상한 1초다(#108).
+      # 03 은 커넥션 사용 시간의 p99 와 견주고, 경보 TransactionSlow 는 같은 1초를 버킷 경계로 쓴다
+      - record: overrun_threshold_seconds
+        expr: vector(1)
+        labels: {kind: global, name: transaction}
+      # GC 직후의 힙 사용률이다. 품질 문서 성능 효율성의 힙 사용률(GC 직후) 70% 이하다(#108).
+      # 시간이 아니라 비율이라 이름을 나눈다. 경보(85%)는 rules.yml 의 HeapAfterGcHigh 가 갖는다
+      - record: overrun_threshold_ratio
+        expr: vector(0.7)
+        labels: {kind: global, name: heap-after-gc}
+      # GC 로 멈춘 시간의 비율이다. 품질 문서에 값이 없어 rules.yml 의 경보 GcOverheadHigh 의 문턱 10% 를 그대로 둔다(#108).
+      # 경보를 고치면 여기도 같이 고친다
+      - record: overrun_threshold_ratio
+        expr: vector(0.1)
+        labels: {kind: global, name: gc-overhead}
