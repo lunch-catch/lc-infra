@@ -45,7 +45,7 @@ Claude CLI 모드에서 친다. 다른 CLI 를 쓰면 터미널에서 넘긴다.
 ## PR 때는 CodeRabbit 이 리뷰하고, 막는 것은 결정론적 검사뿐이다
 
 CodeRabbit 이 리뷰한다(lc-infra #102). fresh-market 의 LLM 판정(G-PR)을 대신한다.
-**자동으로 돌지 않아** PR 을 연 뒤 `@coderabbitai review` 를 댓글로 단다. 저장소 별이 10개 미만이라 CodeRabbit 이 자동 리뷰를 건너뛴다.
+**자동으로 돌지 않아** PR 을 연 뒤 `@coderabbitai review` 를 댓글로 달아 부르고, 지적마다 답글을 단다. 저장소 별이 10개 미만이라 CodeRabbit 이 자동 리뷰를 건너뛴다. 순서는 [인프라 변경 플로우](../workflow/인프라_변경_플로우.md) 4절이다.
 이슈 등록부터 병합과 적용까지의 순서는 [인프라 변경 플로우](../workflow/인프라_변경_플로우.md)가 갖는다.
 기준과 설정은 `docs/infra-review/INFRAREVIEW.md` 의 "PR 리뷰" 가 설명한다. **CodeRabbit 은 병합을 막지 않는다.** 재현율을 재지 않은 판정이라 지적만 남긴다.
 
