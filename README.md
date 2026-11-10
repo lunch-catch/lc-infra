@@ -65,6 +65,7 @@ CloudWatch 알람, RDS 이벤트 -> SNS -> 메일     모니터링 인스턴스�
 | 운영에 장애가 났다 | 같은 문서의 "장애가 나면 되돌린다". 롤백과 같은 버전 재배포를 가른다 |
 | 왜 이렇게 정했는지 본다 | [`docs/system-design/`](docs/system-design/) |
 | 코드가 결정과 맞는지 리뷰한다 | [`docs/infra-review/`](docs/infra-review/) |
+| 인프라를 고쳐 PR 을 올린다 | [`docs/workflow/`](docs/workflow/) |
 
 ## 저장소 구조
 
@@ -149,4 +150,5 @@ terraform -chdir=envs/prod init -backend=false && terraform -chdir=envs/prod val
 | [`docs/system-design/`](docs/system-design/) | 설계 결정과 근거. 장애 대응, 오토스케일링, 배치, 백업, 알람, 개발 서버, Bedrock |
 | [`docs/infra-review/`](docs/infra-review/) | 코드, 운영, 배포 직전 점검 기준과 보류한 결정 |
 | [`docs/verification/`](docs/verification/) | 검증 기준 |
+| [`docs/workflow/`](docs/workflow/) | 이슈 등록부터 PR, 게이트, 리뷰, 병합, 적용까지의 작업 흐름 |
 | [`docs/wiki/`](docs/wiki/) | 팀원용 안내. GitHub 위키로 동기화된다 |
