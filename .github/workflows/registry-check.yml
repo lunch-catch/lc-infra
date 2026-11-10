@@ -10,14 +10,13 @@
 
 name: 레지스트리 검사
 
+# 경로 필터를 두지 않고 모든 PR 에서 돈다 (lc-infra #129). main 의 필수 검사라 늘 결과가 와야 한다. 생성기만 도는 10초짜리 검사다
 on:
   pull_request:
-    paths:
-      - "docs/infra-review/**"
-      - ".github/llm-verify/items.yml"
 
 jobs:
   check:
+    name: 레지스트리 게이트
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
