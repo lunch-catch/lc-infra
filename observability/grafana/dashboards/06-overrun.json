@@ -796,7 +796,7 @@
       "id": 135,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: cron 작업마다 실행 한 번에 걸린 시간",
-      "description": "끝난 cron 실행 가운데 마감보다 오래 걸린 것만 실선(걸린 시간)과 같은 이름의 빨간 점선(그 작업의 마감, 기준선)으로 그린다. 걸린 시간은 앱의 작업 타이머(batch_job_duration_seconds_max)라 트레이싱을 끈 회차에도 보이고 표본에 흔들리지 않는다. 그 최대값은 실행이 끝난 뒤 2분 남짓 남았다가 사라진다. 마감은 기준 지표(overrun_threshold_seconds{kind=\"job\"})에서 읽고, 그 작업의 값이 없으면 기본값(name=default)을 쓴다. 도는 중에 마감을 넘은 것은 왼쪽 그래프가 본다. 배치 서버에는 트레이싱 에이전트가 붙지 않아 실행의 트레이스로 넘어가지 못한다(lc-backend#1199). cron 이 아닌 작업(아웃박스 릴레이, sendHeartbeat, takeOverStale)은 이름으로 뺀다. 비어 있으면 마감을 넘은 실행이 없다",
+      "description": "끝난 cron 실행 가운데 마감보다 오래 걸린 것만 실선(걸린 시간)과 같은 이름의 빨간 점선(그 작업의 마감, 기준선)으로 그린다. 걸린 시간은 앱의 작업 타이머(batch_job_duration_seconds_max)라 트레이싱을 끈 회차에도 보이고 표본에 흔들리지 않는다. 그 최대값은 실행이 끝난 뒤 2분 남짓 남았다가 사라진다. 마감은 기준 지표(overrun_threshold_seconds{kind=\"job\"})에서 읽고, 그 작업의 값이 없으면 기본값(name=default)을 쓴다. 도는 중에 마감을 넘은 것은 왼쪽 그래프가 본다. 부하 시험 환경에서는 배치 서버에도 트레이싱 에이전트가 붙고, cron 실행의 트레이스는 테일 샘플링이 모두 남긴다(서비스 lunchcatch-batch, lc-infra#143). 이 그래프에서 그 트레이스로 넘어가는 링크는 아직 없어 Explore 에서 서비스와 작업 이름으로 찾는다. cron 이 아닌 작업(아웃박스 릴레이, sendHeartbeat, takeOverStale)은 이름으로 뺀다. 비어 있으면 마감을 넘은 실행이 없다",
       "gridPos": {
         "h": 9,
         "w": 10,
