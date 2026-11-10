@@ -9,6 +9,7 @@
 """
 import argparse
 import base64
+import datetime
 import io
 import json
 import os
@@ -31,6 +32,9 @@ BRANCH_SHARE = 0.20
 ENTRY_FLOOR_SHARE = 0.05
 # 그 줄의 Self 가 자기 Total 의 이 비율 이상이면 그 함수를 병목으로 보고 더 내려가지 않는다
 STOP_SELF_SHARE = 0.50
+# Diff 의 Call Tree 는 몫이 큰 갈래가 아니라 몫이 많이 변한 갈래를 따라간다. 자식의 몫이 기준에서 비교로 변한 폭(%p)이
+# 진입점 몫의 이 비율 이상이면 펼친다. 진입점을 그만큼 움직이지 못한 변화는 회차 사이의 흔들림과 가르기 어렵다(작성자가 2026-11-10 대화에서 정했다)
+DIFF_FLOOR_SHARE = 0.05
 
 PROFILES = {
     "wall": "wall:wall:nanoseconds:cpu:nanoseconds",
@@ -69,6 +73,12 @@ def main():
             path = out / f"diag-{args.run}-trace-{n}.png"
             capture_trace(page, args.grafana, trace_id, args.frm, args.to, path)
             print(f"{path.name}  {trace_id}")
+        if args.baseline:
+            for kind, metric in PROFILES.items():
+                path = out / f"diag-{args.run}-diff-{kind}.png"
+                capture_diff(page, args.grafana, args.baseline, args.baseline_from, args.baseline_to,
+                             args.run, args.frm, args.to, metric, args.expand, args.fixed, path)
+                print(f"{path.name}  {args.baseline} -> {args.run}")
         browser.close()
 
 
@@ -82,7 +92,18 @@ def parse_args():
     parser.add_argument("--trace", action="append", default=[])
     # 기준을 넘은 API 의 컨트롤러 메서드와 작업 메서드다. 판정(lc-backend #1128)이 넘긴다. 주지 않으면 맨 위 줄만 보인다
     parser.add_argument("--expand", action="append", default=[])
-    return parser.parse_args()
+    # 고치기 전 진단 회차다. 주면 그 회차를 기준으로 이 회차를 견준 Diff flame graph 를 찍는다(lc-infra #115)
+    parser.add_argument("--baseline", help="기준 회차의 run 라벨")
+    parser.add_argument("--baseline-from", help="유닉스 밀리초")
+    parser.add_argument("--baseline-to", help="유닉스 밀리초")
+    # 그 버전에서 고친 함수다. Diff 의 Call Tree 에서 몫이 거의 변하지 않았어도 그 함수까지 가는 경로를 남긴다. 결과 문서(lc-backend #1128)가 넘긴다
+    parser.add_argument("--fixed", action="append", default=[])
+    args = parser.parse_args()
+    if args.baseline and not (args.baseline_from and args.baseline_to):
+        parser.error("--baseline 은 --baseline-from 과 --baseline-to 와 함께 준다")
+    if args.fixed and not (args.baseline and args.expand):
+        parser.error("--fixed 는 --baseline 과 --expand 와 함께 준다")
+    return args
 
 
 def capture_call_tree(page, grafana, run, frm, to, metric, expand, path):
@@ -140,11 +161,14 @@ def expand_node(page, index, floor):
         ordinal += 1
 
 
-# 줄마다 브라우저를 오가면 줄이 수백 개일 때 한 단계에 몇 초씩 걸린다. 글자는 한 번에 읽는다
-def read_rows(page):
-    texts = page.evaluate("() => Array.from(document.querySelectorAll('[role=row]')).slice(1).map(r => r.innerText.replace(/\\n/g, ' '))")
-    rows = page.locator("[role=row]")
-    return [rows.nth(i + 1) for i in range(len(texts))], texts
+# 줄마다 브라우저를 오가면 줄이 수백 개일 때 한 단계에 몇 초씩 걸린다. 글자는 한 번에 읽는다.
+# scope 를 주지 않으면 문서의 모든 줄에서 첫 줄(표 머리)을 뺀다. 주면 그 표의 줄이고, 머리는 다른 표에 있다
+def read_rows(page, scope=""):
+    selector, skip = (f"{scope} [role=row]", 0) if scope else ("[role=row]", 1)
+    texts = page.evaluate("([s, k]) => Array.from(document.querySelectorAll(s)).slice(k).map(r => r.innerText.replace(/\\n/g, ' '))",
+                          [selector, skip])
+    rows = page.locator(selector)
+    return [rows.nth(i + skip) for i in range(len(texts))], texts
 
 
 def function_name(text):
@@ -160,6 +184,7 @@ def has_children(text):
 def shares(text):
     found = [float(value) for value in PERCENTS.findall(text)]
     return (found[-2], found[-1]) if len(found) >= 2 else (0.0, 0.0)
+
 
 
 # 바로 아래 줄이 더 깊으면 펼쳐진 줄이다
@@ -201,9 +226,10 @@ def hide_menu(page):
 
 
 # 그려진 줄마다 표 안에서의 위치, 높이, 글자를 읽는다. 위치는 내린 만큼을 더해 표 맨 위에서 잰다
-ROW_SPANS = """e => {
+ROW_SPANS = """(e, scoped) => {
   const top = e.getBoundingClientRect().top;
-  return Array.from(document.querySelectorAll('[role=row]')).slice(1).map(r => {
+  const all = scoped ? Array.from(e.querySelectorAll('[role=row]')) : Array.from(document.querySelectorAll('[role=row]')).slice(1);
+  return all.map(r => {
     const box = r.getBoundingClientRect();
     return [Math.round(box.top - top + e.scrollTop), Math.round(box.height), r.innerText.replace(/\\n/g, ' ')];
   });
@@ -229,22 +255,7 @@ def stitch_rows(page, path, expand):
     table = page.locator("[data-capture=table]")
     box = table.bounding_box()
     first = Image.open(io.BytesIO(page.screenshot(full_page=True)))
-    rows, scrolled = {}, 0
-    while True:
-        shot = Image.open(io.BytesIO(page.screenshot(clip=box)))
-        scale = shot.height / box["height"]
-        for top, height, text in table.evaluate(ROW_SPANS):
-            shown = top - scrolled
-            if top not in rows and shown >= 0 and shown + height <= box["height"]:
-                rows[top] = (text, shot.crop((0, int(shown * scale), shot.width, int((shown + height) * scale))))
-        visible, total = table.evaluate("e => [e.clientHeight, e.scrollHeight]")
-        if scrolled + visible >= total:
-            break
-        # 화면 끝에 걸쳐 잘린 줄을 다음 화면에서 온전히 찍도록 한 줄 높이만큼 덜 내린다
-        scrolled += max(visible - 40, 20)
-        # 표 끝에서는 브라우저가 내릴 수 있는 만큼만 내린다. 실제로 내린 위치를 읽어 줄의 자리를 잰다
-        scrolled = table.evaluate("(e, y) => { e.scrollTop = y; return e.scrollTop; }", scrolled)
-        page.wait_for_timeout(300)
+    rows = crop_rows(page, table, box, False)
     ordered = [rows[top] for top in sorted(rows)]
     kept = kept_rows([text for text, _ in ordered], expand)
     first_top = int(box["y"] + min(rows) if rows else box["y"])
@@ -256,6 +267,29 @@ def stitch_rows(page, path, expand):
         y += piece.height
     canvas.save(path)
     print(f"  {len(ordered) - len(kept)} 줄을 뺐다(진입점 Total 의 {ENTRY_FLOOR_SHARE:.0%} 미만이거나 진입점 바깥)", flush=True)
+
+
+# 표를 한 화면씩 내리며 찍어 줄마다 그림을 오린다. 표 맨 위에서 잰 줄의 위치를 열쇠로 (글자, 그림) 을 돌려준다
+def crop_rows(page, table, box, scoped):
+    rows = {}
+    # 펼치며 누른 줄로 상자가 내려가 있을 수 있다. 맨 위로 올리고 실제 위치를 읽는다
+    scrolled = table.evaluate("e => { e.scrollTop = 0; return e.scrollTop; }")
+    page.wait_for_timeout(300)
+    while True:
+        shot = Image.open(io.BytesIO(page.screenshot(clip=box)))
+        scale = shot.height / box["height"]
+        for top, height, text in table.evaluate(ROW_SPANS, scoped):
+            shown = top - scrolled
+            if top not in rows and shown >= 0 and shown + height <= box["height"]:
+                rows[top] = (text, shot.crop((0, int(shown * scale), shot.width, int((shown + height) * scale))))
+        visible, total = table.evaluate("e => [e.clientHeight, e.scrollHeight]")
+        if scrolled + visible >= total:
+            return rows
+        # 화면 끝에 걸쳐 잘린 줄을 다음 화면에서 온전히 찍도록 한 줄 높이만큼 덜 내린다
+        scrolled += max(visible - 40, 20)
+        # 표 끝에서는 브라우저가 내릴 수 있는 만큼만 내린다. 실제로 내린 위치를 읽어 줄의 자리를 잰다
+        scrolled = table.evaluate("(e, y) => { e.scrollTop = y; return e.scrollTop; }", scrolled)
+        page.wait_for_timeout(300)
 
 
 # 맨 위 total 줄과, 펼친 진입점마다 그 진입점 안에서 진입점 Total 의 ENTRY_FLOOR_SHARE 이상인 줄의 순번이다
@@ -312,6 +346,228 @@ def stitch_table(page, path):
         canvas.paste(piece, (0 if index == 0 else int(box["x"]), y))
         y += piece.height
     canvas.save(path)
+
+
+# 비교 쪽의 시간 범위는 밀리초를 받지 않고 지난 6시간으로 남는다. 두 쪽 모두 ISO 시각으로 준다
+def iso(ms):
+    return datetime.datetime.fromtimestamp(int(ms) / 1000, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+
+def capture_diff(page, grafana, base_run, base_from, base_to, run, frm, to, metric, expand, fixed, path):
+    """
+    고치기 전 회차(기준)와 고친 뒤 회차(비교)의 Diff flame graph 를 찍는다. 늘어난 함수는 빨강, 줄어든 함수는 초록이다.
+    두 쪽의 회차와 구간은 URL 로 주고, 견줄 구간은 화면의 Auto-select 로 고른다. 두 쪽의 시계열이 다 그려진 뒤에야 그 단추가 구간을 잡는다.
+    두 회차의 조건(부하, 데이터 규모, 구간 길이)이 같아야 견줄 수 있다. 비율로 견주므로 전체 크기보다 몫의 변화를 본다.
+    expand 를 주면 나눈 보기 대신 Single 보기(전체 폭)의 Call Tree 를 그 함수부터 몫이 많이 변한 갈래만 펼쳐 찍는다.
+    나눈 보기의 반쪽 폭에서는 깊은 줄의 함수 이름이 들여쓰기에 밀려 잘리고, 펼친 Call Tree 가 오른쪽 반의 내용을 모두 담는다.
+    expand 가 없으면 나눈 보기의 첫 화면을 찍는다(작성자가 2026-11-10 대화에서 정했다).
+    fixed 의 함수는 몫이 거의 변하지 않았어도 그 함수까지 가는 경로를 펼쳐 남긴다. 고쳤는데 몫이 그대로인 것도 보이게 하려는 것이다.
+    """
+    page.set_viewport_size(dict(VIEWPORT))
+    query = {"explorationType": "diff-flame-graph", "var-dataSource": "pyroscope", "var-serviceName": "lunchcatch",
+             "var-profileMetricId": metric,
+             "from": iso(base_from), "to": iso(base_to), "var-filtersBaseline": f"run|=|{base_run}",
+             "comparisonFrom": iso(frm), "comparisonTo": iso(to), "var-filtersComparison": f"run|=|{run}"}
+    page.goto(f"{grafana}/a/grafana-pyroscope-app/explore?{urllib.parse.urlencode(query)}",
+              wait_until="networkidle", timeout=60000)
+    page.wait_for_function("() => (document.body.innerText.match(/avg = /g) || []).length >= 2", timeout=60000)
+    hide_menu(page)
+    page.get_by_role("button", name="Auto-select").click()
+    page.wait_for_function("() => !document.body.innerText.includes('Select both the baseline')", timeout=60000)
+    page.wait_for_load_state("networkidle")
+    # 두 쪽으로 나뉜 보기의 오른쪽을 Call Tree 로 둔다. 왼쪽 표는 함수마다 기준과 비교의 몫을, 오른쪽은 그 차이를 호출 경로로 보여 준다(작성자가 2026-11-09 대화에서 정했다).
+    # 그래프를 다시 그리는 동안 누르면 Flame Graph 로 돌아가므로 표가 뜰 때까지 다시 누른다
+    for _ in range(10):
+        page.locator("input[id^=option-callTree]").nth(1).click(force=True)
+        page.wait_for_timeout(1000)
+        if page.evaluate("() => Array.from(document.querySelectorAll('table')).some(t => t.getBoundingClientRect().x > innerWidth / 2)"):
+            break
+    else:
+        print("  오른쪽 Call Tree 가 뜨지 않아 보이는 그대로 찍는다", flush=True)
+    if not expand:
+        page.screenshot(path=str(path), full_page=True)
+        return
+    # Single 로 바꾸면 오른쪽에서 고른 Call Tree 가 전체 폭으로 남는다
+    page.locator("input[id^=option-single]").first.click(force=True)
+    for _ in range(10):
+        page.wait_for_timeout(1000)
+        if page.evaluate(MARK_DIFF_TREE):
+            break
+    else:
+        print("  Single 보기의 Call Tree 가 뜨지 않아 보이는 그대로 찍는다", flush=True)
+        page.screenshot(path=str(path), full_page=True)
+        return
+    # 검색을 비우면 펼친 줄이 모두 접혀, 고친 함수의 경로는 변한 갈래를 펼치기 전에 읽는다
+    paths = [(name, names) for name in expand for function in fixed for names in fixed_paths(page, name, function)]
+    for name in expand:
+        expand_changes(page, name)
+    for name, names in paths:
+        expand_path(page, name, names)
+    stitch_diff_tree(page, path, expand, fixed)
+
+
+DIFF_TREE = "[data-capture=diff-tree]"
+# Single 보기의 Call Tree 표와 그 표를 내리는 상자에 표시를 단다. 표 머리는 줄이 하나인 다른 표라 줄이 가장 많은 표를 고른다
+MARK_DIFF_TREE = """() => {
+  const tables = Array.from(document.querySelectorAll('table'));
+  if (!tables.length) return false;
+  tables.sort((a, b) => b.querySelectorAll('[role=row]').length - a.querySelectorAll('[role=row]').length);
+  tables[0].setAttribute('data-capture', 'diff-tree');
+  let box = tables[0].parentElement;
+  while (box && !['auto', 'scroll'].includes(getComputedStyle(box).overflowY)) box = box.parentElement;
+  (box || tables[0]).setAttribute('data-capture-box', 'diff-tree');
+  return true;
+}"""
+
+
+# 줄의 이름 뒤 두 비율이 기준과 비교의 몫이다. 그 차이(%p)의 크기와, 둘 가운데 큰 몫을 돌려준다
+def diff_change(text):
+    found = [float(value) for value in PERCENTS.findall(text)]
+    return (abs(found[1] - found[0]), max(found[0], found[1])) if len(found) >= 2 else (0.0, 0.0)
+
+
+def expand_changes(page, name):
+    """
+    Diff 의 Call Tree 를 기준을 넘은 함수의 줄에서 시작해 몫이 많이 변한 갈래를 따라 펼친다(작성자가 2026-11-10 대화에서 정했다).
+    자식의 변한 폭이 진입점 몫의 DIFF_FLOOR_SHARE 이상이면 펼치고, 그런 자식이 없으면 멈춘다. 이 표에는 Self 가 없어 Self 로는 멈추지 않는다.
+    크지만 변하지 않은 갈래는 열지 않고, 새로 생긴 작은 갈래는 변한 폭이 크면 연다.
+    """
+    _, texts = read_rows(page, DIFF_TREE)
+    start = next((i for i, text in enumerate(texts) if function_name(text) == name), None)
+    if start is None:
+        print(f"  {name} 줄이 없다. 두 회차에 그 함수의 표본이 없다", flush=True)
+        return
+    expand_change(page, start, diff_change(texts[start])[1] * DIFF_FLOOR_SHARE)
+
+
+def expand_change(page, index, floor):
+    rows, texts = read_rows(page, DIFF_TREE)
+    if has_children(texts[index]) and not is_expanded(texts, index):
+        click_name(rows[index], texts[index])
+    ordinal = 0
+    while True:
+        _, texts = read_rows(page, DIFF_TREE)
+        changed = [i for i in direct_children(texts, index) if diff_change(texts[i])[0] >= floor]
+        if ordinal >= len(changed):
+            return
+        expand_change(page, changed[ordinal], floor)
+        ordinal += 1
+
+
+def fixed_paths(page, entry, function):
+    """
+    검색 칸에 함수 이름을 넣으면 Grafana 가 그 함수까지 가는 경로를 모두 펼친다. 진입점 아래에서 그 함수까지의 함수 이름을 차례로 돌려준다.
+    그 함수가 진입점 아래 여러 곳에서 불리면 경로도 여럿이다. 읽은 뒤 검색을 비운다.
+    """
+    search = page.get_by_placeholder("Search...").first
+    search.fill(function)
+    page.wait_for_timeout(2000)
+    page.evaluate(MARK_DIFF_TREE)
+    _, texts = read_rows(page, DIFF_TREE)
+    search.fill("")
+    page.wait_for_timeout(2000)
+    page.evaluate(MARK_DIFF_TREE)
+    paths, stack = [], []
+    for text in texts:
+        while stack and depth(stack[-1]) >= depth(text):
+            stack.pop()
+        stack.append(text)
+        names = [function_name(row) for row in stack]
+        if names[-1] == function and entry in names[:-1]:
+            paths.append(names[names.index(entry) + 1:])
+    if not paths:
+        print(f"  {function} 이 {entry} 아래에 없다. 두 회차에 그 경로의 표본이 없다", flush=True)
+    return paths
+
+
+# 진입점에서 함수 이름을 차례로 따라 내려가며 접힌 줄을 누른다
+def expand_path(page, entry, names):
+    _, texts = read_rows(page, DIFF_TREE)
+    index = next((i for i, text in enumerate(texts) if function_name(text) == entry), None)
+    for name in names:
+        if index is None:
+            return
+        rows, texts = read_rows(page, DIFF_TREE)
+        if has_children(texts[index]) and not is_expanded(texts, index):
+            click_name(rows[index], texts[index])
+            _, texts = read_rows(page, DIFF_TREE)
+        index = next((i for i in direct_children(texts, index) if function_name(texts[i]) == name), None)
+
+
+# 맨 위 total 줄, 펼친 진입점, 그 안에서 변한 폭이 하한 이상인 줄과 고친 함수, 그 줄까지 가는 경로의 줄이다.
+# 자식이 하나뿐이고 몫이 같은 줄이 이어지는 사슬은 첫 줄과 끝 줄만 남긴다(작성자가 2026-11-10 대화에서 정했다).
+# 변화가 잎에서 나면 위의 모든 줄이 같은 변화를 이어받아 Lettuce 의 대기 사슬처럼 수십 줄이 남는다
+def kept_changes(texts, expand, fixed):
+    kept = {0}
+    for start, text in enumerate(texts):
+        if function_name(text) not in expand:
+            continue
+        floor = diff_change(text)[1] * DIFF_FLOOR_SHARE
+        kept.add(start)
+        path = {depth(text): start}
+        for i in range(start + 1, len(texts)):
+            if depth(texts[i]) <= depth(text):
+                break
+            path = {d: row for d, row in path.items() if d < depth(texts[i])}
+            path[depth(texts[i])] = i
+            if diff_change(texts[i])[0] >= floor or function_name(texts[i]) in fixed:
+                kept.update(path.values())
+    # 고친 함수와, 바로 아래 줄이 남지 않는 줄은 사슬의 끝이라 뺄 수 없다
+    return [i for i in sorted(kept)
+            if not (chain_middle(texts, i) and i + 1 in kept and function_name(texts[i]) not in fixed)]
+
+
+# 위 줄과 이 줄이 모두 자식이 하나뿐이고, 위 줄, 이 줄, 아래 줄의 기준과 비교의 몫이 같으면 사슬의 가운데다
+def chain_middle(texts, index):
+    if index < 1 or index + 1 >= len(texts):
+        return False
+    above, row, below = texts[index - 1], texts[index], texts[index + 1]
+    if not (depth(above) < depth(row) < depth(below) and ONE_CHILD in above and ONE_CHILD in row):
+        return False
+    return PERCENTS.findall(above)[:2] == PERCENTS.findall(row)[:2] == PERCENTS.findall(below)[:2]
+
+
+ONE_CHILD = "1 child,"
+
+
+def stitch_diff_tree(page, path, expand, fixed):
+    """
+    펼친 Call Tree 에서 볼 줄만 골라 표 자리에 길게 잇는다. 오려 잇는 방법은 진단의 Call Tree(stitch_rows)와 같다.
+    """
+    holder = page.locator("[data-capture-box=diff-tree]")
+    # 창을 늘리면 위쪽 그래프가 다시 배치되어 상자가 더 내려간다. 상자 바닥이 창 안에 들 때까지 늘린다.
+    # 창 밖으로 나간 부분은 찍히지 않아 줄의 높이와 그림의 높이가 어긋난다
+    for _ in range(5):
+        bottom = holder.bounding_box()
+        need = int(bottom["y"] + bottom["height"]) + 40
+        if need <= page.viewport_size["height"]:
+            break
+        page.set_viewport_size({"width": VIEWPORT["width"], "height": need})
+        page.evaluate("window.scrollTo(0, 0)")
+        # 창 크기를 바꾸면 표를 다시 그려 표시가 사라진다. 다시 단다
+        page.evaluate(MARK_DIFF_TREE)
+        page.wait_for_timeout(500)
+    box = holder.bounding_box()
+    # 전체 페이지로 찍으면 Grafana 가 표를 다시 그려 펼친 줄이 접힌다. 창을 표 아래까지 늘려 두었으니 창만 찍는다
+    first = Image.open(io.BytesIO(page.screenshot()))
+    rows = crop_rows(page, holder, box, True)
+    if not rows:
+        first.save(path)
+        return
+    ordered = [rows[top] for top in sorted(rows)]
+    kept = kept_changes([text for text, _ in ordered], expand, fixed)
+    pieces = [ordered[i][1] for i in kept]
+    top = int(box["y"] + min(rows))
+    canvas = Image.new("RGB", (first.width, max(first.height, top + sum(piece.height for piece in pieces))), (17, 18, 23))
+    canvas.paste(first, (0, 0))
+    # 표의 첫 화면을 지우고 고른 줄을 그 자리부터 잇는다
+    canvas.paste((17, 18, 23), (int(box["x"]), top, int(box["x"] + box["width"]), canvas.height))
+    y = top
+    for piece in pieces:
+        canvas.paste(piece, (int(box["x"]), y))
+        y += piece.height
+    canvas.save(path)
+    print(f"  {len(ordered) - len(kept)} 줄을 뺐다(변한 폭이 진입점 몫의 {DIFF_FLOOR_SHARE:.0%} 미만, 진입점 바깥, 사슬의 가운데)", flush=True)
 
 
 def capture_trace(page, grafana, trace_id, frm, to, path):

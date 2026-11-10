@@ -23,6 +23,13 @@
 #                      그림은 --out 폴더에 바로 diag-{회차}-*.png 로 둔다. 결과 문서 옆에 두려는 것이다(lc-infra #106)
 #                      회차 구간의 Redis 명령별 호출 수, 서버 평균, 서버 p99 와 느린 명령 건수를 diag-{회차}-redis.txt 로 남긴다(lc-infra #116)
 #   --trace <ID>       --diag 와 함께 찍을 트레이스 ID. 여러 번 줄 수 있다. 결과 문서의 진단 표에 적은 가장 느린 트레이스다
+#   --baseline <회차> --baseline-from <ms> --baseline-to <ms>
+#                      --diag 와 함께 준다. 고치기 전 진단 회차를 기준으로 이 회차를 견준 Diff flame graph(wall, cpu)를
+#                      diag-{회차}-diff-{wall|cpu}.png 로 찍는다. 두 회차의 조건(부하, 데이터 규모, 구간 길이)이 같아야 견줄 수 있다(lc-infra #115).
+#                      --expand 도 주면 나눈 보기 대신 Diff 의 Call Tree 를 전체 폭으로 그 함수부터 몫이 많이 변한 갈래만 펼쳐 찍는다.
+#                      같은 코드로 잰 두 회차도 표본이 적으면 wall 의 몫이 10%p 넘게 흔들린다. Diff 하나로 판정하지 않고 측정 회차의 수치와 함께 본다
+#   --fixed <함수>     --baseline, --expand 와 함께 준다. 그 버전에서 고친 함수다. 여러 번 줄 수 있다. Diff 의 Call Tree 에서 몫이 거의
+#                      변하지 않았어도 그 함수까지 가는 경로를 남겨, 고쳤는데 몫이 그대로인 것도 보이게 한다
 #   --expand <함수>    --diag 의 Call Tree 에서 펼칠 함수. 여러 번 줄 수 있다. 기준을 넘은 API 의 컨트롤러 메서드와 작업 메서드다.
 #                      그 줄에서 큰 갈래를 펼치고 Self 가 큰 줄에서 멈춘다. 기준은 scripts/diag-capture/capture.py 가 갖는다.
 #                      주지 않으면 맨 위 줄만 보인다
@@ -54,7 +61,7 @@ WIDTH="${WIDTH:-1600}"
 # 비워 두면 대시보드마다 패널 배치에서 높이를 잰다. 주면 모든 장을 그 높이로 자른다
 HEIGHT="${HEIGHT:-}"
 
-LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); LT=""; LOCAL=""; DIAG=""; TRACES=(); EXPANDS=()
+LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); LT=""; LOCAL=""; DIAG=""; TRACES=(); EXPANDS=(); BASELINE=""; BASE_FROM=""; BASE_TO=""; FIXED=()
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -73,6 +80,10 @@ while [ $# -gt 0 ]; do
     --diag)    DIAG="${2:-}"; shift 2 ;;
     --trace)   TRACES+=("${2:-}"); shift 2 ;;
     --expand)  EXPANDS+=("${2:-}"); shift 2 ;;
+    --baseline) BASELINE="${2:-}"; shift 2 ;;
+    --baseline-from) BASE_FROM="${2:-}"; shift 2 ;;
+    --baseline-to) BASE_TO="${2:-}"; shift 2 ;;
+    --fixed)   FIXED+=("${2:-}"); shift 2 ;;
     *) die "모르는 인자: $1" ;;
   esac
 done
@@ -111,6 +122,8 @@ if [ -z "$FROM" ] || [ -z "$TO" ]; then
 fi
 
 [ $(( ${#TRACES[@]} + ${#EXPANDS[@]} )) -eq 0 ] || [ -n "$DIAG" ] || die "--trace 와 --expand 는 --diag 와 함께 준다"
+[ -z "$BASELINE" ] || { [ -n "$DIAG" ] && [ -n "$BASE_FROM" ] && [ -n "$BASE_TO" ]; } || die "--baseline 은 --diag, --baseline-from, --baseline-to 와 함께 준다"
+[ ${#FIXED[@]} -eq 0 ] || { [ -n "$BASELINE" ] && [ ${#EXPANDS[@]} -gt 0 ]; } || die "--fixed 는 --baseline 과 --expand 와 함께 준다"
 
 # 진단 회차는 06 기준 초과만 찍는다. 측정 회차는 트레이싱을 꺼 그 대시보드의 트레이싱 표가 비어 찍지 않는다(lc-infra #94).
 # 기본은 여섯 장 전부다. 회차마다 무엇이 문제였는지 미리 알 수 없다.
@@ -220,11 +233,14 @@ if [ -n "$DIAG" ]; then
   trace_args=()
   for t in ${TRACES[@]+"${TRACES[@]}"}; do trace_args+=(--trace "$t"); done
   for f in ${EXPANDS[@]+"${EXPANDS[@]}"}; do trace_args+=(--expand "$f"); done
+  [ -z "$BASELINE" ] || trace_args+=(--baseline "$BASELINE" --baseline-from "$BASE_FROM" --baseline-to "$BASE_TO")
+  for f in ${FIXED[@]+"${FIXED[@]}"}; do trace_args+=(--fixed "$f"); done
   # 비밀번호는 값을 명령행에 두지 않고 환경변수 이름만 넘긴다. 명령행은 도는 동안 프로세스 목록에 보인다
   if GRAFANA_PASSWORD="$PW" docker run --rm -e GRAFANA_PASSWORD -v "$(cd "$dir" && pwd):/out" lunchcatch-diag-capture \
       --grafana "http://localhost:$LOCAL_PORT" --run "$DIAG" --from "$FROM" --to "$TO" --out /out \
       ${trace_args[@]+"${trace_args[@]}"} >&2; then
     ok=$((ok + 2 + ${#TRACES[@]}))
+    [ -z "$BASELINE" ] || ok=$((ok + 2))
   else
     log "   진단 화면 실패"
     fail=$((fail+1))
