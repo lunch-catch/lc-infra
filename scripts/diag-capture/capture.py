@@ -78,7 +78,7 @@ def main():
                 path = out / f"diag-{args.run}-diff-{kind}.png"
                 tree = out / f"diag-{args.run}-diff-calltree-{kind}.png"
                 capture_diff(page, args.grafana, args.baseline, args.baseline_from, args.baseline_to,
-                             args.run, args.frm, args.to, metric, args.expand, path, tree)
+                             args.run, args.frm, args.to, metric, args.expand, args.fixed, path, tree)
                 print(f"{path.name}  {args.baseline} -> {args.run}")
                 if args.expand:
                     print(f"{tree.name}  {args.baseline} -> {args.run}")
@@ -99,9 +99,13 @@ def parse_args():
     parser.add_argument("--baseline", help="기준 회차의 run 라벨")
     parser.add_argument("--baseline-from", help="유닉스 밀리초")
     parser.add_argument("--baseline-to", help="유닉스 밀리초")
+    # 그 버전에서 고친 함수다. Diff 의 Call Tree 에서 몫이 거의 변하지 않았어도 그 함수까지 가는 경로를 남긴다. 결과 문서(lc-backend #1128)가 넘긴다
+    parser.add_argument("--fixed", action="append", default=[])
     args = parser.parse_args()
     if args.baseline and not (args.baseline_from and args.baseline_to):
         parser.error("--baseline 은 --baseline-from 과 --baseline-to 와 함께 준다")
+    if args.fixed and not (args.baseline and args.expand):
+        parser.error("--fixed 는 --baseline 과 --expand 와 함께 준다")
     return args
 
 
@@ -352,13 +356,14 @@ def iso(ms):
     return datetime.datetime.fromtimestamp(int(ms) / 1000, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
-def capture_diff(page, grafana, base_run, base_from, base_to, run, frm, to, metric, expand, path, tree):
+def capture_diff(page, grafana, base_run, base_from, base_to, run, frm, to, metric, expand, fixed, path, tree):
     """
     고치기 전 회차(기준)와 고친 뒤 회차(비교)의 Diff flame graph 를 찍는다. 늘어난 함수는 빨강, 줄어든 함수는 초록이다.
     두 쪽의 회차와 구간은 URL 로 주고, 견줄 구간은 화면의 Auto-select 로 고른다. 두 쪽의 시계열이 다 그려진 뒤에야 그 단추가 구간을 잡는다.
     두 회차의 조건(부하, 데이터 규모, 구간 길이)이 같아야 견줄 수 있다. 비율로 견주므로 전체 크기보다 몫의 변화를 본다.
     expand 를 주면 Call Tree 를 Single 보기(전체 폭)로 바꿔 그 함수부터 몫이 많이 변한 갈래를 펼치고 tree 에 따로 찍는다.
     나눈 보기의 반쪽 폭에서는 깊은 줄의 함수 이름이 들여쓰기에 밀려 잘린다(작성자가 2026-11-10 대화에서 정했다).
+    fixed 의 함수는 몫이 거의 변하지 않았어도 그 함수까지 가는 경로를 펼쳐 남긴다. 고쳤는데 몫이 그대로인 것도 보이게 하려는 것이다.
     """
     page.set_viewport_size(dict(VIEWPORT))
     query = {"explorationType": "diff-flame-graph", "var-dataSource": "pyroscope", "var-serviceName": "lunchcatch",
@@ -393,9 +398,13 @@ def capture_diff(page, grafana, base_run, base_from, base_to, run, frm, to, metr
     else:
         print("  Single 보기의 Call Tree 가 뜨지 않아 찍지 않는다", flush=True)
         return
+    # 검색을 비우면 펼친 줄이 모두 접혀, 고친 함수의 경로는 변한 갈래를 펼치기 전에 읽는다
+    paths = [(name, names) for name in expand for function in fixed for names in fixed_paths(page, name, function)]
     for name in expand:
         expand_changes(page, name)
-    stitch_diff_tree(page, tree, expand)
+    for name, names in paths:
+        expand_path(page, name, names)
+    stitch_diff_tree(page, tree, expand, fixed)
 
 
 DIFF_TREE = "[data-capture=diff-tree]"
@@ -446,10 +455,50 @@ def expand_change(page, index, floor):
         ordinal += 1
 
 
-# 맨 위 total 줄, 펼친 진입점, 그 안에서 변한 폭이 하한 이상인 줄과 그 줄까지 가는 경로의 줄이다.
+def fixed_paths(page, entry, function):
+    """
+    검색 칸에 함수 이름을 넣으면 Grafana 가 그 함수까지 가는 경로를 모두 펼친다. 진입점 아래에서 그 함수까지의 함수 이름을 차례로 돌려준다.
+    그 함수가 진입점 아래 여러 곳에서 불리면 경로도 여럿이다. 읽은 뒤 검색을 비운다.
+    """
+    search = page.get_by_placeholder("Search...").first
+    search.fill(function)
+    page.wait_for_timeout(2000)
+    page.evaluate(MARK_DIFF_TREE)
+    _, texts = read_rows(page, DIFF_TREE)
+    search.fill("")
+    page.wait_for_timeout(2000)
+    page.evaluate(MARK_DIFF_TREE)
+    paths, stack = [], []
+    for text in texts:
+        while stack and depth(stack[-1]) >= depth(text):
+            stack.pop()
+        stack.append(text)
+        names = [function_name(row) for row in stack]
+        if names[-1] == function and entry in names[:-1]:
+            paths.append(names[names.index(entry) + 1:])
+    if not paths:
+        print(f"  {function} 이 {entry} 아래에 없다. 두 회차에 그 경로의 표본이 없다", flush=True)
+    return paths
+
+
+# 진입점에서 함수 이름을 차례로 따라 내려가며 접힌 줄을 누른다
+def expand_path(page, entry, names):
+    _, texts = read_rows(page, DIFF_TREE)
+    index = next((i for i, text in enumerate(texts) if function_name(text) == entry), None)
+    for name in names:
+        if index is None:
+            return
+        rows, texts = read_rows(page, DIFF_TREE)
+        if has_children(texts[index]) and not is_expanded(texts, index):
+            click_name(rows[index], texts[index])
+            _, texts = read_rows(page, DIFF_TREE)
+        index = next((i for i in direct_children(texts, index) if function_name(texts[i]) == name), None)
+
+
+# 맨 위 total 줄, 펼친 진입점, 그 안에서 변한 폭이 하한 이상인 줄과 고친 함수, 그 줄까지 가는 경로의 줄이다.
 # 자식이 하나뿐이고 몫이 같은 줄이 이어지는 사슬은 첫 줄과 끝 줄만 남긴다(작성자가 2026-11-10 대화에서 정했다).
 # 변화가 잎에서 나면 위의 모든 줄이 같은 변화를 이어받아 Lettuce 의 대기 사슬처럼 수십 줄이 남는다
-def kept_changes(texts, expand):
+def kept_changes(texts, expand, fixed):
     kept = {0}
     for start, text in enumerate(texts):
         if function_name(text) not in expand:
@@ -462,9 +511,11 @@ def kept_changes(texts, expand):
                 break
             path = {d: row for d, row in path.items() if d < depth(texts[i])}
             path[depth(texts[i])] = i
-            if diff_change(texts[i])[0] >= floor:
+            if diff_change(texts[i])[0] >= floor or function_name(texts[i]) in fixed:
                 kept.update(path.values())
-    return [i for i in sorted(kept) if not chain_middle(texts, i)]
+    # 고친 함수와, 바로 아래 줄이 남지 않는 줄은 사슬의 끝이라 뺄 수 없다
+    return [i for i in sorted(kept)
+            if not (chain_middle(texts, i) and i + 1 in kept and function_name(texts[i]) not in fixed)]
 
 
 # 위 줄과 이 줄이 모두 자식이 하나뿐이고, 위 줄, 이 줄, 아래 줄의 기준과 비교의 몫이 같으면 사슬의 가운데다
@@ -480,7 +531,7 @@ def chain_middle(texts, index):
 ONE_CHILD = "1 child,"
 
 
-def stitch_diff_tree(page, path, expand):
+def stitch_diff_tree(page, path, expand, fixed):
     """
     펼친 Call Tree 에서 볼 줄만 골라 표 자리에 길게 잇는다. 오려 잇는 방법은 진단의 Call Tree(stitch_rows)와 같다.
     """
@@ -505,7 +556,7 @@ def stitch_diff_tree(page, path, expand):
         first.save(path)
         return
     ordered = [rows[top] for top in sorted(rows)]
-    kept = kept_changes([text for text, _ in ordered], expand)
+    kept = kept_changes([text for text, _ in ordered], expand, fixed)
     pieces = [ordered[i][1] for i in kept]
     top = int(box["y"] + min(rows))
     canvas = Image.new("RGB", (first.width, max(first.height, top + sum(piece.height for piece in pieces))), (17, 18, 23))
