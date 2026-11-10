@@ -1,0 +1,41 @@
+# PR 게이트. PR 이 이슈를 태깅했는지 본다 (lc-infra #133).
+#
+# 일은 이슈를 먼저 등록하고 시작한다(CLAUDE.md 의 PR 규칙). 태깅이 없으면 일이 끝나도 이슈가 열린 채 남고,
+# 무엇 때문에 바꿨는지 PR 에서 거슬러 올라갈 수 없다. lc-backend 는 같은 검사를 pr-gate.yml 에 둔다.
+#
+# 이 검사의 잡 이름(이슈 게이트)이 main 의 필수 검사다. 결정론적이라 오탐이 없어 막아도 된다.
+
+name: PR 게이트
+
+on:
+  pull_request:
+    # edited 는 본문을 고쳤을 때다. 이것이 없으면 태깅을 더한 뒤에도 검사를 손으로 다시 돌려야 한다
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: pr-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  issue:
+    name: 이슈 게이트
+    runs-on: ubuntu-latest
+    steps:
+      #
+      # 닫는 키워드(Closes, Fixes, Resolves 와 그 변형)와 Refs 를 받는다.
+      # Refs 를 받는 이유는 이 저장소가 실제 환경 확인이 남은 일을 Refs 로 걸어 이슈를 열어 두기 때문이다(#77, #80, #84).
+      # 다른 저장소의 이슈(owner/repo#N)도 받는다.
+      #
+      - name: 이슈 태깅 확인
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if printf '%s' "$BODY" | grep -qiE '(close[sd]?|fix(e[sd])?|resolve[sd]?|refs?)[[:space:]]+([-A-Za-z0-9_.]+/[-A-Za-z0-9_.]+)?#[0-9]+'; then
+            echo "이슈 태깅이 있다."
+          else
+            echo "::error::PR 본문에 Closes #<이슈번호> 또는 Refs #<이슈번호> 를 적는다. 이슈가 없으면 먼저 등록한다. 본문을 고치면 이 검사가 다시 돈다."
+            exit 1
+          fi
