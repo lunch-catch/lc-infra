@@ -107,6 +107,44 @@ groups:
         annotations:
           description: "{{ $labels.instance }} 에서 커넥션을 시간 제한 안에 얻지 못해 요청이 실패했다. 풀 크기와 오래 쥔 커넥션을 확인하라"
 
+      # 커넥션을 1초 넘게 쥔 사용이 1% 를 넘었다. 품질 문서 데이터 무결성의 트랜잭션 상한 1초다(#108).
+      # 1초가 버킷 경계라 p99 > 1초와 같은 뜻이고 어림이 없다. 건수가 적으면 한두 건으로 튀어 5분에 100건 넘게 쓴 풀만 본다
+      - alert: TransactionSlow
+        expr: |
+          (
+            sum by (job, instance, instance_id) (increase(hikaricp_connections_usage_seconds_count[5m]))
+            - sum by (job, instance, instance_id) (increase(hikaricp_connections_usage_seconds_bucket{le="1.0"}[5m]))
+          )
+          / sum by (job, instance, instance_id) (increase(hikaricp_connections_usage_seconds_count[5m])) > 0.01
+          and sum by (job, instance, instance_id) (increase(hikaricp_connections_usage_seconds_count[5m])) >= 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          description: "{{ $labels.instance }} 에서 커넥션을 1초 넘게 쥔 사용이 1% 를 넘었다. 03 의 트랜잭션 시간과 누수 감지 경고 로그로 오래 쥔 코드를 확인하라"
+
+      # GC 만 하고 일을 못 하는 상태다. 메모리가 모자라기 시작한 가장 이른 신호다(#108).
+      # 10% 는 실무에서 흔한 범위(10~20%)의 아래쪽이다. 로컬의 부하 시험 환경 흉내 구성에서 평소의 1분 최대는 1.1% 였다.
+      # 03 의 선은 thresholds.yml 의 gc-overhead 에서 읽는다. 문턱을 고치면 그쪽도 같이 고친다
+      - alert: GcOverheadHigh
+        expr: sum by (job, instance, instance_id) (rate(jvm_gc_pause_seconds_sum[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          description: "{{ $labels.instance }} 가 5분 넘게 시간의 10% 넘게 GC 로 멈췄다. GC 뒤에 남은 힙을 확인하라"
+
+      # GC 를 해도 힙이 비워지지 않는다. 그대로 가면 OutOfMemoryError 로 죽는다(#108).
+      # 03 의 선은 품질 문서의 70% 이고, 경보는 평소 부하에 울리지 않게 85% 로 나눈다.
+      # 앱이 막 떠 아직 GC 를 하지 않으면 최대 크기가 0 이라 그때는 뺀다
+      - alert: HeapAfterGcHigh
+        expr: max by (job, instance, instance_id) (jvm_gc_live_data_size_bytes / (jvm_gc_max_data_size_bytes > 0)) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          description: "{{ $labels.instance }} 의 GC 뒤에 남은 힙이 10분 넘게 85% 를 넘었다. 메모리 누수와 힙 크기를 확인하라"
+
       # 캐시는 Degradable 이라 죽어도 서비스는 돈다. 강등 경로가 실제로 동작하는지 확인한다.
       - alert: CacheConnectionFailed
         expr: redis_up == 0
