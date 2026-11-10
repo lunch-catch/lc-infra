@@ -26,7 +26,7 @@
 #   --baseline <회차> --baseline-from <ms> --baseline-to <ms>
 #                      --diag 와 함께 준다. 고치기 전 진단 회차를 기준으로 이 회차를 견준 Diff flame graph(wall, cpu)를
 #                      diag-{회차}-diff-{wall|cpu}.png 로 찍는다. 두 회차의 조건(부하, 데이터 규모, 구간 길이)이 같아야 견줄 수 있다(lc-infra #115).
-#                      --expand 도 주면 Diff 의 Call Tree 를 전체 폭으로 그 함수부터 몫이 많이 변한 갈래만 펼쳐 diag-{회차}-diff-calltree-{wall|cpu}.png 로 따로 찍는다.
+#                      --expand 도 주면 나눈 보기 대신 Diff 의 Call Tree 를 전체 폭으로 그 함수부터 몫이 많이 변한 갈래만 펼쳐 찍는다.
 #                      같은 코드로 잰 두 회차도 표본이 적으면 wall 의 몫이 10%p 넘게 흔들린다. Diff 하나로 판정하지 않고 측정 회차의 수치와 함께 본다
 #   --fixed <함수>     --baseline, --expand 와 함께 준다. 그 버전에서 고친 함수다. 여러 번 줄 수 있다. Diff 의 Call Tree 에서 몫이 거의
 #                      변하지 않았어도 그 함수까지 가는 경로를 남겨, 고쳤는데 몫이 그대로인 것도 보이게 한다
@@ -241,7 +241,6 @@ if [ -n "$DIAG" ]; then
       ${trace_args[@]+"${trace_args[@]}"} >&2; then
     ok=$((ok + 2 + ${#TRACES[@]}))
     [ -z "$BASELINE" ] || ok=$((ok + 2))
-    [ -z "$BASELINE" ] || [ ${#EXPANDS[@]} -eq 0 ] || ok=$((ok + 2))
   else
     log "   진단 화면 실패"
     fail=$((fail+1))

@@ -76,12 +76,9 @@ def main():
         if args.baseline:
             for kind, metric in PROFILES.items():
                 path = out / f"diag-{args.run}-diff-{kind}.png"
-                tree = out / f"diag-{args.run}-diff-calltree-{kind}.png"
                 capture_diff(page, args.grafana, args.baseline, args.baseline_from, args.baseline_to,
-                             args.run, args.frm, args.to, metric, args.expand, args.fixed, path, tree)
+                             args.run, args.frm, args.to, metric, args.expand, args.fixed, path)
                 print(f"{path.name}  {args.baseline} -> {args.run}")
-                if args.expand:
-                    print(f"{tree.name}  {args.baseline} -> {args.run}")
         browser.close()
 
 
@@ -356,13 +353,14 @@ def iso(ms):
     return datetime.datetime.fromtimestamp(int(ms) / 1000, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
-def capture_diff(page, grafana, base_run, base_from, base_to, run, frm, to, metric, expand, fixed, path, tree):
+def capture_diff(page, grafana, base_run, base_from, base_to, run, frm, to, metric, expand, fixed, path):
     """
     고치기 전 회차(기준)와 고친 뒤 회차(비교)의 Diff flame graph 를 찍는다. 늘어난 함수는 빨강, 줄어든 함수는 초록이다.
     두 쪽의 회차와 구간은 URL 로 주고, 견줄 구간은 화면의 Auto-select 로 고른다. 두 쪽의 시계열이 다 그려진 뒤에야 그 단추가 구간을 잡는다.
     두 회차의 조건(부하, 데이터 규모, 구간 길이)이 같아야 견줄 수 있다. 비율로 견주므로 전체 크기보다 몫의 변화를 본다.
-    expand 를 주면 Call Tree 를 Single 보기(전체 폭)로 바꿔 그 함수부터 몫이 많이 변한 갈래를 펼치고 tree 에 따로 찍는다.
-    나눈 보기의 반쪽 폭에서는 깊은 줄의 함수 이름이 들여쓰기에 밀려 잘린다(작성자가 2026-11-10 대화에서 정했다).
+    expand 를 주면 나눈 보기 대신 Single 보기(전체 폭)의 Call Tree 를 그 함수부터 몫이 많이 변한 갈래만 펼쳐 찍는다.
+    나눈 보기의 반쪽 폭에서는 깊은 줄의 함수 이름이 들여쓰기에 밀려 잘리고, 펼친 Call Tree 가 오른쪽 반의 내용을 모두 담는다.
+    expand 가 없으면 나눈 보기의 첫 화면을 찍는다(작성자가 2026-11-10 대화에서 정했다).
     fixed 의 함수는 몫이 거의 변하지 않았어도 그 함수까지 가는 경로를 펼쳐 남긴다. 고쳤는데 몫이 그대로인 것도 보이게 하려는 것이다.
     """
     page.set_viewport_size(dict(VIEWPORT))
@@ -386,8 +384,8 @@ def capture_diff(page, grafana, base_run, base_from, base_to, run, frm, to, metr
             break
     else:
         print("  오른쪽 Call Tree 가 뜨지 않아 보이는 그대로 찍는다", flush=True)
-    page.screenshot(path=str(path), full_page=True)
     if not expand:
+        page.screenshot(path=str(path), full_page=True)
         return
     # Single 로 바꾸면 오른쪽에서 고른 Call Tree 가 전체 폭으로 남는다
     page.locator("input[id^=option-single]").first.click(force=True)
@@ -396,7 +394,8 @@ def capture_diff(page, grafana, base_run, base_from, base_to, run, frm, to, metr
         if page.evaluate(MARK_DIFF_TREE):
             break
     else:
-        print("  Single 보기의 Call Tree 가 뜨지 않아 찍지 않는다", flush=True)
+        print("  Single 보기의 Call Tree 가 뜨지 않아 보이는 그대로 찍는다", flush=True)
+        page.screenshot(path=str(path), full_page=True)
         return
     # 검색을 비우면 펼친 줄이 모두 접혀, 고친 함수의 경로는 변한 갈래를 펼치기 전에 읽는다
     paths = [(name, names) for name in expand for function in fixed for names in fixed_paths(page, name, function)]
@@ -404,7 +403,7 @@ def capture_diff(page, grafana, base_run, base_from, base_to, run, frm, to, metr
         expand_changes(page, name)
     for name, names in paths:
         expand_path(page, name, names)
-    stitch_diff_tree(page, tree, expand, fixed)
+    stitch_diff_tree(page, path, expand, fixed)
 
 
 DIFF_TREE = "[data-capture=diff-tree]"
