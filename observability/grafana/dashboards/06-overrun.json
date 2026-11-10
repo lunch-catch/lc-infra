@@ -27,13 +27,13 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "## 기준 초과 원인을 찾는 순서\n\n작업 종류마다 왼쪽에서 오른쪽으로 본다.\n\n1. 그래프에서 기준을 넘은 것을 한눈에 확인할 수 있다.\n2. 트레이싱에서 기준을 넘은 실행을 열고 오래 걸린 호출 단계(메서드, DB 쿼리, Valkey 명령)를 찾는다.\n3. Profiling Wall Time 에서 그 단계의 어느 코드가 시간을 썼는지 본다.\n4. Profiling CPU Time 에서도 그 코드가 시간이 크면 CPU 연산이 오래 걸린 것이고 작으면 대기한 것이다.\n\n회차별 기준 초과 판정 결과는 `docs/design/{도메인}/loadtest/*_부하_시험_결과.md` 문서의 기준 초과 절에 남는다."
+        "content": "## 기준 초과 원인을 찾는 순서\n\n작업 종류마다 왼쪽에서 오른쪽으로 본다.\n\n1. 그래프에서 기준을 넘은 것을 한눈에 확인할 수 있다.\n2. API 그래프에서 튄 곳을 드래그해 좁히고 선의 점을 눌러 그 구간의 기준을 넘은 요청 트레이스 목록을 연다. 그 가운데 하나를 열어 오래 걸린 호출 단계(DB 쿼리, 외부 호출)를 찾는다. 맨 위 비율 그래프는 기준을 넘은 모든 것을 한 번에 보여 준다.\n3. Profiling Wall Time 에서 그 단계의 어느 코드가 시간을 썼는지 본다.\n4. Profiling CPU Time 에서도 그 코드가 시간이 크면 CPU 연산이 오래 걸린 것이고 작으면 대기한 것이다.\n\n회차별 기준 초과 판정 결과는 `docs/design/{도메인}/loadtest/*_부하_시험_결과.md` 문서의 기준 초과 절에 남는다."
       }
     },
     {
-      "id": 100,
       "type": "row",
-      "title": "API",
+      "title": "한눈에",
+      "id": 90,
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -44,19 +44,180 @@
       "panels": []
     },
     {
+      "id": 91,
+      "type": "timeseries",
+      "title": "기준 대비 비율: 기준을 넘은 모든 것",
+      "description": "API 의 p99, 아웃박스 릴레이와 비동기 워커의 가장 오래 기다린 건의 대기 시간, cron 작업의 걸린 시간과 도는 중인 시간을 각자의 기준으로 나눈 값이다. 1 을 넘은 것만 그리고 붉은 점선 1 이 기준이다. 2 면 기준의 두 배가 걸렸다. 선 이름 앞에 종류를 붙인다. 비어 있으면 기준을 넘은 것이 없다. 기준은 앱이 내보내는 기준 지표(overrun_threshold_seconds)이고 이름별 값이 없으면 그 종류의 기본값이다. 어느 요청이었는지는 아래 종류별 그래프에서 본다. API 선의 점을 누르면 그 API 의 300ms 넘은 요청 트레이스 목록이 열린다",
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "auto",
+            "pointSize": 5,
+            "spanNulls": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "기준"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "never"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "API .*"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "이 API 의 300ms 넘은 요청 트레이스 (보고 있는 구간)",
+                    "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%20%7B%22datasource%22%3A%20%22tempo%22%2C%20%22queries%22%3A%20%5B%7B%22refId%22%3A%20%22A%22%2C%20%22datasource%22%3A%20%7B%22type%22%3A%20%22tempo%22%2C%20%22uid%22%3A%20%22tempo%22%7D%2C%20%22queryType%22%3A%20%22traceql%22%2C%20%22query%22%3A%20%22%7B%20nestedSetParent%20%3D%20-1%20%26%26%20span.http.route%20%3D%20%5C%22${__field.labels.uri:percentencode}%5C%22%20%26%26%20duration%20%3E%20300ms%20%7D%22%2C%20%22limit%22%3A%20100%2C%20%22tableType%22%3A%20%22traces%22%7D%5D%2C%20%22range%22%3A%20%7B%22from%22%3A%20%22${__from}%22%2C%20%22to%22%3A%20%22${__to}%22%7D%7D%7D",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[1m]))) / on(uri) group_left() (max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\")) or max by (uri) (histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[1m])))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})))) > 1",
+          "legendFormat": "API {{uri}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "(max by (relay) (outbox_relay_oldest_age_seconds) / on(relay) group_left() (max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or max by (relay) (outbox_relay_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"})))) > 1",
+          "legendFormat": "릴레이 {{relay}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "(max by (worker) (async_worker_oldest_age_seconds) / on(worker) group_left() (max by (worker) (label_replace(overrun_threshold_seconds{kind=\"worker\", name!=\"default\"}, \"worker\", \"$1\", \"name\", \"(.+)\")) or max by (worker) (async_worker_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"worker\", name=\"default\"})))) > 1",
+          "legendFormat": "워커 {{worker}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "D",
+          "expr": "((max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) > 0)) / on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"})))) > 1",
+          "legendFormat": "cron {{scheduler}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "E",
+          "expr": "(max by (scheduler) ((timestamp(batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) - batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"} > 0)) / on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"})))) > 1",
+          "legendFormat": "cron {{scheduler}} 도는 중",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "Z",
+          "expr": "vector(1)",
+          "legendFormat": "기준",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 100,
+      "type": "row",
+      "title": "API",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "panels": []
+    },
+    {
       "id": 1,
       "type": "timeseries",
       "title": "기준을 넘은 API",
-      "description": "그 API 의 목표를 넘은 순간의 p99 만 점으로 그리고, 같은 이름의 빨간 점선으로 그 API 의 목표(기준선)를 그린다. 목표는 앱이 내보내는 기준 지표(overrun_threshold_seconds{kind=\"api\"})이고 목표가 없는 API 는 그 기본값(name=default)이다. 비어 있으면 넘은 API 가 없다",
+      "description": "그 API 의 목표를 넘은 순간의 p99 만 점으로 그리고, 같은 이름의 빨간 점선으로 그 API 의 목표(기준선)를 그린다. 목표는 앱이 내보내는 기준 지표(overrun_threshold_seconds{kind=\"api\"})이고 목표가 없는 API 는 그 기본값(name=default)이다. 비어 있으면 넘은 API 가 없다 선의 점을 누르면 그 API 에서 300ms 를 넘은 요청의 트레이스 목록이 Explore 에서 열린다. 구간은 지금 보고 있는 대시보드의 시간 범위라, 튄 곳을 드래그해 좁힌 뒤 누르면 그 구간의 요청만 나온다. 300ms 는 가장 낮은 목표이고 테일 샘플링이 모두 남기는 기준이라 목표가 그보다 높은 API 는 목록에 목표 아래의 요청도 섞인다. Tempo 는 한 번에 100개까지 돌려준다. 트레이싱을 끈 회차에는 목록이 비는 것이 정상이다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
       "gridPos": {
         "h": 12,
-        "w": 10,
+        "w": 20,
         "x": 0,
-        "y": 7
+        "y": 18
       },
       "targets": [
         {
@@ -97,7 +258,14 @@
                 "value": null
               }
             ]
-          }
+          },
+          "links": [
+            {
+              "title": "이 API 의 300ms 넘은 요청 트레이스 (보고 있는 구간)",
+              "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%20%7B%22datasource%22%3A%20%22tempo%22%2C%20%22queries%22%3A%20%5B%7B%22refId%22%3A%20%22A%22%2C%20%22datasource%22%3A%20%7B%22type%22%3A%20%22tempo%22%2C%20%22uid%22%3A%20%22tempo%22%7D%2C%20%22queryType%22%3A%20%22traceql%22%2C%20%22query%22%3A%20%22%7B%20nestedSetParent%20%3D%20-1%20%26%26%20span.http.route%20%3D%20%5C%22${__field.labels.uri:percentencode}%5C%22%20%26%26%20duration%20%3E%20300ms%20%7D%22%2C%20%22limit%22%3A%20100%2C%20%22tableType%22%3A%20%22traces%22%7D%5D%2C%20%22range%22%3A%20%7B%22from%22%3A%20%22${__from}%22%2C%20%22to%22%3A%20%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ]
         },
         "overrides": [
           {
@@ -138,231 +306,6 @@
       }
     },
     {
-      "id": 2,
-      "type": "table",
-      "title": "트레이싱: 그 API 의 목표를 넘은 요청",
-      "datasource": {
-        "type": "datasource",
-        "uid": "-- Mixed --"
-      },
-      "description": "HTTP 요청 가운데 그 API 의 목표(기준 지표, 없으면 기본값)를 넘은 것을 먼저 시작한 것부터 한 줄씩 둔다. Tempo 에서 300ms 를 넘은 요청을 받아 요청 이름으로 목표와 잇고 넘은 줄만 남긴다. 300ms 는 가장 낮은 목표이고 테일 샘플링이 모두 남기는 기준이다. 오래 걸린 호출 단계는 트레이스 ID 를 눌러 Explore 의 폭포 그림에서 본다. Tempo 가 최근 100개까지만 돌려주어 그보다 많으면 구간 앞쪽이 빠진다. 빠진 것까지 보려면 시간 범위를 좁힌다. 트레이싱을 끈 회차에는 비는 것이 정상이다",
-      "gridPos": {
-        "h": 12,
-        "w": 10,
-        "x": 10,
-        "y": 7
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "tempo",
-            "uid": "tempo"
-          },
-          "queryType": "traceql",
-          "tableType": "traces",
-          "limit": 100,
-          "query": "{ nestedSetParent = -1 && span.http.route != nil && duration > 300ms }"
-        },
-        {
-          "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true,
-          "format": "table",
-          "expr": "max by (name) (overrun_threshold_seconds{kind=\"api\", name!=\"default\"}) or max by (name) (label_join(group by (method, uri) (http_server_requests_seconds_count{job=\"app\"}), \"name\", \" \", \"method\", \"uri\")) * 0 + scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"}))"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "traceName"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "실행"
-              },
-              {
-                "id": "custom.width",
-                "value": 160
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "traceDuration"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "걸린 시간"
-              },
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "목표"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "ms"
-              },
-              {
-                "id": "custom.width",
-                "value": 80
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "startTime"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "시작 시각"
-              },
-              {
-                "id": "unit",
-                "value": "time:YYYY-MM-DD HH:mm:ss.SSS"
-              },
-              {
-                "id": "custom.width",
-                "value": 210
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "traceID"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "트레이스 ID"
-              },
-              {
-                "id": "custom.width",
-                "value": 110
-              }
-            ]
-          }
-        ]
-      },
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "renameByName": {
-              "name": "traceName",
-              "Value": "target_s",
-              "Value #B": "target_s"
-            },
-            "excludeByName": {
-              "Time": true
-            }
-          }
-        },
-        {
-          "id": "joinByField",
-          "options": {
-            "byField": "traceName",
-            "mode": "inner"
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "mode": "binary",
-            "alias": "목표",
-            "binary": {
-              "left": "target_s",
-              "operator": "*",
-              "right": "1000"
-            },
-            "replaceFields": false
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "mode": "binary",
-            "alias": "over_ms",
-            "binary": {
-              "left": "Duration",
-              "operator": "-",
-              "right": "목표"
-            },
-            "replaceFields": false
-          }
-        },
-        {
-          "id": "filterByValue",
-          "options": {
-            "type": "include",
-            "match": "all",
-            "filters": [
-              {
-                "fieldName": "over_ms",
-                "config": {
-                  "id": "greater",
-                  "options": {
-                    "value": 0
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Service": true,
-              "Trace Service": true,
-              "traceService": true,
-              "nested": true,
-              "target_s": true,
-              "over_ms": true
-            },
-            "indexByName": {
-              "Name": 0,
-              "Duration": 1,
-              "목표": 2,
-              "Start time": 3,
-              "Trace ID": 4
-            }
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": {
-            "sort": [
-              {
-                "desc": false,
-                "field": "Start time"
-              }
-            ]
-          }
-        }
-      ]
-    },
-    {
       "id": 101,
       "type": "text",
       "title": "프로파일링",
@@ -370,7 +313,7 @@
         "h": 12,
         "w": 4,
         "x": 20,
-        "y": 7
+        "y": 18
       },
       "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다. 프로파일에는 종류를 가르는 꼬리표가 없어 줄마다 같은 화면으로 간다",
       "options": {
@@ -387,7 +330,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 19
+        "y": 30
       },
       "panels": []
     },
@@ -404,7 +347,7 @@
         "h": 8,
         "w": 10,
         "x": 0,
-        "y": 20
+        "y": 31
       },
       "targets": [
         {
@@ -498,7 +441,7 @@
         "h": 8,
         "w": 10,
         "x": 10,
-        "y": 20
+        "y": 31
       },
       "targets": [
         {
@@ -552,7 +495,7 @@
         "h": 8,
         "w": 4,
         "x": 20,
-        "y": 20
+        "y": 31
       },
       "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다. 프로파일에는 종류를 가르는 꼬리표가 없어 줄마다 같은 화면으로 간다",
       "options": {
@@ -569,7 +512,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 39
       },
       "panels": []
     },
@@ -586,7 +529,7 @@
         "h": 8,
         "w": 10,
         "x": 0,
-        "y": 29
+        "y": 40
       },
       "targets": [
         {
@@ -680,7 +623,7 @@
         "h": 8,
         "w": 10,
         "x": 10,
-        "y": 29
+        "y": 40
       },
       "targets": [
         {
@@ -734,7 +677,7 @@
         "h": 8,
         "w": 4,
         "x": 20,
-        "y": 29
+        "y": 40
       },
       "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다. 프로파일에는 종류를 가르는 꼬리표가 없어 줄마다 같은 화면으로 간다",
       "options": {
@@ -751,7 +694,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 48
       },
       "panels": []
     },
@@ -759,7 +702,7 @@
       "id": 134,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: cron 작업마다 시작 뒤 지난 시간",
-      "description": "cron 작업마다 도는 중에 마감을 넘은 동안만 실선(시작 뒤 지난 시간)과 같은 이름의 빨간 점선(그 작업의 마감, 기준선)을 그린다. 비어 있으면 마감을 넘겨 도는 작업이 없다. 끝난 실행이 마감을 넘었는지는 오른쪽 표가 본다. 이 그래프는 멈춰 끝나지 않는 작업을 끝나기 전에 잡는다. 시작 시각은 앱이 실행마다 내보내는 batch_job_running_since_seconds{scheduler}(돌지 않으면 0, lc-backend#1175)에서 읽는다. 마감은 기준 지표(overrun_threshold_seconds{kind=\"job\"})에서 읽고, 그 작업의 값이 없으면 기본값(name=default)을 쓴다. 지난 시간은 지금 시각이 아니라 표본을 모은 시각에서 뺀다. 지금 시각으로 빼면 다음 수집까지 같은 표본이 쓰여 이미 끝난 실행도 15초까지 자라 보인다. 표와 같이 cron 이 아닌 작업(아웃박스 릴레이, sendHeartbeat, takeOverStale)은 이름으로 뺀다. 작업은 배치 서버에서 돌아 job=\"batch\" 로 고른다. 로컬은 앱 하나가 배치 역할도 해서 로컬 Prometheus 의 batch 수집이 작업 지표를 다시 긁는다",
+      "description": "cron 작업마다 도는 중에 마감을 넘은 동안만 실선(시작 뒤 지난 시간)과 같은 이름의 빨간 점선(그 작업의 마감, 기준선)을 그린다. 비어 있으면 마감을 넘겨 도는 작업이 없다. 끝난 실행이 마감을 넘었는지는 오른쪽 그래프가 본다. 이 그래프는 멈춰 끝나지 않는 작업을 끝나기 전에 잡는다. 시작 시각은 앱이 실행마다 내보내는 batch_job_running_since_seconds{scheduler}(돌지 않으면 0, lc-backend#1175)에서 읽는다. 마감은 기준 지표(overrun_threshold_seconds{kind=\"job\"})에서 읽고, 그 작업의 값이 없으면 기본값(name=default)을 쓴다. 지난 시간은 지금 시각이 아니라 표본을 모은 시각에서 뺀다. 지금 시각으로 빼면 다음 수집까지 같은 표본이 쓰여 이미 끝난 실행도 15초까지 자라 보인다. 표와 같이 cron 이 아닌 작업(아웃박스 릴레이, sendHeartbeat, takeOverStale)은 이름으로 뺀다. 작업은 배치 서버에서 돌아 job=\"batch\" 로 고른다. 로컬은 앱 하나가 배치 역할도 해서 로컬 Prometheus 의 batch 수집이 작업 지표를 다시 긁는다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -768,7 +711,7 @@
         "h": 9,
         "w": 10,
         "x": 0,
-        "y": 38
+        "y": 49
       },
       "targets": [
         {
@@ -850,135 +793,88 @@
       }
     },
     {
-      "id": 131,
-      "type": "table",
-      "title": "기준을 넘은 cron 작업",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "고른 구간 안에서 돈 cron 작업 가운데 한 번이라도 기준보다 오래 걸린 것만 둔다. 기준은 기준 지표(overrun_threshold_seconds{kind=\"job\"})에서 읽고, 이름별 마감이 없으면 기본값(name=default)을 쓴다. 앱의 작업 타이머(batch_job_duration_seconds)로 세어 트레이싱을 끈 회차에도 보이고 표본에 흔들리지 않는다. 작업 이름을 누르면 Explore 에서 그 작업의 트레이스 목록이 열린다. 작업은 테일 샘플링에서 1% 만 남는다. cron 이 아닌 작업은 이름으로 뺀다. 아웃박스 릴레이(노출 발행, 결제 재확인, 충전 재예약)는 위 릴레이 줄이 보고, 상태만 보는 작업(sendHeartbeat, takeOverStale)은 판정하지 않는다. 그런 작업이 늘면 쿼리의 이름 목록에 더한다. 비어 있으면 기준을 넘은 작업이 없다. 짧은 회차에는 cron 시각이 끼지 않아 비는 것이 보통이다. 앱이 뜬 뒤 첫 실행은 실행 횟수 계수기가 그때 생겨 increase() 가 0 을 낸다. 그래서 돌았는지는 가장 긴 시간이 구간 안에 있었는지로 보고, 실행 횟수는 increase() 가 0 이면 구간 안의 계수기 최댓값을 쓴다. 작업은 배치 서버에서 돌아 job=\"batch\" 로 고른다. 로컬은 앱 하나가 배치 역할도 해서 로컬 Prometheus 의 batch 수집이 작업 지표를 다시 긁는다",
+      "id": 135,
+      "type": "timeseries",
+      "title": "기준을 넘은 그래프: cron 작업마다 실행 한 번에 걸린 시간",
+      "description": "끝난 cron 실행 가운데 마감보다 오래 걸린 것만 실선(걸린 시간)과 같은 이름의 빨간 점선(그 작업의 마감, 기준선)으로 그린다. 걸린 시간은 앱의 작업 타이머(batch_job_duration_seconds_max)라 트레이싱을 끈 회차에도 보이고 표본에 흔들리지 않는다. 그 최대값은 실행이 끝난 뒤 2분 남짓 남았다가 사라진다. 마감은 기준 지표(overrun_threshold_seconds{kind=\"job\"})에서 읽고, 그 작업의 값이 없으면 기본값(name=default)을 쓴다. 도는 중에 마감을 넘은 것은 왼쪽 그래프가 본다. 배치 서버에는 트레이싱 에이전트가 붙지 않아 실행의 트레이스로 넘어가지 못한다(lc-backend#1199). cron 이 아닌 작업(아웃박스 릴레이, sendHeartbeat, takeOverStale)은 이름으로 뺀다. 비어 있으면 마감을 넘은 실행이 없다",
       "gridPos": {
         "h": 9,
         "w": 10,
         "x": 10,
-        "y": 38
+        "y": 49
       },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true,
-          "format": "table",
-          "expr": "label_replace(((round(sum by (scheduler) (increase(batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}[$__range]))) > 0) or sum by (scheduler) (max_over_time(batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}[$__range]))) and on(scheduler) (((max by (scheduler) (max_over_time(batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}[$__range]))) and on(scheduler) (max by (scheduler) (max_over_time(batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}[$__range])) > 0)) > on(scheduler) (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"})))), \"작업\", \"$1\", \"scheduler\", \"(.*)\\\\(\\\\)\")"
-        },
-        {
-          "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true,
-          "format": "table",
-          "expr": "label_replace(((max by (scheduler) (max_over_time(batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}[$__range]))) and on(scheduler) (max by (scheduler) (max_over_time(batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}[$__range])) > 0)) > on(scheduler) (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))), \"작업\", \"$1\", \"scheduler\", \"(.*)\\\\(\\\\)\")"
-        },
-        {
-          "refId": "C",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true,
-          "format": "table",
-          "expr": "label_replace((max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))) and on(scheduler) (((max by (scheduler) (max_over_time(batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}[$__range]))) and on(scheduler) (max by (scheduler) (max_over_time(batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}[$__range])) > 0)) > on(scheduler) (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"})))), \"작업\", \"$1\", \"scheduler\", \"(.*)\\\\(\\\\)\")"
-        }
-      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "auto",
+            "pointSize": 5
+          }
+        },
         "overrides": [
           {
             "matcher": {
-              "id": "byName",
-              "options": "가장 긴 시간"
+              "id": "byRegexp",
+              "options": "기준 .*"
             },
             "properties": [
               {
-                "id": "unit",
-                "value": "s"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "기준"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "작업"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 320
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
               },
               {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "Explore 에서 이 작업의 트레이싱 보기",
-                    "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%7B%22datasource%22%3A%22tempo%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22datasource%22%3A%7B%22type%22%3A%22tempo%22%2C%22uid%22%3A%22tempo%22%7D%2C%22queryType%22%3A%22traceql%22%2C%22query%22%3A%22%7B%20name%20%3D%20%5C%5C%5C%22${__value.raw}%5C%5C%5C%22%20%7D%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D"
-                  }
-                ]
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
               }
             ]
           }
         ]
       },
-      "transformations": [
-        {
-          "id": "merge"
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
         },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
         {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "scheduler": true
-            },
-            "indexByName": {
-              "작업": 0,
-              "Value #A": 1,
-              "Value #B": 2,
-              "Value #C": 3
-            },
-            "renameByName": {
-              "Value #A": "실행 횟수",
-              "Value #B": "가장 긴 시간",
-              "Value #C": "기준"
-            }
+          "refId": "A",
+          "expr": "(max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"})))",
+          "legendFormat": "{{scheduler}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
           }
         },
         {
-          "id": "sortBy",
-          "options": {
-            "sort": [
-              {
-                "desc": true,
-                "field": "가장 긴 시간"
-              }
-            ]
+          "refId": "Z",
+          "expr": "(max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))) and on(scheduler) ((max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))))",
+          "legendFormat": "기준 {{scheduler}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
           }
         }
       ]
@@ -991,7 +887,7 @@
         "h": 9,
         "w": 4,
         "x": 20,
-        "y": 38
+        "y": 49
       },
       "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다. 프로파일에는 종류를 가르는 꼬리표가 없어 줄마다 같은 화면으로 간다",
       "options": {
