@@ -1,4 +1,4 @@
-# 기준 시계열이 정한 값과 이름으로 나오는지 확인한다(lc-infra #107, #111).
+# 기준 시계열이 정한 값과 이름으로 나오는지 확인한다(lc-infra #107, #111, #108).
 #   docker run --rm -v "$PWD/observability/prometheus:/p" --entrypoint promtool prom/prometheus:v3.13.1 test rules /p/thresholds_test.yml
 rule_files:
   - thresholds.yml
@@ -13,3 +13,13 @@ tests:
         exp_samples:
           - labels: 'overrun_threshold_seconds{kind="global", name="gc-pause"}'
             value: 0.2
+          - labels: 'overrun_threshold_seconds{kind="global", name="transaction"}'
+            value: 1
+      # 시간이 아닌 비율은 이름을 나눈다(#108)
+      - expr: overrun_threshold_ratio
+        eval_time: 1m
+        exp_samples:
+          - labels: 'overrun_threshold_ratio{kind="global", name="gc-overhead"}'
+            value: 0.1
+          - labels: 'overrun_threshold_ratio{kind="global", name="heap-after-gc"}'
+            value: 0.7
