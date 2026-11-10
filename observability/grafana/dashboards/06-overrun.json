@@ -894,6 +894,153 @@
         "mode": "markdown",
         "content": "- [Profiling Wall Time (실행 경과 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=wall:wall:nanoseconds:cpu:nanoseconds&${__url_time_range})\n- [Profiling CPU Time (CPU 연산 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=process_cpu:cpu:nanoseconds:cpu:nanoseconds&${__url_time_range})\n\nCall Tree 에서 **그 작업 메서드** 을 찾는다. 링크로 검색어를 넘길 수 없어 화면에서 찾는다"
       }
+    },
+    {
+      "id": 140,
+      "type": "row",
+      "title": "외부 연동",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 58
+      },
+      "panels": []
+    },
+    {
+      "id": 141,
+      "type": "timeseries",
+      "title": "외부 HTTP 호출: 상대와 경로마다 p99",
+      "description": "카카오와 토스처럼 WebClient 로 부르는 호출을 상대(client_name)와 경로(uri)로 나눠 p99 를 그린다. 앱이 내보내는 http_client_requests_histogram_seconds 에서 읽는다. 호출 수와 상태는 http_client_requests_seconds 가 갖는다. 상대마다의 기준 값은 아직 정하지 않아 기준선 없이 모든 호출의 p99 를 그린다(lc-backend#1166). 선의 점을 누르면 그 상대를 부른 클라이언트 스팬이 든 트레이스 목록이 Explore 에서 열린다. 표를 시간으로 정렬해 느린 호출부터 본다. 누른 p99 를 문턱으로 쓰지 않는다. p99 는 버킷에서 어림한 값이라 실제 가장 느린 호출보다 클 수 있어, 문턱으로 쓰면 그 p99 를 만든 호출이 빠진다. Tempo 는 한 번에 100개까지 돌려주니 많으면 튄 곳을 드래그해 좁힌 뒤 누른다. 구간은 지금 보고 있는 대시보드의 시간 범위다. 테일 샘플링은 요청 전체가 300ms 를 넘거나 오류일 때만 트레이스를 남겨, 외부 호출이 느렸어도 요청이 300ms 아래면 목록에 나오지 않는다. 트레이싱을 끈 회차에는 목록이 비는 것이 정상이다 트레이스는 상대(호스트)로만 거르고 경로로는 거르지 않는다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 59
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "lines",
+            "pointSize": 4,
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          },
+          "links": [
+            {
+              "title": "이 상대의 호출 트레이스 (보고 있는 구간)",
+              "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%20%7B%22datasource%22%3A%20%22tempo%22%2C%20%22queries%22%3A%20%5B%7B%22refId%22%3A%20%22A%22%2C%20%22datasource%22%3A%20%7B%22type%22%3A%20%22tempo%22%2C%20%22uid%22%3A%20%22tempo%22%7D%2C%20%22queryType%22%3A%20%22traceql%22%2C%20%22query%22%3A%20%22%7B%20kind%20%3D%20client%20%26%26%20span.server.address%20%3D%20%5C%22${__field.labels.client_name:percentencode}%5C%22%20%7D%22%2C%20%22limit%22%3A%20100%2C%20%22tableType%22%3A%20%22traces%22%7D%5D%2C%20%22range%22%3A%20%7B%22from%22%3A%20%22${__from}%22%2C%20%22to%22%3A%20%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (client_name, uri, le) (rate(http_client_requests_histogram_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "{{client_name}} {{uri}}"
+        }
+      ]
+    },
+    {
+      "id": 142,
+      "type": "timeseries",
+      "title": "AWS SDK 호출: 서비스와 작업과 모델마다 p99",
+      "description": "Bedrock, S3, Rekognition 의 SDK 호출을 서비스(service), 작업(operation), 모델(model, 모델이 없는 호출은 none)로 나눠 p99 를 그린다. 앱이 내보내는 aws_sdk_calls_seconds 에서 읽고, 실패는 outcome=\"failure\" 로 센다. 상대마다의 기준 값은 아직 정하지 않아 기준선 없이 모든 호출의 p99 를 그린다(lc-backend#1166). 선의 점을 누르면 그 상대를 부른 클라이언트 스팬이 든 트레이스 목록이 Explore 에서 열린다. 표를 시간으로 정렬해 느린 호출부터 본다. 누른 p99 를 문턱으로 쓰지 않는다. p99 는 버킷에서 어림한 값이라 실제 가장 느린 호출보다 클 수 있어, 문턱으로 쓰면 그 p99 를 만든 호출이 빠진다. Tempo 는 한 번에 100개까지 돌려주니 많으면 튄 곳을 드래그해 좁힌 뒤 누른다. 구간은 지금 보고 있는 대시보드의 시간 범위다. 테일 샘플링은 요청 전체가 300ms 를 넘거나 오류일 때만 트레이스를 남겨, 외부 호출이 느렸어도 요청이 300ms 아래면 목록에 나오지 않는다. 트레이싱을 끈 회차에는 목록이 비는 것이 정상이다 트레이스는 서비스와 작업으로 거르고 모델로는 거르지 않는다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 59
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "lines",
+            "pointSize": 4,
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          },
+          "links": [
+            {
+              "title": "이 작업의 호출 트레이스 (보고 있는 구간)",
+              "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%20%7B%22datasource%22%3A%20%22tempo%22%2C%20%22queries%22%3A%20%5B%7B%22refId%22%3A%20%22A%22%2C%20%22datasource%22%3A%20%7B%22type%22%3A%20%22tempo%22%2C%20%22uid%22%3A%20%22tempo%22%7D%2C%20%22queryType%22%3A%20%22traceql%22%2C%20%22query%22%3A%20%22%7B%20kind%20%3D%20client%20%26%26%20span.rpc.service%20%3D%20%5C%22${__field.labels.service:percentencode}%5C%22%20%26%26%20span.rpc.method%20%3D%20%5C%22${__field.labels.operation:percentencode}%5C%22%20%7D%22%2C%20%22limit%22%3A%20100%2C%20%22tableType%22%3A%20%22traces%22%7D%5D%2C%20%22range%22%3A%20%7B%22from%22%3A%20%22${__from}%22%2C%20%22to%22%3A%20%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (service, operation, model, le) (rate(aws_sdk_calls_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "{{service}} {{operation}} {{model}}"
+        }
+      ]
     }
   ],
   "templating": {
