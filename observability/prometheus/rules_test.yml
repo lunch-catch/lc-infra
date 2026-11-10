@@ -79,6 +79,29 @@ tests:
           - exp_labels: {severity: warning, instance: b1, scheduler: "EventLogRetentionJob.purgeExpiredEvents()"}
             exp_annotations: {description: "배치 b1 의 EventLogRetentionJob.purgeExpiredEvents() 가 주기를 넘겨 성공하지 못했다"}
 
+  # 충전 재예약의 5분 경계와 해소. b1 은 0분에 성공하고 20분 동안 멈췄다가 21분부터 다시 매분 성공한다. b2 는 매분 성공한다.
+  #   10분  6분에 5분을 넘었지만 for 5분이 안 차 울리지 않는다
+  #   12분  b1 만 울린다. 30분 목록에 잘못 넣었다면 여기서 울리지 않는다
+  #   25분  성공 시각이 갱신되어 해소된다
+  - interval: 1m
+    input_series:
+      - series: 'batch_job_last_success_timestamp_seconds{instance="b1", scheduler="RechargeReservationWorker.reserveCharged()"}'
+        values: '0x20 1260+60x20'
+      - series: 'batch_job_last_success_timestamp_seconds{instance="b2", scheduler="RechargeReservationWorker.reserveCharged()"}'
+        values: '0+60x40'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: BatchNotRun
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: BatchNotRun
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: b1, scheduler: "RechargeReservationWorker.reserveCharged()"}
+            exp_annotations: {description: "배치 b1 의 RechargeReservationWorker.reserveCharged() 가 주기를 넘겨 성공하지 못했다"}
+      - eval_time: 25m
+        alertname: BatchNotRun
+        exp_alerts: []
+
   # 정산과 분석의 "한 건이라도" 경보. 30분에 한 건 오르고 121분에 서버가 다시 떠 카운터가 0 으로 돌아간다.
   #   20분  평소(0): 울리지 않는다
   #   40분  한 건 오름: 울린다
@@ -163,6 +186,9 @@ tests:
         exp_alerts: []
       - eval_time: 30m
         alertname: AnalyticsConsistencyViolation
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: BatchNotRun
         exp_alerts: []
 
   # 밀린 날짜. 배치 b1 이 20분부터 60분까지 3 이고 그 뒤 0 이다. API 서버 a1 은 5 지만 집계를 돌지 않아 보지 않는다.
