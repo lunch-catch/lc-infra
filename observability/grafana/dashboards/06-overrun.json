@@ -47,7 +47,7 @@
       "id": 1,
       "type": "timeseries",
       "title": "기준을 넘은 API",
-      "description": "목표를 넘은 순간의 API p99 를 그린다. 목표는 앱의 기준 지표(overrun_threshold_seconds{kind=\"api\"})이고, 목표가 없는 API 는 기본값을 쓴다. 선의 점을 누르면 그 API 에서 300ms 를 넘은 요청의 트레이스 목록이 보고 있는 구간으로 열린다",
+      "description": "목표를 넘은 순간의 API p99 를 그린다. 목표는 기본 500ms 이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 API 에서 300ms 를 넘은 요청의 트레이스 목록이 보고 있는 구간으로 열린다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -142,7 +142,7 @@
       "id": 113,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: 릴레이마다 발행 지연 p99",
-      "description": "기준을 넘은 동안의 발행 지연 p99 를 릴레이마다 그린다. 발행 지연은 건이 생긴 뒤 발행하기까지의 시간이고 기준은 기본 5초다. 선의 점을 누르면 그 릴레이 작업의 실행 트레이스 목록이 열린다",
+      "description": "기준을 넘은 동안의 발행 지연 p99 를 릴레이마다 그린다. 발행 지연은 건이 생긴 뒤 발행하기까지의 시간이다. 기준은 기본 5초이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 릴레이 작업의 실행 트레이스 목록이 열린다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -465,7 +465,7 @@
       "id": 10,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: 워커마다 가장 오래 기다린 작업의 대기 시간",
-      "description": "기준을 넘은 동안의 가장 오래 기다린 작업의 대기 시간을 워커마다 그린다. 기준은 기본 5초이고 쿠폰 워커는 따로 둔다. 선의 점을 누르면 그 워커 스레드의 SQL 트레이스 목록이 열린다",
+      "description": "기준을 넘은 동안의 가장 오래 기다린 작업의 대기 시간을 워커마다 그린다. 기준은 기본 5초이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 워커 스레드의 SQL 트레이스 목록이 열린다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -717,7 +717,7 @@
       "id": 134,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: cron 작업마다 시작 뒤 지난 시간",
-      "description": "마감을 넘겨 도는 동안의 시작 뒤 지난 시간을 cron 작업마다 그린다. 끝나지 않고 멈춘 작업을 끝나기 전에 잡는다. 선의 점을 누르면 그 작업의 실행 트레이스 목록이 열린다",
+      "description": "마감을 넘겨 도는 동안의 시작 뒤 지난 시간을 cron 작업마다 그린다. 끝나지 않고 멈춘 작업을 끝나기 전에 잡는다. 마감은 기본 10분이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 작업의 실행 트레이스 목록이 열린다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -795,7 +795,7 @@
       "id": 135,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: cron 작업마다 실행 한 번에 걸린 시간",
-      "description": "마감보다 오래 걸린 cron 실행의 걸린 시간을 그린다. 실행이 끝난 뒤 2분 남짓 남았다가 사라진다. 선의 점을 누르면 그 작업의 실행 트레이스 목록이 열린다",
+      "description": "마감보다 오래 걸린 cron 실행의 걸린 시간을 그린다. 실행이 끝난 뒤 2분 남짓 남았다가 사라진다. 마감은 기본 10분이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 작업의 실행 트레이스 목록이 열린다",
       "gridPos": {
         "h": 9,
         "w": 10,
