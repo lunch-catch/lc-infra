@@ -174,10 +174,10 @@
       "panels": []
     },
     {
-      "id": 8,
+      "id": 113,
       "type": "timeseries",
-      "title": "기준을 넘은 그래프: 릴레이마다 가장 오래 기다린 미발행 건의 대기 시간",
-      "description": "릴레이마다 기준을 넘은 동안만 실선(가장 오래 기다린 미발행 건의 대기 시간)과 같은 이름의 빨간 점선(그 릴레이의 기준선)을 그린다. 비어 있으면 기준을 넘은 릴레이가 없다. 기준은 기준 지표(overrun_threshold_seconds{kind=\"relay\"})에서 읽고, 그 릴레이의 값이 없으면 기본값(name=default)을 쓴다. 실선이 점선 위로 올라가면 기준 초과다. 대기 시간은 모든 릴레이가 내보내는 공통 지표(outbox_relay_oldest_age_seconds{relay})이고 lc-backend#1131 에서 생긴다. 그 전에는 비어 보인다. 실선의 점을 누르면 그 릴레이 작업의 실행 트레이스 목록이 보고 있는 구간으로 Explore 에서 열린다. 튄 곳을 드래그해 좁힌 뒤 누른다. 잦은 작업은 1초 넘은 실행, 오류, 1% 만 남아 목록으로 원인을 가른다. 느리거나 실패한 실행이 있으면 실행이 원인이고, 빠른 실행만 있으면 처리량이 모자란 것이라 오른쪽 건수를 본다. 비었으면 릴레이가 돌지 않은 것이라 BatchNotRun 과 배치 로그를 본다. 릴레이 이름(relay)과 작업 이름의 짝은 그래프 쿼리의 label_replace 가 갖는다. 릴레이가 늘면 짝을 더한다",
+      "title": "기준을 넘은 그래프: 릴레이마다 발행 지연 p99",
+      "description": "릴레이마다 발행 지연의 p99 가 기준을 넘은 동안만 실선(p99)과 같은 이름의 빨간 점선(그 릴레이의 기준선)을 그린다. 비어 있으면 기준을 넘은 릴레이가 없다. 발행 지연은 넘긴 순간에 잰, 그 건이 생긴 뒤 넘기기까지의 시간(outbox_relay_publish_delay_seconds, lc-backend#1205)이다. 노출 릴레이는 요청을 받은 시각부터 재서 노출 저장 대기열에서 기다린 시간도 들고, 재시도 끝에 넘긴 노출도 든다. 기준은 기준 지표(overrun_threshold_seconds{kind=\"relay\"})에서 읽고, 그 릴레이의 값이 없으면 기본값(name=default, 품질 문서의 아웃박스 발행 지연 5초)을 쓴다. 넘긴 것이 없으면 p99 도 없다. 아예 넘기지 못하는 것은 오른쪽 그래프와 BatchNotRun 이 본다. 실선의 점을 누르면 그 릴레이 작업의 실행 트레이스 목록이 보고 있는 구간으로 Explore 에서 열린다. 튄 곳을 드래그해 좁힌 뒤 누른다. 잦은 작업은 1초 넘은 실행, 오류, 1% 만 남아 목록으로 원인을 가른다. 느리거나 실패한 실행이 있으면 실행이 원인이고, 빠른 실행만 있으면 처리량이 모자란 것이라 아래 건수를 본다. 비었으면 릴레이가 돌지 않은 것이라 BatchNotRun 과 배치 로그를 본다. 릴레이 이름(relay)과 작업 이름의 짝은 그래프 쿼리의 label_replace 가 갖는다. 릴레이가 늘면 짝을 더한다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -195,7 +195,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "label_replace(max by (relay) (outbox_relay_oldest_age_seconds) > on(relay) group_left() (max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or max by (relay) (outbox_relay_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"}))), \"job_name\", \"ImpressionDispatchJob.dispatchPending\", \"relay\", \"adserving\\\\.impression\")",
+          "expr": "label_replace(histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) > on(relay) group_left() (max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"}))), \"job_name\", \"ImpressionDispatchJob.dispatchPending\", \"relay\", \"adserving\\\\.impression\")",
           "legendFormat": "{{relay}}"
         },
         {
@@ -204,7 +204,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "(max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or max by (relay) (outbox_relay_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"}))) and on(relay) (max by (relay) (outbox_relay_oldest_age_seconds) > on(relay) group_left() (max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or max by (relay) (outbox_relay_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"}))))",
+          "expr": "(max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"}))) and on(relay) (histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) > on(relay) group_left() (max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"}))))",
           "legendFormat": "기준 {{relay}}"
         }
       ],
@@ -286,10 +286,10 @@
       }
     },
     {
-      "id": 9,
+      "id": 8,
       "type": "timeseries",
-      "title": "릴레이마다 미발행 건수",
-      "description": "판정에 쓰지 않는다. 대기 시간이 올라갔을 때 밀린 양이 함께 늘었는지 본다. 노출 릴레이는 1초마다 묶어 넘기고 노출 저장이 최대 500건씩 들어와 정상에서도 수백 건이 된다. 공통 지표(outbox_relay_backlog{relay})가 생기기 전에는 노출 릴레이의 기존 지표를 대신 그린다(lc-backend#1131)",
+      "title": "릴레이마다 지금 넘길 수 있는 건의 가장 오래 기다린 시간",
+      "description": "릴레이마다 지금 넘길 수 있는 미발행(포기하지 않았고 다시 넘길 시각이 지난 것) 가운데 가장 오래 기다린 건의 대기 시간을 그린다(outbox_relay_oldest_age_seconds). 판정 그래프가 아니다. 다시 넘길 시각을 기다리는 건과 포기한 건은 넣지 않아(lc-backend#1205), 재시도 중인 건 하나로 값이 늘지 않는다. 릴레이가 멈추거나 못 따라가면 이 값이 계속 자란다. 넘긴 순간에야 재는 왼쪽 그래프와 달리 넘기지 못하는 동안에도 보인다. 밀린 양은 묶음마다 다시 센다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -307,7 +307,164 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
+          "expr": "max by (relay) (outbox_relay_oldest_age_seconds)",
+          "legendFormat": "{{relay}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "lines",
+            "pointSize": 4,
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "릴레이마다 미발행 건수",
+      "description": "판정에 쓰지 않는다. 대기 시간이 올라갔을 때 밀린 양이 함께 늘었는지 본다. 노출 릴레이는 1초마다 묶어 넘기고 노출 저장이 최대 500건씩 들어와 정상에서도 수백 건이 된다. 공통 지표(outbox_relay_backlog{relay})가 생기기 전에는 노출 릴레이의 기존 지표를 대신 그린다(lc-backend#1131) 빨간 점선은 품질 문서의 아웃박스 미발행 적체 기준(100건)이고 RelayBacklogHigh 경보의 기준이다. 포기한 노출은 빠지고 다시 넘길 시각을 기다리는 노출은 든다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 0,
+        "y": 28
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "max by (relay) (outbox_relay_backlog) or label_replace(max(adserving_impression_dispatch_backlog), \"relay\", \"adserving.impression\", \"\", \"\")",
+          "legendFormat": "{{relay}}"
+        },
+        {
+          "refId": "Z",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (relay) (outbox_relay_backlog) * 0 + 100",
+          "legendFormat": "기준 {{relay}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "drawStyle": "lines",
+            "pointSize": 4,
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "기준 .*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 114,
+      "type": "timeseries",
+      "title": "릴레이마다 포기한 건수",
+      "description": "릴레이마다 상한만큼 실패해 넘기기를 포기한 건수를 그린다(outbox_relay_abandoned, lc-backend#1205). 0 이 정상이고 0 보다 크면 RelayAbandoned 경보가 곧바로 울린다. 원인을 고친 뒤 그 행의 포기 시각(impression_log.dispatch_abandoned_at)을 비우면 다시 넘긴다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 10,
+        "y": 28
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (relay) (outbox_relay_abandoned)",
           "legendFormat": "{{relay}}"
         }
       ],
@@ -349,7 +506,7 @@
       "type": "text",
       "title": "프로파일링",
       "gridPos": {
-        "h": 8,
+        "h": 16,
         "w": 4,
         "x": 20,
         "y": 20
@@ -369,7 +526,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 36
       },
       "panels": []
     },
@@ -386,7 +543,7 @@
         "h": 8,
         "w": 10,
         "x": 0,
-        "y": 29
+        "y": 37
       },
       "targets": [
         {
@@ -480,7 +637,7 @@
         "h": 8,
         "w": 10,
         "x": 10,
-        "y": 29
+        "y": 37
       },
       "targets": [
         {
@@ -534,7 +691,7 @@
         "h": 8,
         "w": 4,
         "x": 20,
-        "y": 29
+        "y": 37
       },
       "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다. 프로파일에는 종류를 가르는 꼬리표가 없어 줄마다 같은 화면으로 간다",
       "options": {
@@ -551,7 +708,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 45
       },
       "panels": []
     },
@@ -568,7 +725,7 @@
         "h": 9,
         "w": 10,
         "x": 0,
-        "y": 38
+        "y": 46
       },
       "targets": [
         {
@@ -676,7 +833,7 @@
         "h": 9,
         "w": 10,
         "x": 10,
-        "y": 38
+        "y": 46
       },
       "datasource": {
         "type": "prometheus",
@@ -780,7 +937,7 @@
         "h": 9,
         "w": 4,
         "x": 20,
-        "y": 38
+        "y": 46
       },
       "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다. 프로파일에는 종류를 가르는 꼬리표가 없어 줄마다 같은 화면으로 간다",
       "options": {
@@ -797,7 +954,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 47
+        "y": 55
       },
       "panels": []
     },
@@ -814,7 +971,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 48
+        "y": 56
       },
       "fieldConfig": {
         "defaults": {
@@ -881,7 +1038,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 48
+        "y": 56
       },
       "fieldConfig": {
         "defaults": {
