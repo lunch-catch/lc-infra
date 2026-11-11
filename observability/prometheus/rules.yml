@@ -302,6 +302,17 @@ groups:
         annotations:
           description: "feed_visit_daily 쓰기가 10분 넘게 실패하고 있다. 추천 인원이 줄 수 있다"
 
+      # 읽는 범위(어제 00:00 부터)보다 오래된 미발행이 새로 생겼다. 마감이 지나 과금할 수 없는 노출이라 매출을 잃는다.
+      # 릴레이가 하루 넘게 넘기지 못해야 생기는 큰 장애다. 건수는 보관 기간까지 줄지 않아 0 보다 큰지가 아니라 1시간 사이에 늘었는지를 본다.
+      # 창 안의 처음과 끝을 견준다. offset 으로 견주면 재시작 뒤 1시간 동안 늘어난 것을 놓치고, 빈 값을 0 으로 채우면 재시작마다 잘못 울린다
+      - alert: AdservingImpressionExpired
+        expr: |
+          delta(max(adserving_impression_dispatch_expired)[1h:1m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          description: "마감이 지나 넘기지 못한 노출이 1시간 사이 늘었다. 과금되지 않는다. 배치 서버와 노출 릴레이가 하루 넘게 멈췄는지 확인하라"
+
       # 노출 릴레이의 실행 하나가 통째로 실패했다. 정산이 예외를 던졌거나(DB, Valkey 장애) 밀린 수를 못 셌거나 임대를 확인하지 못했다.
       # 노출마다의 실패(adserving_impression_dispatch_failed_total)는 다시 넘기니 경보를 두지 않는다. 끝내 실패하면 RelayAbandoned 가 잡는다
       - alert: AdservingDispatchError

@@ -403,3 +403,34 @@ tests:
         exp_alerts:
           - exp_labels: {severity: warning}
             exp_annotations: {description: "노출 릴레이가 10분 넘게 실행 단위로 실패하고 있다. 정산의 DB 와 Valkey, 배치 로그를 확인하라"}
+
+  # 마감이 지난 미발행(lc-infra #150). 30분 뒤 3건이 새로 생기고 그대로 남는다. 늘어난 뒤 1시간 동안만 울리고 그 뒤로는 남아 있어도 울리지 않는다.
+  - interval: 1m
+    input_series:
+      - series: 'adserving_impression_dispatch_expired{job="batch", instance="b1"}'
+        values: '0x30 3x120'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: AdservingImpressionExpired
+        exp_alerts: []
+      - eval_time: 40m
+        alertname: AdservingImpressionExpired
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations: {description: "마감이 지나 넘기지 못한 노출이 1시간 사이 늘었다. 과금되지 않는다. 배치 서버와 노출 릴레이가 하루 넘게 멈췄는지 확인하라"}
+      - eval_time: 100m
+        alertname: AdservingImpressionExpired
+        exp_alerts: []
+
+  # 재시작을 흉내 낸다. 처음부터 3건이 남아 있고 늘지 않아 울리지 않는다
+  - interval: 1m
+    input_series:
+      - series: 'adserving_impression_dispatch_expired{job="batch", instance="b2"}'
+        values: '3x120'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: AdservingImpressionExpired
+        exp_alerts: []
+      - eval_time: 90m
+        alertname: AdservingImpressionExpired
+        exp_alerts: []
