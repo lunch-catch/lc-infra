@@ -1,4 +1,4 @@
-# 기준 초과를 가르는 기준 가운데 인프라가 갖는 것이다(lc-infra #107, #111). 06 기준 초과 대시보드와 03 앱과 JVM 이 읽는다.
+# 기준 초과를 가르는 기준 가운데 인프라가 갖는 것이다(lc-infra #107, #111). 06 처리 시간 목표 초과 대시보드와 03 앱과 JVM 이 읽는다.
 #
 # 이름은 앱이 내보내는 기준(lc-backend 의 lunchcatch.observability.targets)과 같은 overrun_threshold_seconds 다. 시간이 아닌 비율은 overrun_threshold_ratio 로 둔다.
 # API 목표, 릴레이와 워커의 대기 시간, cron 의 마감은 앱 설정이 kind="api"|"relay"|"worker"|"job" 으로 낸다.
