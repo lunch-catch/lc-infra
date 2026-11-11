@@ -47,7 +47,7 @@
       "id": 1,
       "type": "timeseries",
       "title": "기준을 넘은 API",
-      "description": "보고 있는 범위에서 한 번이라도 목표를 넘은 API 만 p99 를 실선으로 끊김 없이 그린다. 실선이 같은 색 점선(목표) 위에 있는 구간이 넘은 구간이다. 목표(기준선)는 보고 있는 범위에서 한 번이라도 넘었으면 범위 전체를 가로지르는 점선으로, 그 선과 같은 색으로 그린다. 기준선에는 점이 없고 선 이름 목록에는 나오지 않는다. 목표는 앱이 내보내는 기준 지표(overrun_threshold_seconds{kind=\"api\"})이고 목표가 없는 API 는 그 기본값(name=default)이다. 비어 있으면 넘은 API 가 없다. 실선의 점을 누르면 그 API 에서 300ms 를 넘은 요청의 트레이스 목록이 Explore 에서 열린다. 구간은 지금 보고 있는 대시보드의 시간 범위라, 튄 곳을 드래그해 좁힌 뒤 누르면 그 구간의 요청만 나온다. 300ms 는 가장 낮은 목표이고 테일 샘플링이 모두 남기는 기준이라 목표가 그보다 높은 API 는 목록에 목표 아래의 요청도 섞인다. Tempo 는 한 번에 100개까지 돌려준다. 트레이싱을 끈 회차에는 목록이 비는 것이 정상이다",
+      "description": "그 API 의 목표를 넘은 순간의 p99 만 점으로 그리고, 같은 이름의 빨간 점으로 그 API 의 목표(기준선)를 그린다. 목표는 앱이 내보내는 기준 지표(overrun_threshold_seconds{kind=\"api\"})이고 목표가 없는 API 는 그 기본값(name=default)이다. 비어 있으면 넘은 API 가 없다 점을 누르면 그 API 에서 300ms 를 넘은 요청의 트레이스 목록이 Explore 에서 열린다. 구간은 지금 보고 있는 대시보드의 시간 범위라, 튄 곳을 드래그해 좁힌 뒤 누르면 그 구간의 요청만 나온다. 300ms 는 가장 낮은 목표이고 테일 샘플링이 모두 남기는 기준이라 목표가 그보다 높은 API 는 목록에 목표 아래의 요청도 섞인다. Tempo 는 한 번에 100개까지 돌려준다. 트레이싱을 끈 회차에는 목록이 비는 것이 정상이다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -65,7 +65,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) and on(uri) max by (uri) (max_over_time(((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"}))))[$__range:$__interval] @ end()))",
+          "expr": "(histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})))",
           "legendFormat": "{{uri}}"
         },
         {
@@ -74,8 +74,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "(max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\")) or (count by (uri) (max by (uri) (max_over_time(((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"}))))[$__range:$__interval] @ end()))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})))) and on(uri) max by (uri) (max_over_time(((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"}))))[$__range:$__interval] @ end()))",
-          "legendFormat": "{{uri}}"
+          "expr": "((max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) and on(uri) ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"}))))) or (max by (uri) ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\")))",
+          "legendFormat": "기준 {{uri}}"
         }
       ],
       "fieldConfig": {
@@ -83,12 +83,11 @@
           "unit": "s",
           "min": 0,
           "custom": {
-            "drawStyle": "lines",
+            "drawStyle": "points",
             "pointSize": 4,
             "lineWidth": 1,
             "fillOpacity": 0,
-            "spanNulls": false,
-            "showPoints": "never"
+            "spanNulls": false
           },
           "thresholds": {
             "mode": "absolute",
@@ -105,47 +104,21 @@
               "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%20%7B%22datasource%22%3A%20%22tempo%22%2C%20%22queries%22%3A%20%5B%7B%22refId%22%3A%20%22A%22%2C%20%22datasource%22%3A%20%7B%22type%22%3A%20%22tempo%22%2C%20%22uid%22%3A%20%22tempo%22%7D%2C%20%22queryType%22%3A%20%22traceql%22%2C%20%22query%22%3A%20%22%7B%20nestedSetParent%20%3D%20-1%20%26%26%20span.http.route%20%3D%20%5C%22${__field.labels.uri:percentencode}%5C%22%20%26%26%20duration%20%3E%20300ms%20%7D%22%2C%20%22limit%22%3A%20100%2C%20%22tableType%22%3A%20%22traces%22%7D%5D%2C%20%22range%22%3A%20%7B%22from%22%3A%20%22${__from}%22%2C%20%22to%22%3A%20%22${__to}%22%7D%7D%7D",
               "targetBlank": true
             }
-          ],
-          "color": {
-            "mode": "palette-classic-by-name"
-          }
+          ]
         },
         "overrides": [
           {
             "matcher": {
-              "id": "byFrameRefID",
-              "options": "Z"
+              "id": "byRegexp",
+              "options": "기준.*"
             },
             "properties": [
               {
-                "id": "custom.lineStyle",
+                "id": "color",
                 "value": {
-                  "fill": "dash",
-                  "dash": [
-                    10,
-                    10
-                  ]
+                  "mode": "fixed",
+                  "fixedColor": "red"
                 }
-              },
-              {
-                "id": "custom.fillOpacity",
-                "value": 0
-              },
-              {
-                "id": "custom.showPoints",
-                "value": "never"
-              },
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": true,
-                  "tooltip": false,
-                  "viz": false
-                }
-              },
-              {
-                "id": "links",
-                "value": []
               }
             ]
           }
@@ -194,7 +167,7 @@
       "id": 113,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: 릴레이마다 발행 지연 p99",
-      "description": "보고 있는 범위에서 한 번이라도 기준을 넘은 릴레이만 발행 지연의 p99 를 실선으로 끊김 없이 그린다. 실선이 같은 색 점선(기준선) 위에 있는 구간이 넘은 구간이다. 기준선은 보고 있는 범위에서 한 번이라도 넘었으면 범위 전체를 가로지르는 점선으로, 그 선과 같은 색으로 그린다. 기준선에는 점이 없고 선 이름 목록에는 나오지 않는다. 비어 있으면 기준을 넘은 릴레이가 없다. 발행 지연은 넘긴 순간에 잰, 그 건이 생긴 뒤 넘기기까지의 시간(outbox_relay_publish_delay_seconds, lc-backend#1205)이다. 노출 릴레이는 요청을 받은 시각부터 재서 노출 저장 대기열에서 기다린 시간도 들고, 재시도 끝에 넘긴 노출도 든다. 기준은 기준 지표(overrun_threshold_seconds{kind=\"relay\"})에서 읽고, 그 릴레이의 값이 없으면 기본값(name=default, 품질 문서의 아웃박스 발행 지연 5초)을 쓴다. 넘긴 것이 없으면 p99 도 없다. 아예 넘기지 못하는 것은 오른쪽 그래프와 BatchNotRun 이 본다. 실선의 점을 누르면 그 릴레이 작업의 실행 트레이스 목록이 보고 있는 구간으로 Explore 에서 열린다. 튄 곳을 드래그해 좁힌 뒤 누른다. 잦은 작업은 1초 넘은 실행, 오류, 1% 만 남아 목록으로 원인을 가른다. 느리거나 실패한 실행이 있으면 실행이 원인이고, 빠른 실행만 있으면 처리량이 모자란 것이라 아래 건수를 본다. 비었으면 릴레이가 돌지 않은 것이라 BatchNotRun 과 배치 로그를 본다. 릴레이 이름(relay)과 작업 이름의 짝은 그래프 쿼리의 label_replace 가 갖는다. 릴레이가 늘면 짝을 더한다",
+      "description": "릴레이마다 발행 지연의 p99 가 기준을 넘은 동안만 점(p99)과 같은 이름의 빨간 점(그 릴레이의 기준선)을 그린다. 비어 있으면 기준을 넘은 릴레이가 없다. 발행 지연은 넘긴 순간에 잰, 그 건이 생긴 뒤 넘기기까지의 시간(outbox_relay_publish_delay_seconds, lc-backend#1205)이다. 노출 릴레이는 요청을 받은 시각부터 재서 노출 저장 대기열에서 기다린 시간도 들고, 재시도 끝에 넘긴 노출도 든다. 기준은 기준 지표(overrun_threshold_seconds{kind=\"relay\"})에서 읽고, 그 릴레이의 값이 없으면 기본값(name=default, 품질 문서의 아웃박스 발행 지연 5초)을 쓴다. 넘긴 것이 없으면 p99 도 없다. 아예 넘기지 못하는 것은 오른쪽 그래프와 BatchNotRun 이 본다. 점을 누르면 그 릴레이 작업의 실행 트레이스 목록이 보고 있는 구간으로 Explore 에서 열린다. 튄 곳을 드래그해 좁힌 뒤 누른다. 잦은 작업은 1초 넘은 실행, 오류, 1% 만 남아 목록으로 원인을 가른다. 느리거나 실패한 실행이 있으면 실행이 원인이고, 빠른 실행만 있으면 처리량이 모자란 것이라 아래 건수를 본다. 비었으면 릴레이가 돌지 않은 것이라 BatchNotRun 과 배치 로그를 본다. 릴레이 이름(relay)과 작업 이름의 짝은 그래프 쿼리의 label_replace 가 갖는다. 릴레이가 늘면 짝을 더한다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -212,7 +185,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "label_replace(histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))), \"job_name\", \"ImpressionDispatchJob.dispatchPending\", \"relay\", \"adserving\\\\.impression\") and on(relay) max by (relay) (max_over_time((label_replace(histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) > on(relay) group_left() (max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"}))), \"job_name\", \"ImpressionDispatchJob.dispatchPending\", \"relay\", \"adserving\\\\.impression\"))[$__range:$__interval] @ end()))",
+          "expr": "label_replace(histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) > on(relay) group_left() (max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"}))), \"job_name\", \"ImpressionDispatchJob.dispatchPending\", \"relay\", \"adserving\\\\.impression\")",
           "legendFormat": "{{relay}}"
         },
         {
@@ -221,8 +194,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "(max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or (count by (relay) (max by (relay) (max_over_time((label_replace(histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) > on(relay) group_left() (max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"}))), \"job_name\", \"ImpressionDispatchJob.dispatchPending\", \"relay\", \"adserving\\\\.impression\"))[$__range:$__interval] @ end()))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"})))) and on(relay) max by (relay) (max_over_time((label_replace(histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) > on(relay) group_left() (max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"}))), \"job_name\", \"ImpressionDispatchJob.dispatchPending\", \"relay\", \"adserving\\\\.impression\"))[$__range:$__interval] @ end()))",
-          "legendFormat": "{{relay}}"
+          "expr": "(max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"}))) and on(relay) (histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) > on(relay) group_left() (max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"}))))",
+          "legendFormat": "기준 {{relay}}"
         }
       ],
       "fieldConfig": {
@@ -230,12 +203,11 @@
           "unit": "s",
           "min": 0,
           "custom": {
-            "drawStyle": "lines",
+            "drawStyle": "points",
             "pointSize": 4,
             "lineWidth": 1,
             "fillOpacity": 0,
-            "spanNulls": false,
-            "showPoints": "never"
+            "spanNulls": false
           },
           "thresholds": {
             "mode": "absolute",
@@ -245,12 +217,24 @@
                 "value": null
               }
             ]
-          },
-          "color": {
-            "mode": "palette-classic-by-name"
           }
         },
         "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "기준.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
           {
             "matcher": {
               "id": "byFrameRefID",
@@ -266,44 +250,6 @@
                     "targetBlank": true
                   }
                 ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "Z"
-            },
-            "properties": [
-              {
-                "id": "custom.lineStyle",
-                "value": {
-                  "fill": "dash",
-                  "dash": [
-                    10,
-                    10
-                  ]
-                }
-              },
-              {
-                "id": "custom.fillOpacity",
-                "value": 0
-              },
-              {
-                "id": "custom.showPoints",
-                "value": "never"
-              },
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": true,
-                  "tooltip": false,
-                  "viz": false
-                }
-              },
-              {
-                "id": "links",
-                "value": []
               }
             ]
           }
@@ -568,7 +514,7 @@
       "id": 10,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: 워커마다 가장 오래 기다린 작업의 대기 시간",
-      "description": "보고 있는 범위에서 한 번이라도 기준을 넘은 워커만 가장 오래 기다린 작업의 대기 시간을 실선으로 끊김 없이 그린다. 실선이 같은 색 점선(기준선) 위에 있는 구간이 넘은 구간이다. 기준선은 보고 있는 범위에서 한 번이라도 넘었으면 범위 전체를 가로지르는 점선으로, 그 선과 같은 색으로 그린다. 기준선에는 점이 없고 선 이름 목록에는 나오지 않는다. 비어 있으면 기준을 넘은 워커가 없다. 기준은 기준 지표(overrun_threshold_seconds{kind=\"worker\"})에서 읽고, 그 워커의 값이 없으면 기본값(name=default)을 쓴다. 대기 시간은 모든 워커가 내보내는 공통 지표(async_worker_oldest_age_seconds{worker})이고 lc-backend#1131 에서 생긴다. 그 전에는 비어 보인다. WorkerWaitHigh 경보가 이 기준을 5분 넘게 넘으면 울린다. 실선의 점을 누르면 그 워커 스레드의 SQL 트레이스 목록이 보고 있는 구간으로 Explore 에서 열린다. 워커의 처리에는 따로 스팬이 없어, 에이전트가 SQL 스팬에 다는 스레드 이름(thread.name)으로 찾는다. SQL 하나가 트레이스 하나라 묶음과 재시도는 한 트레이스로 모이지 않고, 오류와 1% 만 남아 몇 개의 묶음만 막힌 경우는 목록이 비기 쉽다. 그 밖의 코드는 옆의 프로파일링으로 본다. 워커 이름(worker)과 스레드 이름의 짝은 그래프 쿼리의 label_replace 가 갖는다. 워커가 늘면 짝을 더한다",
+      "description": "워커마다 기준을 넘은 동안만 점(가장 오래 기다린 작업의 대기 시간)과 같은 이름의 빨간 점(그 워커의 기준선)을 그린다. 비어 있으면 기준을 넘은 워커가 없다. 기준은 기준 지표(overrun_threshold_seconds{kind=\"worker\"})에서 읽고, 그 워커의 값이 없으면 기본값(name=default)을 쓴다. 대기 시간은 모든 워커가 내보내는 공통 지표(async_worker_oldest_age_seconds{worker})이고 lc-backend#1131 에서 생긴다. 그 전에는 비어 보인다. WorkerWaitHigh 경보가 이 기준을 5분 넘게 넘으면 울린다. 점을 누르면 그 워커 스레드의 SQL 트레이스 목록이 보고 있는 구간으로 Explore 에서 열린다. 워커의 처리에는 따로 스팬이 없어, 에이전트가 SQL 스팬에 다는 스레드 이름(thread.name)으로 찾는다. SQL 하나가 트레이스 하나라 묶음과 재시도는 한 트레이스로 모이지 않고, 오류와 1% 만 남아 몇 개의 묶음만 막힌 경우는 목록이 비기 쉽다. 그 밖의 코드는 옆의 프로파일링으로 본다. 워커 이름(worker)과 스레드 이름의 짝은 그래프 쿼리의 label_replace 가 갖는다. 워커가 늘면 짝을 더한다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -586,7 +532,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "label_replace(label_replace(max by (worker) (async_worker_oldest_age_seconds), \"thread_name\", \"impression-writer\", \"worker\", \"adserving\\\\.impression-write\"), \"thread_name\", \"serve-log-writer\", \"worker\", \"adserving\\\\.serve-log-write\") and on(worker) max by (worker) (max_over_time((label_replace(label_replace(max by (worker) (async_worker_oldest_age_seconds) > on(worker) group_left() (max by (worker) (label_replace(overrun_threshold_seconds{kind=\"worker\", name!=\"default\"}, \"worker\", \"$1\", \"name\", \"(.+)\")) or max by (worker) (async_worker_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"worker\", name=\"default\"}))), \"thread_name\", \"impression-writer\", \"worker\", \"adserving\\\\.impression-write\"), \"thread_name\", \"serve-log-writer\", \"worker\", \"adserving\\\\.serve-log-write\"))[$__range:$__interval] @ end()))",
+          "expr": "label_replace(label_replace(max by (worker) (async_worker_oldest_age_seconds) > on(worker) group_left() (max by (worker) (label_replace(overrun_threshold_seconds{kind=\"worker\", name!=\"default\"}, \"worker\", \"$1\", \"name\", \"(.+)\")) or max by (worker) (async_worker_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"worker\", name=\"default\"}))), \"thread_name\", \"impression-writer\", \"worker\", \"adserving\\\\.impression-write\"), \"thread_name\", \"serve-log-writer\", \"worker\", \"adserving\\\\.serve-log-write\")",
           "legendFormat": "{{worker}}"
         },
         {
@@ -595,8 +541,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "(max by (worker) (label_replace(overrun_threshold_seconds{kind=\"worker\", name!=\"default\"}, \"worker\", \"$1\", \"name\", \"(.+)\")) or (count by (worker) (max by (worker) (max_over_time((label_replace(label_replace(max by (worker) (async_worker_oldest_age_seconds) > on(worker) group_left() (max by (worker) (label_replace(overrun_threshold_seconds{kind=\"worker\", name!=\"default\"}, \"worker\", \"$1\", \"name\", \"(.+)\")) or max by (worker) (async_worker_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"worker\", name=\"default\"}))), \"thread_name\", \"impression-writer\", \"worker\", \"adserving\\\\.impression-write\"), \"thread_name\", \"serve-log-writer\", \"worker\", \"adserving\\\\.serve-log-write\"))[$__range:$__interval] @ end()))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"worker\", name=\"default\"})))) and on(worker) max by (worker) (max_over_time((label_replace(label_replace(max by (worker) (async_worker_oldest_age_seconds) > on(worker) group_left() (max by (worker) (label_replace(overrun_threshold_seconds{kind=\"worker\", name!=\"default\"}, \"worker\", \"$1\", \"name\", \"(.+)\")) or max by (worker) (async_worker_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"worker\", name=\"default\"}))), \"thread_name\", \"impression-writer\", \"worker\", \"adserving\\\\.impression-write\"), \"thread_name\", \"serve-log-writer\", \"worker\", \"adserving\\\\.serve-log-write\"))[$__range:$__interval] @ end()))",
-          "legendFormat": "{{worker}}"
+          "expr": "(max by (worker) (label_replace(overrun_threshold_seconds{kind=\"worker\", name!=\"default\"}, \"worker\", \"$1\", \"name\", \"(.+)\")) or max by (worker) (async_worker_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"worker\", name=\"default\"}))) and on(worker) (max by (worker) (async_worker_oldest_age_seconds) > on(worker) group_left() (max by (worker) (label_replace(overrun_threshold_seconds{kind=\"worker\", name!=\"default\"}, \"worker\", \"$1\", \"name\", \"(.+)\")) or max by (worker) (async_worker_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"worker\", name=\"default\"}))))",
+          "legendFormat": "기준 {{worker}}"
         }
       ],
       "fieldConfig": {
@@ -604,12 +550,11 @@
           "unit": "s",
           "min": 0,
           "custom": {
-            "drawStyle": "lines",
+            "drawStyle": "points",
             "pointSize": 4,
             "lineWidth": 1,
             "fillOpacity": 0,
-            "spanNulls": false,
-            "showPoints": "never"
+            "spanNulls": false
           },
           "thresholds": {
             "mode": "absolute",
@@ -619,12 +564,24 @@
                 "value": null
               }
             ]
-          },
-          "color": {
-            "mode": "palette-classic-by-name"
           }
         },
         "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "기준.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
           {
             "matcher": {
               "id": "byFrameRefID",
@@ -640,44 +597,6 @@
                     "targetBlank": true
                   }
                 ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "Z"
-            },
-            "properties": [
-              {
-                "id": "custom.lineStyle",
-                "value": {
-                  "fill": "dash",
-                  "dash": [
-                    10,
-                    10
-                  ]
-                }
-              },
-              {
-                "id": "custom.fillOpacity",
-                "value": 0
-              },
-              {
-                "id": "custom.showPoints",
-                "value": "never"
-              },
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": true,
-                  "tooltip": false,
-                  "viz": false
-                }
-              },
-              {
-                "id": "links",
-                "value": []
               }
             ]
           }
@@ -871,7 +790,7 @@
       "id": 134,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: cron 작업마다 시작 뒤 지난 시간",
-      "description": "보고 있는 범위에서 한 번이라도 도는 중에 마감을 넘은 cron 작업만 시작 뒤 지난 시간을 실선으로 끊김 없이 그린다. 돌지 않는 동안은 0 이다. 도는 실행은 수집 한 번에만 잡히기도 해, 범위에서 넘었는지는 수집 간격(15초)마다 본다. 실선이 같은 색 점선(마감) 위에 있는 구간이 넘은 구간이다. 마감(기준선)은 보고 있는 범위에서 한 번이라도 넘었으면 범위 전체를 가로지르는 점선으로, 그 선과 같은 색으로 그린다. 기준선에는 점이 없고 선 이름 목록에는 나오지 않는다. 비어 있으면 마감을 넘겨 도는 작업이 없다. 끝난 실행이 마감을 넘었는지는 오른쪽 그래프가 본다. 이 그래프는 멈춰 끝나지 않는 작업을 끝나기 전에 잡는다. 실선의 점을 누르면 그 작업의 실행 트레이스 목록이 보고 있는 구간으로 Explore 에서 열린다. 도는 중인 실행은 끝나야 맨 위 스팬이 와서 목록에 나오지 않는다. 시작 시각은 앱이 실행마다 내보내는 batch_job_running_since_seconds{scheduler}(돌지 않으면 0, lc-backend#1175)에서 읽는다. 마감은 기준 지표(overrun_threshold_seconds{kind=\"job\"})에서 읽고, 그 작업의 값이 없으면 기본값(name=default)을 쓴다. 지난 시간은 지금 시각이 아니라 표본을 모은 시각에서 뺀다. 지금 시각으로 빼면 다음 수집까지 같은 표본이 쓰여 이미 끝난 실행도 15초까지 자라 보인다. 표와 같이 cron 이 아닌 작업(아웃박스 릴레이, sendHeartbeat, takeOverStale)은 이름으로 뺀다. 작업은 배치 서버에서 돌아 job=\"batch\" 로 고른다. 로컬은 앱 하나가 배치 역할도 해서 로컬 Prometheus 의 batch 수집이 작업 지표를 다시 긁는다",
+      "description": "cron 작업마다 도는 중에 마감을 넘은 동안만 점(시작 뒤 지난 시간)과 같은 이름의 빨간 점(그 작업의 마감, 기준선)을 그린다. 비어 있으면 마감을 넘겨 도는 작업이 없다. 끝난 실행이 마감을 넘었는지는 오른쪽 그래프가 본다. 이 그래프는 멈춰 끝나지 않는 작업을 끝나기 전에 잡는다. 점을 누르면 그 작업의 실행 트레이스 목록이 보고 있는 구간으로 Explore 에서 열린다. 도는 중인 실행은 끝나야 맨 위 스팬이 와서 목록에 나오지 않는다. 시작 시각은 앱이 실행마다 내보내는 batch_job_running_since_seconds{scheduler}(돌지 않으면 0, lc-backend#1175)에서 읽는다. 마감은 기준 지표(overrun_threshold_seconds{kind=\"job\"})에서 읽고, 그 작업의 값이 없으면 기본값(name=default)을 쓴다. 지난 시간은 지금 시각이 아니라 표본을 모은 시각에서 뺀다. 지금 시각으로 빼면 다음 수집까지 같은 표본이 쓰여 이미 끝난 실행도 15초까지 자라 보인다. 표와 같이 cron 이 아닌 작업(아웃박스 릴레이, sendHeartbeat, takeOverStale)은 이름으로 뺀다. 작업은 배치 서버에서 돌아 job=\"batch\" 로 고른다. 로컬은 앱 하나가 배치 역할도 해서 로컬 Prometheus 의 batch 수집이 작업 지표를 다시 긁는다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -889,7 +808,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "label_replace(max by (scheduler) (((timestamp(batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) - batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"} > 0)) or (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"} * 0)), \"job_name\", \"$1\", \"scheduler\", \"(.+)\\\\(\\\\)\") and on(scheduler) max by (scheduler) (max_over_time((label_replace(max by (scheduler) ((timestamp(batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) - batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"} > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))), \"job_name\", \"$1\", \"scheduler\", \"(.+)\\\\(\\\\)\"))[$__range:15s] @ end()))",
+          "expr": "label_replace(max by (scheduler) ((timestamp(batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) - batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"} > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))), \"job_name\", \"$1\", \"scheduler\", \"(.+)\\\\(\\\\)\")",
           "legendFormat": "{{scheduler}}"
         },
         {
@@ -898,8 +817,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "(max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or (count by (scheduler) (max by (scheduler) (max_over_time((label_replace(max by (scheduler) ((timestamp(batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) - batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"} > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))), \"job_name\", \"$1\", \"scheduler\", \"(.+)\\\\(\\\\)\"))[$__range:15s] @ end()))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"})))) and on(scheduler) max by (scheduler) (max_over_time((label_replace(max by (scheduler) ((timestamp(batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) - batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"} > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))), \"job_name\", \"$1\", \"scheduler\", \"(.+)\\\\(\\\\)\"))[$__range:15s] @ end()))",
-          "legendFormat": "{{scheduler}}"
+          "expr": "(max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))) and on(scheduler) (max by (scheduler) ((timestamp(batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) - batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"} > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))))",
+          "legendFormat": "기준 {{scheduler}}"
         }
       ],
       "fieldConfig": {
@@ -907,12 +826,11 @@
           "unit": "s",
           "min": 0,
           "custom": {
-            "drawStyle": "lines",
+            "drawStyle": "points",
             "pointSize": 4,
             "lineWidth": 1,
             "fillOpacity": 0,
-            "spanNulls": false,
-            "showPoints": "never"
+            "spanNulls": false
           },
           "thresholds": {
             "mode": "absolute",
@@ -922,12 +840,24 @@
                 "value": null
               }
             ]
-          },
-          "color": {
-            "mode": "palette-classic-by-name"
           }
         },
         "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "기준.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
           {
             "matcher": {
               "id": "byFrameRefID",
@@ -943,44 +873,6 @@
                     "targetBlank": true
                   }
                 ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "Z"
-            },
-            "properties": [
-              {
-                "id": "custom.lineStyle",
-                "value": {
-                  "fill": "dash",
-                  "dash": [
-                    10,
-                    10
-                  ]
-                }
-              },
-              {
-                "id": "custom.fillOpacity",
-                "value": 0
-              },
-              {
-                "id": "custom.showPoints",
-                "value": "never"
-              },
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": true,
-                  "tooltip": false,
-                  "viz": false
-                }
-              },
-              {
-                "id": "links",
-                "value": []
               }
             ]
           }
@@ -1000,7 +892,7 @@
       "id": 135,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: cron 작업마다 실행 한 번에 걸린 시간",
-      "description": "보고 있는 범위에서 한 번이라도 마감보다 오래 걸린 cron 작업만 실행 한 번에 걸린 시간을 실선으로 끊김 없이 그린다. 실선이 같은 색 점선(마감) 위에 있는 구간이 넘은 구간이다. 마감(기준선)은 보고 있는 범위에서 한 번이라도 넘었으면 범위 전체를 가로지르는 점선으로, 그 선과 같은 색으로 그린다. 기준선에는 점이 없고 선 이름 목록에는 나오지 않는다. 걸린 시간은 앱의 작업 타이머(batch_job_duration_seconds_max)라 트레이싱을 끈 회차에도 보이고 표본에 흔들리지 않는다. 그 최대값은 실행이 끝난 뒤 2분 남짓 남았다가 사라진다. 마감은 기준 지표(overrun_threshold_seconds{kind=\"job\"})에서 읽고, 그 작업의 값이 없으면 기본값(name=default)을 쓴다. 도는 중에 마감을 넘은 것은 왼쪽 그래프가 본다. 부하 시험 환경에서는 배치 서버에도 트레이싱 에이전트가 붙고, cron 실행의 트레이스는 테일 샘플링이 모두 남긴다(서비스 lunchcatch-batch, lc-infra#143). 실선의 점을 누르면 그 작업의 실행 트레이스 목록이 보고 있는 구간으로 Explore 에서 열린다. 튄 곳을 드래그해 좁힌 뒤 누르면 그 구간의 실행만 나온다. 트레이싱을 끈 회차에는 목록이 비는 것이 정상이다. cron 이 아닌 작업(아웃박스 릴레이, sendHeartbeat, takeOverStale)은 이름으로 뺀다. 비어 있으면 마감을 넘은 실행이 없다",
+      "description": "끝난 cron 실행 가운데 마감보다 오래 걸린 것만 점(걸린 시간)과 같은 이름의 빨간 점(그 작업의 마감, 기준선)으로 그린다. 걸린 시간은 앱의 작업 타이머(batch_job_duration_seconds_max)라 트레이싱을 끈 회차에도 보이고 표본에 흔들리지 않는다. 그 최대값은 실행이 끝난 뒤 2분 남짓 남았다가 사라진다. 마감은 기준 지표(overrun_threshold_seconds{kind=\"job\"})에서 읽고, 그 작업의 값이 없으면 기본값(name=default)을 쓴다. 도는 중에 마감을 넘은 것은 왼쪽 그래프가 본다. 부하 시험 환경에서는 배치 서버에도 트레이싱 에이전트가 붙고, cron 실행의 트레이스는 테일 샘플링이 모두 남긴다(서비스 lunchcatch-batch, lc-infra#143). 점을 누르면 그 작업의 실행 트레이스 목록이 보고 있는 구간으로 Explore 에서 열린다. 튄 곳을 드래그해 좁힌 뒤 누르면 그 구간의 실행만 나온다. 트레이싱을 끈 회차에는 목록이 비는 것이 정상이다. cron 이 아닌 작업(아웃박스 릴레이, sendHeartbeat, takeOverStale)은 이름으로 뺀다. 비어 있으면 마감을 넘은 실행이 없다",
       "gridPos": {
         "h": 9,
         "w": 10,
@@ -1016,17 +908,28 @@
           "unit": "s",
           "custom": {
             "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never",
-            "pointSize": 5,
-            "drawStyle": "lines",
+            "fillOpacity": 0,
+            "pointSize": 4,
+            "drawStyle": "points",
             "spanNulls": false
-          },
-          "color": {
-            "mode": "palette-classic-by-name"
           }
         },
         "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "기준 .*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
           {
             "matcher": {
               "id": "byFrameRefID",
@@ -1044,44 +947,6 @@
                 ]
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "Z"
-            },
-            "properties": [
-              {
-                "id": "custom.lineStyle",
-                "value": {
-                  "fill": "dash",
-                  "dash": [
-                    10,
-                    10
-                  ]
-                }
-              },
-              {
-                "id": "custom.fillOpacity",
-                "value": 0
-              },
-              {
-                "id": "custom.showPoints",
-                "value": "never"
-              },
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": true,
-                  "tooltip": false,
-                  "viz": false
-                }
-              },
-              {
-                "id": "links",
-                "value": []
-              }
-            ]
           }
         ]
       },
@@ -1097,7 +962,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "label_replace(max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}), \"job_name\", \"$1\", \"scheduler\", \"(.+)\\\\(\\\\)\") and on(scheduler) max by (scheduler) (max_over_time((label_replace((max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))), \"job_name\", \"$1\", \"scheduler\", \"(.+)\\\\(\\\\)\"))[$__range:$__interval] @ end()))",
+          "expr": "label_replace((max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))), \"job_name\", \"$1\", \"scheduler\", \"(.+)\\\\(\\\\)\")",
           "legendFormat": "{{scheduler}}",
           "datasource": {
             "type": "prometheus",
@@ -1106,8 +971,8 @@
         },
         {
           "refId": "Z",
-          "expr": "(max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or (count by (scheduler) (max by (scheduler) (max_over_time((label_replace((max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))), \"job_name\", \"$1\", \"scheduler\", \"(.+)\\\\(\\\\)\"))[$__range:$__interval] @ end()))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"})))) and on(scheduler) max by (scheduler) (max_over_time((label_replace((max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))), \"job_name\", \"$1\", \"scheduler\", \"(.+)\\\\(\\\\)\"))[$__range:$__interval] @ end()))",
-          "legendFormat": "{{scheduler}}",
+          "expr": "(max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))) and on(scheduler) ((max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))))",
+          "legendFormat": "기준 {{scheduler}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
