@@ -334,3 +334,72 @@ tests:
       - eval_time: 85m
         alertname: TransactionSlow
         exp_alerts: []
+
+  # 릴레이의 결과 경보(lc-infra #150). 발행 지연은 앞 20분 동안 모두 1초 안에, 뒤 40분 동안 모두 8초 걸려 넘긴다.
+  # adserving.impression 은 기본 기준(5초)이라 뒤에서 울리고, billing.recheck 는 이름별 기준(30초)이라 같은 지연에도 울리지 않는다.
+  - interval: 1m
+    input_series:
+      - series: 'overrun_threshold_seconds{kind="relay", name="default"}'
+        values: '5x60'
+      - series: 'overrun_threshold_seconds{kind="relay", name="billing.recheck"}'
+        values: '30x60'
+      - series: 'outbox_relay_publish_delay_seconds_bucket{relay="adserving.impression", le="1.0"}'
+        values: '0+100x20 2000x40'
+      - series: 'outbox_relay_publish_delay_seconds_bucket{relay="adserving.impression", le="5.0"}'
+        values: '0+100x20 2000x40'
+      - series: 'outbox_relay_publish_delay_seconds_bucket{relay="adserving.impression", le="10.0"}'
+        values: '0+100x60'
+      - series: 'outbox_relay_publish_delay_seconds_bucket{relay="adserving.impression", le="+Inf"}'
+        values: '0+100x60'
+      - series: 'outbox_relay_publish_delay_seconds_bucket{relay="billing.recheck", le="1.0"}'
+        values: '0+100x20 2000x40'
+      - series: 'outbox_relay_publish_delay_seconds_bucket{relay="billing.recheck", le="5.0"}'
+        values: '0+100x20 2000x40'
+      - series: 'outbox_relay_publish_delay_seconds_bucket{relay="billing.recheck", le="10.0"}'
+        values: '0+100x60'
+      - series: 'outbox_relay_publish_delay_seconds_bucket{relay="billing.recheck", le="+Inf"}'
+        values: '0+100x60'
+      # 미발행은 10분 동안 50건, 그 뒤 150건이다
+      - series: 'outbox_relay_backlog{job="batch", instance="b1", relay="adserving.impression"}'
+        values: '50x10 150x50'
+      # 포기한 건은 10분 뒤 2건이 생긴다
+      - series: 'outbox_relay_abandoned{job="batch", instance="b1", relay="adserving.impression"}'
+        values: '0x10 2x50'
+      # 실행 단위 실패는 10분 뒤부터 매분 1건이다
+      - series: 'adserving_impression_dispatch_error_total{job="batch", instance="b1"}'
+        values: '0x10 1+1x50'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: RelayPublishDelayHigh
+        exp_alerts: []
+      - eval_time: 40m
+        alertname: RelayPublishDelayHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, relay: adserving.impression}
+            exp_annotations: {description: "릴레이 adserving.impression 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 06 처리 시간 목표 초과의 릴레이 줄에서 실행 트레이스를 확인하라"}
+      # 적체는 11분부터 100건을 넘고 10분 지속 뒤 울린다
+      - eval_time: 15m
+        alertname: RelayBacklogHigh
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: RelayBacklogHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, relay: adserving.impression}
+            exp_annotations: {description: "릴레이 adserving.impression 의 미발행이 150 건이다. 기준은 100건이다"}
+      # 포기한 건은 기다리지 않고 곧바로 울린다
+      - eval_time: 5m
+        alertname: RelayAbandoned
+        exp_alerts: []
+      - eval_time: 11m
+        alertname: RelayAbandoned
+        exp_alerts:
+          - exp_labels: {severity: warning, relay: adserving.impression}
+            exp_annotations: {description: "릴레이 adserving.impression 가 2 건의 넘기기를 포기했다. 원인을 고친 뒤 포기 시각을 비워 다시 넘겨라"}
+      - eval_time: 15m
+        alertname: AdservingDispatchError
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: AdservingDispatchError
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations: {description: "노출 릴레이가 10분 넘게 실행 단위로 실패하고 있다. 정산의 DB 와 Valkey, 배치 로그를 확인하라"}

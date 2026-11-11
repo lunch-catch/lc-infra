@@ -302,6 +302,17 @@ groups:
         annotations:
           description: "feed_visit_daily 쓰기가 10분 넘게 실패하고 있다. 추천 인원이 줄 수 있다"
 
+      # 노출 릴레이의 실행 하나가 통째로 실패했다. 정산이 예외를 던졌거나(DB, Valkey 장애) 밀린 수를 못 셌거나 임대를 확인하지 못했다.
+      # 노출마다의 실패(adserving_impression_dispatch_failed_total)는 다시 넘기니 경보를 두지 않는다. 끝내 실패하면 RelayAbandoned 가 잡는다
+      - alert: AdservingDispatchError
+        expr: |
+          sum(increase(adserving_impression_dispatch_error_total[5m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          description: "노출 릴레이가 10분 넘게 실행 단위로 실패하고 있다. 정산의 DB 와 Valkey, 배치 로그를 확인하라"
+
       # adserving_impression_campaign_mismatch_total 은 알람을 두지 않는다.
       # 클라이언트 버그나 조작된 요청이고 판정은 serve 기록으로 하므로 서비스는 맞게 돈다.
       # 대시보드 06 의 패널로 본다.
@@ -376,6 +387,46 @@ groups:
           severity: warning
         annotations:
           description: "집계 정합성 검사 {{ $labels.check }} 가 위반 {{ $value }} 건을 찾았다. 집계 결과를 믿기 전에 원천 데이터와 맞춰 보라"
+
+  # 아웃박스 릴레이의 결과를 본다(lc-infra #150). 지표는 모든 릴레이가 내는 공통 이름이라 relay 꼬리표로 나눈다.
+  # 새 릴레이가 생겨도 규칙을 고치지 않는다. 멈춤은 BatchNotRun, 실행 실패는 도메인마다의 오류 카운터가 본다.
+  - name: relay
+    rules:
+      # 넘긴 순간에 잰 발행 지연의 p99 가 그 릴레이의 기준을 넘었다. 기준은 앱의 기준 지표이고 기본값은 품질 문서의 아웃박스 발행 지연 5초다
+      - alert: RelayPublishDelayHigh
+        expr: |
+          histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[5m])))
+          > on(relay) group_left()
+          (
+            max by (relay) (label_replace(overrun_threshold_seconds{kind="relay", name!="default"}, "relay", "$1", "name", "(.+)"))
+            or
+            histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[5m]))) * 0
+              + scalar(max(overrun_threshold_seconds{kind="relay", name="default"}))
+          )
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          description: "릴레이 {{ $labels.relay }} 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 06 처리 시간 목표 초과의 릴레이 줄에서 실행 트레이스를 확인하라"
+
+      # 품질 문서의 아웃박스 미발행 적체(100건 초과 시 경보)다. 포기한 건은 빠지고 다시 넘길 시각을 기다리는 건은 든다
+      - alert: RelayBacklogHigh
+        expr: |
+          max by (relay) (outbox_relay_backlog) > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          description: "릴레이 {{ $labels.relay }} 의 미발행이 {{ $value }} 건이다. 기준은 100건이다"
+
+      # 상한만큼 실패해 넘기기를 포기한 건이 있다. 데드레터처럼 사람이 원인을 고쳐야 줄어드니 기다리지 않고 곧바로 울린다
+      - alert: RelayAbandoned
+        expr: |
+          max by (relay) (outbox_relay_abandoned) > 0
+        labels:
+          severity: warning
+        annotations:
+          description: "릴레이 {{ $labels.relay }} 가 {{ $value }} 건의 넘기기를 포기했다. 원인을 고친 뒤 포기 시각을 비워 다시 넘겨라"
 
   # 임계값이 정해지지 않은 알람들. 부하 시험 후 채운다.
   #
