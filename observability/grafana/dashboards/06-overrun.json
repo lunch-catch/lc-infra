@@ -723,7 +723,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(adserving_impression_dropped_total[1m]))",
+          "expr": "sum(rate(adserving_impression_dropped_total[$__rate_interval])) * 60",
           "legendFormat": "adserving.impression-write 대기열이 차서 버림"
         },
         {
@@ -732,7 +732,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(adserving_impression_write_lost_total[1m]))",
+          "expr": "sum(rate(adserving_impression_write_lost_total[$__rate_interval])) * 60",
           "legendFormat": "adserving.impression-write 재시도 끝에 버림"
         },
         {
@@ -741,7 +741,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(adserving_serve_log_dropped_total[1m]))",
+          "expr": "sum(rate(adserving_serve_log_dropped_total[$__rate_interval])) * 60",
           "legendFormat": "adserving.serve-log-write 대기열이 차서 버림"
         },
         {
@@ -750,7 +750,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(adserving_serve_log_failed_total[1m]))",
+          "expr": "sum(rate(adserving_serve_log_failed_total[$__rate_interval])) * 60",
           "legendFormat": "adserving.serve-log-write 쓰기에 실패해 버림"
         }
       ],
