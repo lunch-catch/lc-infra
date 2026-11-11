@@ -428,7 +428,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          description: "릴레이 {{ $labels.relay }} 의 미발행이 {{ $value }} 건이다. 기준은 100건이다"
+          description: "릴레이 {{ $labels.relay }} 의 미발행이 {{ $value }} 건이다. 기준은 100건이다. 06 의 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라"
 
       # 상한만큼 실패해 넘기기를 포기한 건이 있다. 데드레터처럼 사람이 원인을 고쳐야 줄어드니 기다리지 않고 곧바로 울린다
       - alert: RelayAbandoned

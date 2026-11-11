@@ -385,7 +385,7 @@ tests:
         alertname: RelayBacklogHigh
         exp_alerts:
           - exp_labels: {severity: warning, relay: adserving.impression}
-            exp_annotations: {description: "릴레이 adserving.impression 의 미발행이 150 건이다. 기준은 100건이다"}
+            exp_annotations: {description: "릴레이 adserving.impression 의 미발행이 150 건이다. 기준은 100건이다. 06 의 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라"}
       # 포기한 건은 기다리지 않고 곧바로 울린다
       - eval_time: 5m
         alertname: RelayAbandoned
@@ -432,5 +432,96 @@ tests:
         alertname: AdservingImpressionExpired
         exp_alerts: []
       - eval_time: 90m
+        alertname: AdservingImpressionExpired
+        exp_alerts: []
+
+  # 릴레이 경보의 해소와 카운터 초기화(lc-infra #150). 앞의 시험은 기준을 넘은 채로 끝나 해소를 보지 못한다.
+  # 발행 지연은 10~40분에만 느리고, 미발행과 포기는 10~40분에만 넘고, 실행 실패는 10~40분에만 오른다. 실행 실패 카운터는 25분에 재시작으로 0 이 된다.
+  - interval: 1m
+    input_series:
+      - series: 'overrun_threshold_seconds{kind="relay", name="default"}'
+        values: '5x120'
+      # 버킷이 5.0 과 +Inf 뿐이면 histogram_quantile 이 마지막 유한 상한(5)을 돌려줘 기준을 넘지 못한다. 실제 지표처럼 위 버킷을 둔다
+      - series: 'outbox_relay_publish_delay_seconds_bucket{relay="adserving.impression", le="5.0"}'
+        values: '0+100x10 1000x30 1000+100x80'
+      - series: 'outbox_relay_publish_delay_seconds_bucket{relay="adserving.impression", le="10.0"}'
+        values: '0+100x120'
+      - series: 'outbox_relay_publish_delay_seconds_bucket{relay="adserving.impression", le="+Inf"}'
+        values: '0+100x120'
+      - series: 'outbox_relay_backlog{job="batch", instance="b1", relay="adserving.impression"}'
+        values: '10x10 150x30 10x80'
+      - series: 'outbox_relay_abandoned{job="batch", instance="b1", relay="adserving.impression"}'
+        values: '0x10 2x30 0x80'
+      - series: 'adserving_impression_dispatch_error_total{job="batch", instance="b1"}'
+        values: '0x10 1+1x14 0+1x15 15x80'
+    alert_rule_test:
+      # 평소: 아무것도 울리지 않는다
+      - eval_time: 5m
+        alertname: RelayPublishDelayHigh
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: RelayBacklogHigh
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: RelayAbandoned
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: AdservingDispatchError
+        exp_alerts: []
+      # 카운터가 25분에 0 으로 돌아가도 increase 가 재시작을 이어 붙여 계속 울린다
+      - eval_time: 30m
+        alertname: AdservingDispatchError
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations: {description: "노출 릴레이가 10분 넘게 실행 단위로 실패하고 있다. 정산의 DB 와 Valkey, 배치 로그를 확인하라"}
+      # 해소를 보기 전에, 같은 입력에서 실제로 울리는지 본다
+      - eval_time: 35m
+        alertname: RelayPublishDelayHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, relay: adserving.impression}
+            exp_annotations: {description: "릴레이 adserving.impression 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 06 처리 시간 목표 초과의 릴레이 줄에서 실행 트레이스를 확인하라"}
+      - eval_time: 35m
+        alertname: RelayBacklogHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, relay: adserving.impression}
+            exp_annotations: {description: "릴레이 adserving.impression 의 미발행이 150 건이다. 기준은 100건이다. 06 의 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라"}
+      - eval_time: 35m
+        alertname: RelayAbandoned
+        exp_alerts:
+          - exp_labels: {severity: warning, relay: adserving.impression}
+            exp_annotations: {description: "릴레이 adserving.impression 가 2 건의 넘기기를 포기했다. 원인을 고친 뒤 포기 시각을 비워 다시 넘겨라"}
+      # 해소: 40분 뒤 정상으로 돌아오면 모두 그친다
+      - eval_time: 60m
+        alertname: RelayPublishDelayHigh
+        exp_alerts: []
+      - eval_time: 60m
+        alertname: RelayBacklogHigh
+        exp_alerts: []
+      - eval_time: 60m
+        alertname: RelayAbandoned
+        exp_alerts: []
+      - eval_time: 60m
+        alertname: AdservingDispatchError
+        exp_alerts: []
+
+  # 릴레이 지표가 아예 없으면(릴레이가 아직 없거나 배치가 지표를 내지 않음) 아무것도 울리지 않는다
+  - interval: 1m
+    input_series:
+      - series: 'overrun_threshold_seconds{kind="relay", name="default"}'
+        values: '5x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: RelayPublishDelayHigh
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: RelayBacklogHigh
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: RelayAbandoned
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: AdservingDispatchError
+        exp_alerts: []
+      - eval_time: 20m
         alertname: AdservingImpressionExpired
         exp_alerts: []
