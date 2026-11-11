@@ -1,7 +1,7 @@
 {
   "uid": "lc-overrun",
   "title": "06 처리 시간 목표 초과",
-  "description": "기준을 넘은 API 와 백그라운드 작업을 고르고 트레이싱과 프로파일로 넘어가는 입구다 (lc-infra #94). 판정은 하지 않는다. 회차의 판정은 결과 문서의 표가 갖는다. 트레이싱과 프로파일링을 켠 회차에서 채워진다.",
+  "description": "기준을 넘은 API 와 백그라운드 작업을 고르고 트레이싱과 프로파일로 넘어가는 입구다 (lc-infra #94). 판정은 하지 않는다. 트레이싱과 프로파일링을 켠 회차에서 채워진다.",
   "tags": [
     "lunchcatch"
   ],
@@ -27,7 +27,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "## 처리 시간 목표 초과의 원인을 찾는 순서\n\n작업 종류마다 왼쪽에서 오른쪽으로 본다.\n\n1. 그래프에서 기준을 넘은 것을 한눈에 확인할 수 있다.\n2. 그래프에서 튄 곳을 드래그해 좁히고 선의 점을 눌러 그 구간의 트레이스 목록을 연다. 그 가운데 하나를 열어 오래 걸린 호출 단계(DB 쿼리, 외부 호출)를 찾는다.\n3. Profiling Wall Time 에서 그 단계의 어느 코드가 시간을 썼는지 본다.\n4. Profiling CPU Time 에서도 그 코드가 시간이 크면 CPU 연산이 오래 걸린 것이고 작으면 대기한 것이다.\n\n회차별 기준 초과 판정 결과는 `docs/design/{도메인}/loadtest/*_부하_시험_결과.md` 문서의 기준 초과 절에 남는다."
+        "content": "## 처리 시간 목표 초과의 원인을 찾는 순서\n\n작업 종류마다 왼쪽에서 오른쪽으로 본다.\n\n1. 그래프에서 기준을 넘은 것을 한눈에 확인할 수 있다.\n2. 그래프에서 튄 곳을 드래그해 좁히고 선의 점을 눌러 그 구간의 트레이스 목록을 연다. 그 가운데 하나를 열어 오래 걸린 호출 단계(DB 쿼리, 외부 호출)를 찾는다.\n3. Profiling Wall Time 에서 그 단계의 어느 코드가 시간을 썼는지 본다.\n4. Profiling CPU Time 에서도 그 코드가 시간이 크면 CPU 연산이 오래 걸린 것이고 작으면 대기한 것이다."
       }
     },
     {
@@ -47,7 +47,7 @@
       "id": 1,
       "type": "timeseries",
       "title": "기준을 넘은 API",
-      "description": "그 API 의 목표를 넘은 순간의 p99 만 점으로 그리고, 같은 이름의 빨간 점으로 그 API 의 목표(기준선)를 그린다. 목표는 앱이 내보내는 기준 지표(overrun_threshold_seconds{kind=\"api\"})이고 목표가 없는 API 는 그 기본값(name=default)이다. 비어 있으면 넘은 API 가 없다 점을 누르면 그 API 에서 300ms 를 넘은 요청의 트레이스 목록이 Explore 에서 열린다. 구간은 지금 보고 있는 대시보드의 시간 범위라, 튄 곳을 드래그해 좁힌 뒤 누르면 그 구간의 요청만 나온다. 300ms 는 가장 낮은 목표이고 테일 샘플링이 모두 남기는 기준이라 목표가 그보다 높은 API 는 목록에 목표 아래의 요청도 섞인다. Tempo 는 한 번에 100개까지 돌려준다. 트레이싱을 끈 회차에는 목록이 비는 것이 정상이다",
+      "description": "목표를 넘은 순간의 API p99 를 그린다. 목표는 앱의 기준 지표(overrun_threshold_seconds{kind=\"api\"})이고, 목표가 없는 API 는 기본값을 쓴다. 선의 점을 누르면 그 API 에서 300ms 를 넘은 요청의 트레이스 목록이 보고 있는 구간으로 열린다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -67,15 +67,6 @@
           },
           "expr": "(histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})))",
           "legendFormat": "{{uri}}"
-        },
-        {
-          "refId": "Z",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "((max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) and on(uri) ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"}))))) or (max by (uri) ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\")))",
-          "legendFormat": "기준 {{uri}}"
         }
       ],
       "fieldConfig": {
@@ -83,11 +74,11 @@
           "unit": "s",
           "min": 0,
           "custom": {
-            "drawStyle": "points",
-            "pointSize": 4,
+            "drawStyle": "lines",
             "lineWidth": 1,
             "fillOpacity": 0,
-            "spanNulls": false
+            "spanNulls": false,
+            "showPoints": "auto"
           },
           "thresholds": {
             "mode": "absolute",
@@ -106,23 +97,7 @@
             }
           ]
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "기준.*"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "red"
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "options": {
         "legend": {
@@ -144,7 +119,7 @@
         "x": 20,
         "y": 7
       },
-      "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다. 프로파일에는 종류를 가르는 꼬리표가 없어 줄마다 같은 화면으로 간다",
+      "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다",
       "options": {
         "mode": "markdown",
         "content": "- [Profiling Wall Time (실행 경과 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=wall:wall:nanoseconds:cpu:nanoseconds&${__url_time_range})\n- [Profiling CPU Time (CPU 연산 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=process_cpu:cpu:nanoseconds:cpu:nanoseconds&${__url_time_range})\n\nCall Tree 에서 **컨트롤러(예: `FeedController.getFeed`)** 을 찾는다. 링크로 검색어를 넘길 수 없어 화면에서 찾는다"
@@ -167,7 +142,7 @@
       "id": 113,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: 릴레이마다 발행 지연 p99",
-      "description": "릴레이마다 발행 지연의 p99 가 기준을 넘은 동안만 점(p99)과 같은 이름의 빨간 점(그 릴레이의 기준선)을 그린다. 비어 있으면 기준을 넘은 릴레이가 없다. 발행 지연은 넘긴 순간에 잰, 그 건이 생긴 뒤 넘기기까지의 시간(outbox_relay_publish_delay_seconds, lc-backend#1205)이다. 노출 릴레이는 요청을 받은 시각부터 재서 노출 저장 대기열에서 기다린 시간도 들고, 재시도 끝에 넘긴 노출도 든다. 기준은 기준 지표(overrun_threshold_seconds{kind=\"relay\"})에서 읽고, 그 릴레이의 값이 없으면 기본값(name=default, 품질 문서의 아웃박스 발행 지연 5초)을 쓴다. 넘긴 것이 없으면 p99 도 없다. 아예 넘기지 못하는 것은 오른쪽 그래프와 BatchNotRun 이 본다. 점을 누르면 그 릴레이 작업의 실행 트레이스 목록이 보고 있는 구간으로 Explore 에서 열린다. 튄 곳을 드래그해 좁힌 뒤 누른다. 잦은 작업은 1초 넘은 실행, 오류, 1% 만 남아 목록으로 원인을 가른다. 느리거나 실패한 실행이 있으면 실행이 원인이고, 빠른 실행만 있으면 처리량이 모자란 것이라 아래 건수를 본다. 비었으면 릴레이가 돌지 않은 것이라 BatchNotRun 과 배치 로그를 본다. 릴레이 이름(relay)과 작업 이름의 짝은 그래프 쿼리의 label_replace 가 갖는다. 릴레이가 늘면 짝을 더한다",
+      "description": "기준을 넘은 동안의 발행 지연 p99 를 릴레이마다 그린다. 발행 지연은 건이 생긴 뒤 발행하기까지의 시간이고 기준은 기본 5초다. 선의 점을 누르면 그 릴레이 작업의 실행 트레이스 목록이 열린다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -187,15 +162,6 @@
           },
           "expr": "label_replace(histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) > on(relay) group_left() (max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"}))), \"job_name\", \"ImpressionDispatchJob.dispatchPending\", \"relay\", \"adserving\\\\.impression\")",
           "legendFormat": "{{relay}}"
-        },
-        {
-          "refId": "Z",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "(max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"}))) and on(relay) (histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) > on(relay) group_left() (max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"}))))",
-          "legendFormat": "기준 {{relay}}"
         }
       ],
       "fieldConfig": {
@@ -203,11 +169,11 @@
           "unit": "s",
           "min": 0,
           "custom": {
-            "drawStyle": "points",
-            "pointSize": 4,
+            "drawStyle": "lines",
             "lineWidth": 1,
             "fillOpacity": 0,
-            "spanNulls": false
+            "spanNulls": false,
+            "showPoints": "auto"
           },
           "thresholds": {
             "mode": "absolute",
@@ -220,21 +186,6 @@
           }
         },
         "overrides": [
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "기준.*"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "red"
-                }
-              }
-            ]
-          },
           {
             "matcher": {
               "id": "byFrameRefID",
@@ -269,7 +220,7 @@
       "id": 8,
       "type": "timeseries",
       "title": "릴레이마다 지금 넘길 수 있는 건의 가장 오래 기다린 시간",
-      "description": "릴레이마다 지금 넘길 수 있는 미발행(포기하지 않았고 다시 넘길 시각이 지난 것) 가운데 가장 오래 기다린 건의 대기 시간을 그린다(outbox_relay_oldest_age_seconds). 판정 그래프가 아니다. 다시 넘길 시각을 기다리는 건과 포기한 건은 넣지 않아(lc-backend#1205), 재시도 중인 건 하나로 값이 늘지 않는다. 릴레이가 멈추거나 못 따라가면 이 값이 계속 자란다. 넘긴 순간에야 재는 왼쪽 그래프와 달리 넘기지 못하는 동안에도 보인다. 밀린 양은 묶음마다 다시 센다",
+      "description": "지금 발행할 수 있는 미발행 가운데 가장 오래 기다린 건의 대기 시간을 그린다. 재시도를 기다리는 건과 포기한 건은 넣지 않는다. 릴레이가 멈추거나 못 따라가면 계속 자란다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -328,7 +279,7 @@
       "id": 9,
       "type": "timeseries",
       "title": "릴레이마다 미발행 건수",
-      "description": "판정에 쓰지 않는다. 대기 시간이 올라갔을 때 밀린 양이 함께 늘었는지 본다. 노출 릴레이는 1초마다 묶어 넘기고 노출 저장이 최대 500건씩 들어와 정상에서도 수백 건이 된다. 공통 지표(outbox_relay_backlog{relay})가 생기기 전에는 노출 릴레이의 기존 지표를 대신 그린다(lc-backend#1131) 빨간 점선은 품질 문서의 아웃박스 미발행 적체 기준(100건)이고 RelayBacklogHigh 경보의 기준이다. 포기한 노출은 빠지고 다시 넘길 시각을 기다리는 노출은 든다",
+      "description": "릴레이마다 미발행 건수를 그린다. 빨간 점선은 적체 기준(100건)이고 RelayBacklogHigh 경보의 기준이다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -426,7 +377,7 @@
       "id": 114,
       "type": "timeseries",
       "title": "릴레이마다 포기한 건수",
-      "description": "릴레이마다 상한만큼 실패해 넘기기를 포기한 건수를 그린다(outbox_relay_abandoned, lc-backend#1205). 0 이 정상이고 0 보다 크면 RelayAbandoned 경보가 곧바로 울린다. 원인을 고친 뒤 그 행의 포기 시각(impression_log.dispatch_abandoned_at)을 비우면 다시 넘긴다",
+      "description": "상한만큼 실패해 발행을 포기한 건수를 그린다. 0 이 정상이고, 0 보다 크면 RelayAbandoned 경보가 울린다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -491,7 +442,7 @@
         "x": 20,
         "y": 20
       },
-      "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다. 프로파일에는 종류를 가르는 꼬리표가 없어 줄마다 같은 화면으로 간다",
+      "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다",
       "options": {
         "mode": "markdown",
         "content": "- [Profiling Wall Time (실행 경과 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=wall:wall:nanoseconds:cpu:nanoseconds&${__url_time_range})\n- [Profiling CPU Time (CPU 연산 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=process_cpu:cpu:nanoseconds:cpu:nanoseconds&${__url_time_range})\n\nCall Tree 에서 **`ImpressionDispatchJob` 의 `dispatchPending`** 을 찾는다. 링크로 검색어를 넘길 수 없어 화면에서 찾는다"
@@ -514,7 +465,7 @@
       "id": 10,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: 워커마다 가장 오래 기다린 작업의 대기 시간",
-      "description": "워커마다 기준을 넘은 동안만 점(가장 오래 기다린 작업의 대기 시간)과 같은 이름의 빨간 점(그 워커의 기준선)을 그린다. 비어 있으면 기준을 넘은 워커가 없다. 기준은 기준 지표(overrun_threshold_seconds{kind=\"worker\"})에서 읽고, 그 워커의 값이 없으면 기본값(name=default)을 쓴다. 대기 시간은 모든 워커가 내보내는 공통 지표(async_worker_oldest_age_seconds{worker})이고 lc-backend#1131 에서 생긴다. 그 전에는 비어 보인다. WorkerWaitHigh 경보가 이 기준을 5분 넘게 넘으면 울린다. 점을 누르면 그 워커 스레드의 SQL 트레이스 목록이 보고 있는 구간으로 Explore 에서 열린다. 워커의 처리에는 따로 스팬이 없어, 에이전트가 SQL 스팬에 다는 스레드 이름(thread.name)으로 찾는다. SQL 하나가 트레이스 하나라 묶음과 재시도는 한 트레이스로 모이지 않고, 오류와 1% 만 남아 몇 개의 묶음만 막힌 경우는 목록이 비기 쉽다. 그 밖의 코드는 옆의 프로파일링으로 본다. 워커 이름(worker)과 스레드 이름의 짝은 그래프 쿼리의 label_replace 가 갖는다. 워커가 늘면 짝을 더한다",
+      "description": "기준을 넘은 동안의 가장 오래 기다린 작업의 대기 시간을 워커마다 그린다. 기준은 기본 5초이고 쿠폰 워커는 따로 둔다. 선의 점을 누르면 그 워커 스레드의 SQL 트레이스 목록이 열린다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -534,15 +485,6 @@
           },
           "expr": "label_replace(label_replace(max by (worker) (async_worker_oldest_age_seconds) > on(worker) group_left() (max by (worker) (label_replace(overrun_threshold_seconds{kind=\"worker\", name!=\"default\"}, \"worker\", \"$1\", \"name\", \"(.+)\")) or max by (worker) (async_worker_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"worker\", name=\"default\"}))), \"thread_name\", \"impression-writer\", \"worker\", \"adserving\\\\.impression-write\"), \"thread_name\", \"serve-log-writer\", \"worker\", \"adserving\\\\.serve-log-write\")",
           "legendFormat": "{{worker}}"
-        },
-        {
-          "refId": "Z",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "(max by (worker) (label_replace(overrun_threshold_seconds{kind=\"worker\", name!=\"default\"}, \"worker\", \"$1\", \"name\", \"(.+)\")) or max by (worker) (async_worker_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"worker\", name=\"default\"}))) and on(worker) (max by (worker) (async_worker_oldest_age_seconds) > on(worker) group_left() (max by (worker) (label_replace(overrun_threshold_seconds{kind=\"worker\", name!=\"default\"}, \"worker\", \"$1\", \"name\", \"(.+)\")) or max by (worker) (async_worker_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"worker\", name=\"default\"}))))",
-          "legendFormat": "기준 {{worker}}"
         }
       ],
       "fieldConfig": {
@@ -550,11 +492,11 @@
           "unit": "s",
           "min": 0,
           "custom": {
-            "drawStyle": "points",
-            "pointSize": 4,
+            "drawStyle": "lines",
             "lineWidth": 1,
             "fillOpacity": 0,
-            "spanNulls": false
+            "spanNulls": false,
+            "showPoints": "auto"
           },
           "thresholds": {
             "mode": "absolute",
@@ -567,21 +509,6 @@
           }
         },
         "overrides": [
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "기준.*"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "red"
-                }
-              }
-            ]
-          },
           {
             "matcher": {
               "id": "byFrameRefID",
@@ -616,7 +543,7 @@
       "id": 11,
       "type": "timeseries",
       "title": "워커마다 대기열 길이",
-      "description": "판정에 쓰지 않는다. 대기 시간이 올라갔을 때 밀린 양이 함께 늘었는지 본다. 공통 지표(async_worker_queue_size{worker})가 생기기 전에는 노출 저장 워커의 기존 지표를 대신 그린다(lc-backend#1131)",
+      "description": "워커마다 대기열 길이를 그린다. 대기 시간이 올랐을 때 밀린 양도 함께 늘었는지 본다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -675,7 +602,7 @@
       "id": 123,
       "type": "timeseries",
       "title": "워커마다 버린 작업(분당)",
-      "description": "워커가 버린 작업을 분당 건수로 그린다. 0 이 정상이다. 메모리 대기열이라 차거나 쓰기를 끝내 못 하면 작업이 사라진다. 노출은 과금으로 이어져, 버린 노출은 과금되지 않는다. AdservingImpressionLossHigh 경보는 (대기열이 차서 버림 + 재시도 끝에 버림) ÷ 받은 노출이 0.1% 를 10분 넘게 넘으면 울리고, 서빙 로그는 AdservingServeLogLossHigh 가 본다. 유실 지표는 공통 이름이 아니라 워커마다 따로 있어, 워커가 늘면 이 그래프에 줄을 더한다",
+      "description": "워커가 버린 작업을 분당 건수로 그린다. 0 이 정상이고, 버린 노출은 과금되지 않는다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -767,7 +694,7 @@
         "x": 20,
         "y": 37
       },
-      "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다. 프로파일에는 종류를 가르는 꼬리표가 없어 줄마다 같은 화면으로 간다",
+      "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다",
       "options": {
         "mode": "markdown",
         "content": "- [Profiling Wall Time (실행 경과 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=wall:wall:nanoseconds:cpu:nanoseconds&${__url_time_range})\n- [Profiling CPU Time (CPU 연산 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=process_cpu:cpu:nanoseconds:cpu:nanoseconds&${__url_time_range})\n\nCall Tree 에서 **워커의 처리 메서드(예: `ImpressionWriteBuffer`)** 을 찾는다. 링크로 검색어를 넘길 수 없어 화면에서 찾는다"
@@ -790,7 +717,7 @@
       "id": 134,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: cron 작업마다 시작 뒤 지난 시간",
-      "description": "cron 작업마다 도는 중에 마감을 넘은 동안만 점(시작 뒤 지난 시간)과 같은 이름의 빨간 점(그 작업의 마감, 기준선)을 그린다. 비어 있으면 마감을 넘겨 도는 작업이 없다. 끝난 실행이 마감을 넘었는지는 오른쪽 그래프가 본다. 이 그래프는 멈춰 끝나지 않는 작업을 끝나기 전에 잡는다. 점을 누르면 그 작업의 실행 트레이스 목록이 보고 있는 구간으로 Explore 에서 열린다. 도는 중인 실행은 끝나야 맨 위 스팬이 와서 목록에 나오지 않는다. 시작 시각은 앱이 실행마다 내보내는 batch_job_running_since_seconds{scheduler}(돌지 않으면 0, lc-backend#1175)에서 읽는다. 마감은 기준 지표(overrun_threshold_seconds{kind=\"job\"})에서 읽고, 그 작업의 값이 없으면 기본값(name=default)을 쓴다. 지난 시간은 지금 시각이 아니라 표본을 모은 시각에서 뺀다. 지금 시각으로 빼면 다음 수집까지 같은 표본이 쓰여 이미 끝난 실행도 15초까지 자라 보인다. 표와 같이 cron 이 아닌 작업(아웃박스 릴레이, sendHeartbeat, takeOverStale)은 이름으로 뺀다. 작업은 배치 서버에서 돌아 job=\"batch\" 로 고른다. 로컬은 앱 하나가 배치 역할도 해서 로컬 Prometheus 의 batch 수집이 작업 지표를 다시 긁는다",
+      "description": "마감을 넘겨 도는 동안의 시작 뒤 지난 시간을 cron 작업마다 그린다. 끝나지 않고 멈춘 작업을 끝나기 전에 잡는다. 선의 점을 누르면 그 작업의 실행 트레이스 목록이 열린다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -810,15 +737,6 @@
           },
           "expr": "label_replace(max by (scheduler) ((timestamp(batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) - batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"} > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))), \"job_name\", \"$1\", \"scheduler\", \"(.+)\\\\(\\\\)\")",
           "legendFormat": "{{scheduler}}"
-        },
-        {
-          "refId": "Z",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "(max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))) and on(scheduler) (max by (scheduler) ((timestamp(batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) - batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"} > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))))",
-          "legendFormat": "기준 {{scheduler}}"
         }
       ],
       "fieldConfig": {
@@ -826,11 +744,11 @@
           "unit": "s",
           "min": 0,
           "custom": {
-            "drawStyle": "points",
-            "pointSize": 4,
+            "drawStyle": "lines",
             "lineWidth": 1,
             "fillOpacity": 0,
-            "spanNulls": false
+            "spanNulls": false,
+            "showPoints": "auto"
           },
           "thresholds": {
             "mode": "absolute",
@@ -843,21 +761,6 @@
           }
         },
         "overrides": [
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "기준.*"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "red"
-                }
-              }
-            ]
-          },
           {
             "matcher": {
               "id": "byFrameRefID",
@@ -892,7 +795,7 @@
       "id": 135,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: cron 작업마다 실행 한 번에 걸린 시간",
-      "description": "끝난 cron 실행 가운데 마감보다 오래 걸린 것만 점(걸린 시간)과 같은 이름의 빨간 점(그 작업의 마감, 기준선)으로 그린다. 걸린 시간은 앱의 작업 타이머(batch_job_duration_seconds_max)라 트레이싱을 끈 회차에도 보이고 표본에 흔들리지 않는다. 그 최대값은 실행이 끝난 뒤 2분 남짓 남았다가 사라진다. 마감은 기준 지표(overrun_threshold_seconds{kind=\"job\"})에서 읽고, 그 작업의 값이 없으면 기본값(name=default)을 쓴다. 도는 중에 마감을 넘은 것은 왼쪽 그래프가 본다. 부하 시험 환경에서는 배치 서버에도 트레이싱 에이전트가 붙고, cron 실행의 트레이스는 테일 샘플링이 모두 남긴다(서비스 lunchcatch-batch, lc-infra#143). 점을 누르면 그 작업의 실행 트레이스 목록이 보고 있는 구간으로 Explore 에서 열린다. 튄 곳을 드래그해 좁힌 뒤 누르면 그 구간의 실행만 나온다. 트레이싱을 끈 회차에는 목록이 비는 것이 정상이다. cron 이 아닌 작업(아웃박스 릴레이, sendHeartbeat, takeOverStale)은 이름으로 뺀다. 비어 있으면 마감을 넘은 실행이 없다",
+      "description": "마감보다 오래 걸린 cron 실행의 걸린 시간을 그린다. 실행이 끝난 뒤 2분 남짓 남았다가 사라진다. 선의 점을 누르면 그 작업의 실행 트레이스 목록이 열린다",
       "gridPos": {
         "h": 9,
         "w": 10,
@@ -909,27 +812,12 @@
           "custom": {
             "lineWidth": 1,
             "fillOpacity": 0,
-            "pointSize": 4,
-            "drawStyle": "points",
-            "spanNulls": false
+            "drawStyle": "lines",
+            "spanNulls": false,
+            "showPoints": "auto"
           }
         },
         "overrides": [
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "기준 .*"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "red"
-                }
-              }
-            ]
-          },
           {
             "matcher": {
               "id": "byFrameRefID",
@@ -968,15 +856,6 @@
             "type": "prometheus",
             "uid": "prometheus"
           }
-        },
-        {
-          "refId": "Z",
-          "expr": "(max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))) and on(scheduler) ((max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))))",
-          "legendFormat": "기준 {{scheduler}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
         }
       ]
     },
@@ -990,7 +869,7 @@
         "x": 20,
         "y": 54
       },
-      "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다. 프로파일에는 종류를 가르는 꼬리표가 없어 줄마다 같은 화면으로 간다",
+      "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다",
       "options": {
         "mode": "markdown",
         "content": "- [Profiling Wall Time (실행 경과 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=wall:wall:nanoseconds:cpu:nanoseconds&${__url_time_range})\n- [Profiling CPU Time (CPU 연산 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=process_cpu:cpu:nanoseconds:cpu:nanoseconds&${__url_time_range})\n\nCall Tree 에서 **그 작업 메서드** 을 찾는다. 링크로 검색어를 넘길 수 없어 화면에서 찾는다"
@@ -1013,7 +892,7 @@
       "id": 141,
       "type": "timeseries",
       "title": "외부 HTTP 호출: 상대와 경로마다 p99",
-      "description": "카카오와 토스처럼 WebClient 로 부르는 호출을 상대(client_name)와 경로(uri)로 나눠 p99 를 그린다. 앱이 내보내는 http_client_requests_histogram_seconds 에서 읽는다. 호출 수와 상태는 http_client_requests_seconds 가 갖는다. 상대마다의 기준 값은 아직 정하지 않아 기준선 없이 모든 호출의 p99 를 그린다(lc-backend#1166). 선의 점을 누르면 그 상대를 부른 클라이언트 스팬이 든 트레이스 목록이 Explore 에서 열린다. 표를 시간으로 정렬해 느린 호출부터 본다. 누른 p99 를 문턱으로 쓰지 않는다. p99 는 버킷에서 어림한 값이라 실제 가장 느린 호출보다 클 수 있어, 문턱으로 쓰면 그 p99 를 만든 호출이 빠진다. Tempo 는 한 번에 100개까지 돌려주니 많으면 튄 곳을 드래그해 좁힌 뒤 누른다. 구간은 지금 보고 있는 대시보드의 시간 범위다. 테일 샘플링은 요청 전체가 300ms 를 넘거나 오류일 때만 트레이스를 남겨, 외부 호출이 느렸어도 요청이 300ms 아래면 목록에 나오지 않는다. 트레이싱을 끈 회차에는 목록이 비는 것이 정상이다 트레이스는 상대(호스트)로만 거르고 경로로는 거르지 않는다",
+      "description": "WebClient 로 부르는 외부 HTTP 호출의 p99 를 상대와 경로마다 그린다. 기준은 아직 정하지 않았다. 선의 점을 누르면 그 상대를 부른 트레이스 목록이 열린다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1080,7 +959,7 @@
       "id": 142,
       "type": "timeseries",
       "title": "AWS SDK 호출: 서비스와 작업과 모델마다 p99",
-      "description": "Bedrock, S3, Rekognition 의 SDK 호출을 서비스(service), 작업(operation), 모델(model, 모델이 없는 호출은 none)로 나눠 p99 를 그린다. 앱이 내보내는 aws_sdk_calls_seconds 에서 읽고, 실패는 outcome=\"failure\" 로 센다. 상대마다의 기준 값은 아직 정하지 않아 기준선 없이 모든 호출의 p99 를 그린다(lc-backend#1166). 선의 점을 누르면 그 서비스와 작업을 부른 클라이언트 스팬이 든 트레이스 목록이 Explore 에서 열린다. 표를 시간으로 정렬해 느린 호출부터 본다. 누른 p99 를 문턱으로 쓰지 않는다. p99 는 버킷에서 어림한 값이라 실제 가장 느린 호출보다 클 수 있어, 문턱으로 쓰면 그 p99 를 만든 호출이 빠진다. Tempo 는 한 번에 100개까지 돌려주니 많으면 튄 곳을 드래그해 좁힌 뒤 누른다. 구간은 지금 보고 있는 대시보드의 시간 범위다. 테일 샘플링은 요청 전체가 300ms 를 넘거나 오류일 때만 트레이스를 남겨, 외부 호출이 느렸어도 요청이 300ms 아래면 목록에 나오지 않는다. 트레이싱을 끈 회차에는 목록이 비는 것이 정상이다 트레이스는 서비스와 작업으로 거르고 모델로는 거르지 않는다",
+      "description": "AWS SDK 호출(Bedrock, S3, Rekognition)의 p99 를 서비스, 작업, 모델마다 그린다. 기준은 아직 정하지 않았다. 선의 점을 누르면 그 서비스와 작업을 부른 트레이스 목록이 열린다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
