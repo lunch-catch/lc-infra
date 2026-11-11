@@ -9,7 +9,7 @@
 #   AWS_PROFILE=me ./loadtest-snapshot.sh --lt --label r1   팀원 부하 시험 환경(member-env.sh)에서
 #   ./loadtest-snapshot.sh --local --label l1              로컬 구성(observability/local)에서
 #   ./loadtest-snapshot.sh --lt --diag v3-run1-profile --from <ms> --to <ms> --trace <ID> --out <결과 문서 폴더>
-#                                                  진단 회차의 Call Tree, 트레이스 화면, 06 기준 초과를 찍는다
+#                                                  진단 회차의 Call Tree, 트레이스 화면, 06 처리 시간 목표 초과를 찍는다
 #
 #   --lt               부하 시험 환경이다. 접두사가 lunchcatch-lt 이고 운영 계정 가드 대신 AWS_PROFILE 을 요구한다
 #   --local            로컬 구성이다. 터널 없이 localhost 의 그라파나(GRAFANA_PORT, 기본 13000)를 admin 으로 찍는다
@@ -19,7 +19,7 @@
 #   --dash <uid>       그 대시보드만. 여러 번 줄 수 있다
 #   --out <경로>       저장 위치 (기본 loadtest-runs/)
 #   --diag <회차>      진단 회차(트레이싱이나 프로파일링을 켠 회차)를 찍는다. 회차 이름은 프로파일의 run 라벨이다.
-#                      06 기준 초과를 렌더러로, Call Tree(wall, cpu)와 트레이스 화면을 브라우저 자동화(scripts/diag-capture)로 찍는다.
+#                      06 처리 시간 목표 초과를 렌더러로, Call Tree(wall, cpu)와 트레이스 화면을 브라우저 자동화(scripts/diag-capture)로 찍는다.
 #                      그림은 --out 폴더에 바로 diag-{회차}-*.png 로 둔다. 결과 문서 옆에 두려는 것이다(lc-infra #106)
 #                      회차 구간의 Redis 명령별 호출 수, 서버 평균, 서버 p99 와 느린 명령 건수를 diag-{회차}-redis.txt 로 남긴다(lc-infra #116)
 #   --trace <ID>       --diag 와 함께 찍을 트레이스 ID. 여러 번 줄 수 있다. 결과 문서의 진단 표에 적은 가장 느린 트레이스다
@@ -125,7 +125,7 @@ fi
 [ -z "$BASELINE" ] || { [ -n "$DIAG" ] && [ -n "$BASE_FROM" ] && [ -n "$BASE_TO" ]; } || die "--baseline 은 --diag, --baseline-from, --baseline-to 와 함께 준다"
 [ ${#FIXED[@]} -eq 0 ] || { [ -n "$BASELINE" ] && [ ${#EXPANDS[@]} -gt 0 ]; } || die "--fixed 는 --baseline 과 --expand 와 함께 준다"
 
-# 진단 회차는 06 기준 초과만 찍는다. 측정 회차는 트레이싱을 꺼 그 대시보드의 트레이싱 표가 비어 찍지 않는다(lc-infra #94).
+# 진단 회차는 06 처리 시간 목표 초과만 찍는다. 측정 회차는 트레이싱을 꺼 그 대시보드의 트레이싱 표가 비어 찍지 않는다(lc-infra #94).
 # 기본은 여섯 장 전부다. 회차마다 무엇이 문제였는지 미리 알 수 없다.
 if [ -n "$DIAG" ]; then
   DASH=(lc-overrun)

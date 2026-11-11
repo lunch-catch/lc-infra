@@ -12,7 +12,7 @@ alerting:
 
 rule_files:
   - /etc/prometheus/rules.yml
-  # 06 기준 초과가 읽는 기준이다. 알람이 아니라 기준 값을 시계열로 만든다
+  # 06 처리 시간 목표 초과가 읽는 기준이다. 알람이 아니라 기준 값을 시계열로 만든다
   - /etc/prometheus/thresholds.yml
 
 scrape_configs:
