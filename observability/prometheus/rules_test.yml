@@ -525,3 +525,87 @@ tests:
       - eval_time: 20m
         alertname: AdservingImpressionExpired
         exp_alerts: []
+
+  # 비동기 워커 경보(lc-infra #151). 노출은 매분 1,000건 받고, 10분 뒤부터 매분 5건을 버린다(0.5%).
+  # 노출 저장 워커의 대기 시간은 10분 뒤부터 30초다. 서빙 로그 워커는 이름별 기준(60초)이라 같은 30초에도 울리지 않는다.
+  - interval: 1m
+    input_series:
+      - series: 'overrun_threshold_seconds{kind="worker", name="default"}'
+        values: '5x40'
+      - series: 'overrun_threshold_seconds{kind="worker", name="adserving.serve-log-write"}'
+        values: '60x40'
+      - series: 'http_server_requests_seconds_count{job="app", instance="a1", uri="/v1/impressions", status="202"}'
+        values: '0+1000x40'
+      - series: 'adserving_impression_dropped_total{job="app", instance="a1"}'
+        values: '0x10 5+5x30'
+      - series: 'async_worker_oldest_age_seconds{job="app", instance="a1", worker="adserving.impression-write"}'
+        values: '1x10 30x30'
+      - series: 'async_worker_oldest_age_seconds{job="app", instance="a1", worker="adserving.serve-log-write"}'
+        values: '1x10 30x30'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: WorkerWaitHigh
+        exp_alerts: []
+      - eval_time: 17m
+        alertname: WorkerWaitHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, worker: adserving.impression-write}
+            exp_annotations: {description: "워커 adserving.impression-write 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 06 처리 시간 목표 초과의 워커 줄을 확인하라"}
+      - eval_time: 15m
+        alertname: AdservingImpressionLossHigh
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: AdservingImpressionLossHigh
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations: {description: "노출 유실률이 0.5% 다. 목표는 0.1% 미만이다. 버린 노출은 과금되지 않는다. 노출 저장 워커의 대기 시간과 카운터 호출을 확인하라"}
+
+  # 워커 경보의 해소와 카운터 초기화(lc-infra #151). 노출은 10~40분에만 0.5% 를 버리고 워커 대기는 10~40분에만 30초다.
+  # 버린 노출 카운터는 25분에 재시작으로 0 이 된다.
+  - interval: 1m
+    input_series:
+      - series: 'overrun_threshold_seconds{kind="worker", name="default"}'
+        values: '5x120'
+      - series: 'http_server_requests_seconds_count{job="app", instance="a1", uri="/v1/impressions", status="202"}'
+        values: '0+1000x120'
+      - series: 'adserving_impression_dropped_total{job="app", instance="a1"}'
+        values: '0x10 5+5x14 0+5x15 75x80'
+      - series: 'async_worker_oldest_age_seconds{job="app", instance="a1", worker="adserving.impression-write"}'
+        values: '1x10 30x30 1x80'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: WorkerWaitHigh
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: AdservingImpressionLossHigh
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: WorkerWaitHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, worker: adserving.impression-write}
+            exp_annotations: {description: "워커 adserving.impression-write 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 06 처리 시간 목표 초과의 워커 줄을 확인하라"}
+      # 카운터가 25분에 0 으로 돌아가도 increase 가 재시작을 이어 붙여 계속 울린다. 0 으로 떨어진 한 칸의 증가분은 빠져 0.45% 로 센다
+      - eval_time: 35m
+        alertname: AdservingImpressionLossHigh
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations: {description: "노출 유실률이 0.45% 다. 목표는 0.1% 미만이다. 버린 노출은 과금되지 않는다. 노출 저장 워커의 대기 시간과 카운터 호출을 확인하라"}
+      - eval_time: 70m
+        alertname: WorkerWaitHigh
+        exp_alerts: []
+      - eval_time: 70m
+        alertname: AdservingImpressionLossHigh
+        exp_alerts: []
+
+  # 워커 지표와 노출 요청이 아예 없으면 아무것도 울리지 않는다. 받은 노출이 0 이라 유실률의 분모도 비운다
+  - interval: 1m
+    input_series:
+      - series: 'overrun_threshold_seconds{kind="worker", name="default"}'
+        values: '5x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: WorkerWaitHigh
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: AdservingImpressionLossHigh
+        exp_alerts: []

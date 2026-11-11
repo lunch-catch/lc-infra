@@ -313,6 +313,24 @@ groups:
         annotations:
           description: "마감이 지나 넘기지 못한 노출이 1시간 사이 늘었다. 과금되지 않는다. 배치 서버와 노출 릴레이가 하루 넘게 멈췄는지 확인하라"
 
+      # 노출을 받고도 저장하지 못해 버렸다. 버린 노출은 과금되지 않는다. 유실 목표(0.1%, lc-backend#1065)를 기준으로 서빙 로그 유실과 같은 꼴로 본다.
+      # 대기열이 차서 버린 것과 재시도를 다 쓰고 버린 것을 합쳐 받은 노출(202 응답)로 나눈다. 받은 노출이 0 이면 분모를 비워 0 으로 나누지 않는다
+      - alert: AdservingImpressionLossHigh
+        expr: |
+          (
+            (sum(increase(adserving_impression_dropped_total[10m])) or vector(0))
+            +
+            (sum(increase(adserving_impression_write_lost_total[10m])) or vector(0))
+          )
+          /
+          (sum(increase(http_server_requests_seconds_count{uri="/v1/impressions", status="202"}[10m])) > 0)
+          > 0.001
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          description: "노출 유실률이 {{ $value | humanizePercentage }} 다. 목표는 0.1% 미만이다. 버린 노출은 과금되지 않는다. 노출 저장 워커의 대기 시간과 카운터 호출을 확인하라"
+
       # 노출 릴레이의 실행 하나가 통째로 실패했다. 정산이 예외를 던졌거나(DB, Valkey 장애) 밀린 수를 못 셌거나 임대를 확인하지 못했다.
       # 노출마다의 실패(adserving_impression_dispatch_failed_total)는 다시 넘기니 경보를 두지 않는다. 끝내 실패하면 RelayAbandoned 가 잡는다
       - alert: AdservingDispatchError
@@ -438,6 +456,26 @@ groups:
           severity: warning
         annotations:
           description: "릴레이 {{ $labels.relay }} 가 {{ $value }} 건의 넘기기를 포기했다. 원인을 고친 뒤 포기 시각을 비워 다시 넘겨라"
+
+  # 앱 안의 메모리 대기열(비동기 워커)을 본다(lc-infra #151). 지표는 모든 워커가 내는 공통 이름이라 worker 꼬리표로 나눈다.
+  # 메모리 대기열은 차면 일을 버리므로 유실 경보보다 먼저 울려 곧 넘친다는 것을 알린다. 유실은 워커마다의 지표로 따로 본다
+  - name: worker
+    rules:
+      # 가장 오래 기다린 일의 대기 시간이 그 워커의 기준을 넘었다. 기준은 앱의 기준 지표이고 기본값은 5초다
+      - alert: WorkerWaitHigh
+        expr: |
+          max by (worker) (async_worker_oldest_age_seconds)
+          > on(worker) group_left()
+          (
+            max by (worker) (label_replace(overrun_threshold_seconds{kind="worker", name!="default"}, "worker", "$1", "name", "(.+)"))
+            or
+            max by (worker) (async_worker_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind="worker", name="default"}))
+          )
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          description: "워커 {{ $labels.worker }} 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 06 처리 시간 목표 초과의 워커 줄을 확인하라"
 
   # 임계값이 정해지지 않은 알람들. 부하 시험 후 채운다.
   #

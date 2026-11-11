@@ -534,7 +534,7 @@
       "id": 10,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: 워커마다 가장 오래 기다린 일의 대기 시간",
-      "description": "워커마다 기준을 넘은 동안만 실선(가장 오래 기다린 일의 대기 시간)과 같은 이름의 빨간 점선(그 워커의 기준선)을 그린다. 비어 있으면 기준을 넘은 워커가 없다. 기준은 기준 지표(overrun_threshold_seconds{kind=\"worker\"})에서 읽고, 그 워커의 값이 없으면 기본값(name=default)을 쓴다. 대기 시간은 모든 워커가 내보내는 공통 지표(async_worker_oldest_age_seconds{worker})이고 lc-backend#1131 에서 생긴다. 그 전에는 비어 보인다. 워커의 처리에는 스팬이 없어 트레이싱 표를 두지 않는다",
+      "description": "워커마다 기준을 넘은 동안만 실선(가장 오래 기다린 일의 대기 시간)과 같은 이름의 빨간 점선(그 워커의 기준선)을 그린다. 비어 있으면 기준을 넘은 워커가 없다. 기준은 기준 지표(overrun_threshold_seconds{kind=\"worker\"})에서 읽고, 그 워커의 값이 없으면 기본값(name=default)을 쓴다. 대기 시간은 모든 워커가 내보내는 공통 지표(async_worker_oldest_age_seconds{worker})이고 lc-backend#1131 에서 생긴다. 그 전에는 비어 보인다. WorkerWaitHigh 경보가 이 기준을 5분 넘게 넘으면 울린다. 실선의 점을 누르면 그 워커 스레드의 SQL 트레이스 목록이 보고 있는 구간으로 Explore 에서 열린다. 워커의 처리에는 따로 스팬이 없어, 에이전트가 SQL 스팬에 다는 스레드 이름(thread.name)으로 찾는다. SQL 하나가 트레이스 하나라 묶음과 재시도는 한 트레이스로 모이지 않고, 오류와 1% 만 남아 몇 개의 묶음만 막힌 경우는 목록이 비기 쉽다. 그 밖의 코드는 옆의 프로파일링으로 본다. 워커 이름(worker)과 스레드 이름의 짝은 그래프 쿼리의 label_replace 가 갖는다. 워커가 늘면 짝을 더한다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -552,7 +552,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max by (worker) (async_worker_oldest_age_seconds) > on(worker) group_left() (max by (worker) (label_replace(overrun_threshold_seconds{kind=\"worker\", name!=\"default\"}, \"worker\", \"$1\", \"name\", \"(.+)\")) or max by (worker) (async_worker_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"worker\", name=\"default\"})))",
+          "expr": "label_replace(label_replace(max by (worker) (async_worker_oldest_age_seconds) > on(worker) group_left() (max by (worker) (label_replace(overrun_threshold_seconds{kind=\"worker\", name!=\"default\"}, \"worker\", \"$1\", \"name\", \"(.+)\")) or max by (worker) (async_worker_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"worker\", name=\"default\"}))), \"thread_name\", \"impression-writer\", \"worker\", \"adserving\\\\.impression-write\"), \"thread_name\", \"serve-log-writer\", \"worker\", \"adserving\\\\.serve-log-write\")",
           "legendFormat": "{{worker}}"
         },
         {
@@ -609,6 +609,24 @@
                     10
                   ]
                 }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "이 워커 스레드의 SQL 트레이스 (보고 있는 구간)",
+                    "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%20%7B%22datasource%22%3A%20%22tempo%22%2C%20%22queries%22%3A%20%5B%7B%22refId%22%3A%20%22A%22%2C%20%22datasource%22%3A%20%7B%22type%22%3A%20%22tempo%22%2C%20%22uid%22%3A%20%22tempo%22%7D%2C%20%22queryType%22%3A%20%22traceql%22%2C%20%22query%22%3A%20%22%7B%20resource.service.name%20%3D%20%5C%22lunchcatch%5C%22%20%26%26%20span.thread.name%20%3D%20%5C%22${__field.labels.thread_name:percentencode}%5C%22%20%7D%22%2C%20%22limit%22%3A%20100%2C%20%22tableType%22%3A%20%22traces%22%7D%5D%2C%20%22range%22%3A%20%7B%22from%22%3A%20%22${__from}%22%2C%20%22to%22%3A%20%22${__to}%22%7D%7D%7D",
+                    "targetBlank": true
+                  }
+                ]
               }
             ]
           }
@@ -684,11 +702,97 @@
       }
     },
     {
+      "id": 123,
+      "type": "timeseries",
+      "title": "워커마다 버린 일(분당)",
+      "description": "워커가 버린 일을 분당 건수로 그린다. 0 이 정상이다. 메모리 대기열이라 차거나 쓰기를 끝내 못 하면 일이 사라진다. 노출은 과금으로 이어져, 버린 노출은 과금되지 않는다. AdservingImpressionLossHigh 경보는 (대기열이 차서 버림 + 재시도 끝에 버림) ÷ 받은 노출이 0.1% 를 10분 넘게 넘으면 울리고, 서빙 로그는 AdservingServeLogLossHigh 가 본다. 유실 지표는 공통 이름이 아니라 워커마다 따로 있어, 워커가 늘면 이 그래프에 줄을 더한다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 20,
+        "x": 0,
+        "y": 45
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(adserving_impression_dropped_total[$__rate_interval])) * 60",
+          "legendFormat": "adserving.impression-write 대기열이 차서 버림"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(adserving_impression_write_lost_total[$__rate_interval])) * 60",
+          "legendFormat": "adserving.impression-write 재시도 끝에 버림"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(adserving_serve_log_dropped_total[$__rate_interval])) * 60",
+          "legendFormat": "adserving.serve-log-write 대기열이 차서 버림"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(adserving_serve_log_failed_total[$__rate_interval])) * 60",
+          "legendFormat": "adserving.serve-log-write 쓰기에 실패해 버림"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "drawStyle": "lines",
+            "pointSize": 4,
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
       "id": 122,
       "type": "text",
       "title": "프로파일링",
       "gridPos": {
-        "h": 8,
+        "h": 16,
         "w": 4,
         "x": 20,
         "y": 37
@@ -708,7 +812,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 53
       },
       "panels": []
     },
@@ -725,7 +829,7 @@
         "h": 9,
         "w": 10,
         "x": 0,
-        "y": 46
+        "y": 54
       },
       "targets": [
         {
@@ -833,7 +937,7 @@
         "h": 9,
         "w": 10,
         "x": 10,
-        "y": 46
+        "y": 54
       },
       "datasource": {
         "type": "prometheus",
@@ -937,7 +1041,7 @@
         "h": 9,
         "w": 4,
         "x": 20,
-        "y": 46
+        "y": 54
       },
       "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다. 프로파일에는 종류를 가르는 꼬리표가 없어 줄마다 같은 화면으로 간다",
       "options": {
@@ -954,7 +1058,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 55
+        "y": 63
       },
       "panels": []
     },
@@ -971,7 +1075,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 56
+        "y": 64
       },
       "fieldConfig": {
         "defaults": {
@@ -1038,7 +1142,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 56
+        "y": 64
       },
       "fieldConfig": {
         "defaults": {
