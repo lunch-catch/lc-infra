@@ -7,6 +7,8 @@ rule_files:
 scrape_configs:
   - job_name: app
     metrics_path: /actuator/prometheus
+    # 부하로 CPU 가 바닥나면 지표 응답이 10초(기본값)를 넘는다. 수집 간격과 같게 두어 늦은 칸을 건진다. 늘려도 수집은 겹치지 않는다(#159)
+    scrape_timeout: 15s
     static_configs:
       - targets: ["app:8081"]
         labels:
@@ -15,6 +17,8 @@ scrape_configs:
   # 로컬은 앱 하나가 배치 역할도 한다. 대시보드가 job="batch" 로 보는 릴레이 지표와 작업 지표만 다시 긁는다.
   - job_name: batch
     metrics_path: /actuator/prometheus
+    # 앱과 같은 까닭이다(#159)
+    scrape_timeout: 15s
     static_configs:
       - targets: ["app:8081"]
         labels:
