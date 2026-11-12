@@ -31,144 +31,6 @@
       }
     },
     {
-      "id": 150,
-      "type": "row",
-      "title": "지표 수집",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 6
-      },
-      "panels": []
-    },
-    {
-      "type": "timeseries",
-      "title": "앱과 배치의 지표 수집 시간",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Prometheus 가 앱과 배치의 지표를 받는 데 걸린 시간을 서버마다 그린다. 빨간 점선은 수집 제한 15초이고, 넘은 칸은 지표가 통째로 빈다. 부하로 CPU 가 바닥나면 이 값이 함께 오른다",
-      "gridPos": {
-        "h": 8,
-        "w": 16,
-        "x": 0,
-        "y": 7
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "max by (job, instance) (scrape_duration_seconds{job=~\"app|batch\"})",
-          "legendFormat": "{{job}} {{instance}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "min": 0,
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 0,
-            "spanNulls": false,
-            "thresholdsStyle": {
-              "mode": "dashed"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 15
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "id": 151
-    },
-    {
-      "type": "stat",
-      "title": "앱과 배치의 지표 수집 실패(칸)",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "보고 있는 범위에서 수집이 빠진 칸(15초)의 수를 서버마다 센다. 0 이 아니면 그 칸의 그래프는 비어 있고, 비어 있는 것은 괜찮았다는 뜻이 아니다",
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 7
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum by (job, instance) (count_over_time((up{job=~\"app|batch\"} == 0)[$__range:15s])) or sum by (job, instance) (up{job=~\"app|batch\"}) * 0",
-          "legendFormat": "{{job}} {{instance}}",
-          "instant": true
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none",
-          "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "textMode": "value_and_name",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      },
-      "id": 152
-    },
-    {
       "id": 100,
       "type": "row",
       "title": "API",
@@ -177,7 +39,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 15
+        "y": 6
       },
       "panels": []
     },
@@ -194,7 +56,7 @@
         "h": 12,
         "w": 20,
         "x": 0,
-        "y": 16
+        "y": 7
       },
       "targets": [
         {
@@ -255,7 +117,7 @@
         "h": 12,
         "w": 4,
         "x": 20,
-        "y": 16
+        "y": 7
       },
       "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다",
       "options": {
@@ -272,7 +134,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 19
       },
       "panels": []
     },
@@ -289,7 +151,7 @@
         "h": 8,
         "w": 10,
         "x": 0,
-        "y": 29
+        "y": 20
       },
       "targets": [
         {
@@ -367,7 +229,7 @@
         "h": 8,
         "w": 10,
         "x": 10,
-        "y": 29
+        "y": 20
       },
       "targets": [
         {
@@ -426,7 +288,7 @@
         "h": 8,
         "w": 10,
         "x": 0,
-        "y": 37
+        "y": 28
       },
       "targets": [
         {
@@ -524,7 +386,7 @@
         "h": 8,
         "w": 10,
         "x": 10,
-        "y": 37
+        "y": 28
       },
       "targets": [
         {
@@ -578,7 +440,7 @@
         "h": 16,
         "w": 4,
         "x": 20,
-        "y": 29
+        "y": 20
       },
       "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다",
       "options": {
@@ -595,7 +457,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 36
       },
       "panels": []
     },
@@ -612,7 +474,7 @@
         "h": 8,
         "w": 10,
         "x": 0,
-        "y": 46
+        "y": 37
       },
       "targets": [
         {
@@ -690,7 +552,7 @@
         "h": 8,
         "w": 10,
         "x": 10,
-        "y": 46
+        "y": 37
       },
       "targets": [
         {
@@ -749,7 +611,7 @@
         "h": 8,
         "w": 20,
         "x": 0,
-        "y": 54
+        "y": 45
       },
       "targets": [
         {
@@ -830,7 +692,7 @@
         "h": 16,
         "w": 4,
         "x": 20,
-        "y": 46
+        "y": 37
       },
       "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다",
       "options": {
@@ -847,7 +709,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 62
+        "y": 53
       },
       "panels": []
     },
@@ -864,7 +726,7 @@
         "h": 9,
         "w": 10,
         "x": 0,
-        "y": 63
+        "y": 54
       },
       "targets": [
         {
@@ -938,7 +800,7 @@
         "h": 9,
         "w": 10,
         "x": 10,
-        "y": 63
+        "y": 54
       },
       "datasource": {
         "type": "prometheus",
@@ -1005,7 +867,7 @@
         "h": 9,
         "w": 4,
         "x": 20,
-        "y": 63
+        "y": 54
       },
       "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다",
       "options": {
@@ -1022,7 +884,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 72
+        "y": 63
       },
       "panels": []
     },
@@ -1039,7 +901,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 73
+        "y": 64
       },
       "fieldConfig": {
         "defaults": {
@@ -1106,7 +968,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 73
+        "y": 64
       },
       "fieldConfig": {
         "defaults": {
@@ -1159,6 +1021,144 @@
           "legendFormat": "{{service}} {{operation}} {{model}}"
         }
       ]
+    },
+    {
+      "id": 150,
+      "type": "row",
+      "title": "지표 수집",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 73
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "앱과 배치의 지표 수집 시간",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Prometheus 가 앱과 배치의 지표를 받는 데 걸린 시간을 서버마다 그린다. 빨간 점선은 수집 제한 15초이고, 넘은 칸은 지표가 통째로 빈다. 부하로 CPU 가 바닥나면 이 값이 함께 오른다",
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 0,
+        "y": 74
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (job, instance) (scrape_duration_seconds{job=~\"app|batch\"})",
+          "legendFormat": "{{job}} {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 15
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 151
+    },
+    {
+      "type": "stat",
+      "title": "앱과 배치의 지표 수집 실패(칸)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "보고 있는 범위에서 수집이 빠진 칸(15초)의 수를 서버마다 센다. 0 이 아니면 그 칸의 그래프는 비어 있고, 비어 있는 것은 괜찮았다는 뜻이 아니다",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 74
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (job, instance) (count_over_time((up{job=~\"app|batch\"} == 0)[$__range:15s])) or sum by (job, instance) (up{job=~\"app|batch\"}) * 0",
+          "legendFormat": "{{job}} {{instance}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "value_and_name",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 152
     }
   ],
   "templating": {
