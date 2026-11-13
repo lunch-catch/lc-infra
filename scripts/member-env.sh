@@ -9,7 +9,7 @@
 #   AWS_PROFILE=me ./scripts/member-env.sh down            전부 지운다
 #
 # MEMBER_ALERT_EMAIL 을 주면 예산 알림과 경보를 그 메일로 받는다. 처음 받는 확인 메일의 링크를 누른다.
-# MEMBER_SLACK_WEBHOOK_CRITICAL, MEMBER_SLACK_WEBHOOK_WARNING, MEMBER_SLACK_WEBHOOK_WATCHDOG 를 주면 Prometheus 경보를 그 Slack 채널로 받는다.
+# MEMBER_SLACK_WEBHOOK_CRITICAL, MEMBER_SLACK_WEBHOOK_WARNING 을 주면 Prometheus 경보를 그 Slack 채널로 받는다. watchdog 은 5분마다 와서 팀원 모두가 보내면 채널이 차므로 주지 않는다.
 # 경보 제목에는 lunchcatch-lt/<MEMBER_NAME> 이 붙는다. MEMBER_NAME 을 안 주면 git config user.name 이다.
 #
 # 시험 시간에 제한이 없다 (#52). 각자 자기 계정이라 언제 지울지도 스스로 정한다. 켜 둔 동안은 시간당 요금이 나간다.
