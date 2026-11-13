@@ -22,11 +22,16 @@ route:
 # 심각도 구분은 어느 웹훅을 쓰느냐로 이미 끝나므로 channel 은 중복이고,
 # 유일하게 어긋날 수 있는 부분이다. 이름이 다르면 Slack 이 channel_not_found 로
 # 거부하고 알람을 버린다. 실제로 그렇게 전 알람이 전달되지 않고 있었다.
+#
+# 제목 끝에 경보를 보낸 환경(env 라벨)을 붙인다 (#161).
+# 팀원 부하 시험 환경이 같은 웹훅을 쓰면 운영과 여러 팀원의 경보가 한 채널에 섞여 누구 것인지 알 수 없다.
+# env 는 Prometheus 의 external_labels 가 붙이고, 없으면 붙이지 않는다.
+#
 receivers:
   - name: critical
     slack_configs:
       - api_url_file: /run/secrets/slack_webhook_critical
-        title: '[CRITICAL] {{ .CommonLabels.alertname }}'
+        title: '[CRITICAL] {{ .CommonLabels.alertname }}{{ with .CommonLabels.env }} ({{ . }}){{ end }}'
         text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
         # 대응 중인 사람이 복구를 알아야 한다.
         send_resolved: true
@@ -34,7 +39,7 @@ receivers:
   - name: warning
     slack_configs:
       - api_url_file: /run/secrets/slack_webhook_warning
-        title: '[WARNING] {{ .CommonLabels.alertname }}'
+        title: '[WARNING] {{ .CommonLabels.alertname }}{{ with .CommonLabels.env }} ({{ . }}){{ end }}'
         text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
         # 스스로 해소되는 경우가 많아 소음이 된다.
         send_resolved: false
@@ -42,5 +47,5 @@ receivers:
   - name: watchdog
     slack_configs:
       - api_url_file: /run/secrets/slack_webhook_watchdog
-        title: 'watchdog'
+        title: 'watchdog{{ with .CommonLabels.env }} ({{ . }}){{ end }}'
         send_resolved: false
