@@ -9,6 +9,8 @@
 #   AWS_PROFILE=me ./scripts/member-env.sh down            전부 지운다
 #
 # MEMBER_ALERT_EMAIL 을 주면 예산 알림과 경보를 그 메일로 받는다. 처음 받는 확인 메일의 링크를 누른다.
+# MEMBER_SLACK_WEBHOOK_CRITICAL, MEMBER_SLACK_WEBHOOK_WARNING, MEMBER_SLACK_WEBHOOK_WATCHDOG 를 주면 Prometheus 경보를 그 Slack 채널로 받는다.
+# 경보 제목에는 lunchcatch-lt/<MEMBER_NAME> 이 붙는다. MEMBER_NAME 을 안 주면 git config user.name 이다.
 #
 # 시험 시간에 제한이 없다 (#52). 각자 자기 계정이라 언제 지울지도 스스로 정한다. 켜 둔 동안은 시간당 요금이 나간다.
 # MEMBER_HOURS=<시간> 을 주면 그 시간 뒤 AWS 가 스스로 지운다. 잊을 것 같으면 준다.
@@ -40,6 +42,10 @@ IMAGE_WORKFLOW="image.yml"
 APP_IMAGE_REPOSITORY="ghcr.io/$BACKEND_REPO"
 # 비우면 자동 정리를 만들지 않는다
 HOURS="${MEMBER_HOURS:-}"
+# 경보 제목에 붙는 이름이다. 라벨 값이라 공백은 - 로 바꾼다 (#161)
+MEMBER="${MEMBER_NAME:-$(git config user.name 2> /dev/null || true)}"
+MEMBER="${MEMBER:-${USER:-member}}"
+MEMBER="${MEMBER// /-}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
@@ -158,7 +164,23 @@ ensure_secrets() {
   put github-token none
   # 부하 시험 환경은 항상 loadtest 다. 결제는 토스 대신 앱 안의 목이 받는다 (lc-backend #715)
   aws ssm put-parameter --name "/$PROJECT/run-mode" --value loadtest --type String --overwrite > /dev/null
-  for n in critical warning watchdog; do put "slack-webhook-$n" "https://hooks.slack.com/services/none"; done
+  #
+  # Slack 웹훅은 MEMBER_SLACK_WEBHOOK_<채널> 을 주면 그 주소를 넣는다 (#161). 다시 주면 덮어쓴다.
+  # 안 주면 가짜 주소라 경보가 아무 데도 가지 않는다. 주소는 비밀값이라 저장소에 두지 않고 따로 받는다.
+  #
+  local n var url
+  for n in critical warning watchdog; do
+    var="MEMBER_SLACK_WEBHOOK_$(printf '%s' "$n" | tr '[:lower:]' '[:upper:]')"
+    url="${!var:-}"
+    if [ -n "$url" ]; then
+      aws ssm put-parameter --name "/$PROJECT/slack-webhook-$n" --type SecureString --value "$url" --overwrite > /dev/null
+      log "   /$PROJECT/slack-webhook-$n 를 받은 주소로 넣음"
+    else
+      put "slack-webhook-$n" "https://hooks.slack.com/services/none"
+    fi
+  done
+  # 같은 Slack 채널에 여러 팀원의 경보가 섞여도 누구 것인지 알게 경보 제목에 붙는다 (#161)
+  aws ssm put-parameter --name "/$PROJECT/member-name" --value "$MEMBER" --type String --overwrite > /dev/null
   # 부하 시험은 카카오를 부르지 않는다. 기동만 되게 채운다
   put kakao-client-id none
   put kakao-client-secret none

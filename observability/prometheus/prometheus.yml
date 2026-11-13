@@ -4,6 +4,9 @@ global:
   evaluation_interval: 15s
   external_labels:
     project: lunchcatch
+    # 경보를 보낸 환경이다 (#161). 같은 Slack 채널에 운영과 팀원 부하 시험 환경의 경보가 섞여도 Alertmanager 가 제목에 붙여 구분한다.
+    # 값은 compose 가 넘기는 ALERT_ENV 이고 refresh-monitoring-env 가 SSM 에서 만든다. Prometheus 3 은 이 자리의 ${} 를 환경 변수로 푼다.
+    env: ${ALERT_ENV}
 
 alerting:
   alertmanagers:

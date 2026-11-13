@@ -131,6 +131,13 @@ else
   CADDY_BASIC_AUTH_HASH=$(printf '%s' "$CADDY_BASIC_AUTH_HASH" | sed 's/\$/$$/g')
 fi
 
+#
+# 경보에 붙는 환경 라벨이다 (#161). Prometheus 가 external_labels 로 붙이고 Alertmanager 가 Slack 제목에 쓴다.
+# 팀원 부하 시험 환경은 member-env.sh 가 member-name 을 넣어 lunchcatch-lt/<팀원> 이 되고, 운영은 그 값이 없어 프로젝트 이름만 쓴다.
+#
+ALERT_MEMBER=$(opt_sec member-name)
+ALERT_ENV=${project}$${ALERT_MEMBER:+/$ALERT_MEMBER}
+
 %{ if profiling_enabled ~}
 # 부하 시험 환경은 프로파일 저장소(Pyroscope)를 함께 띄운다(lunch-catch/lc-infra#71)
 COMPOSE_PROFILES=$${COMPOSE_PROFILES:+$COMPOSE_PROFILES,}profiling
@@ -151,5 +158,6 @@ GRAFANA_ADMIN_PASSWORD=$GRAFANA_ADMIN_PASSWORD
 DUCKDNS_HOSTNAME=$DUCKDNS_HOSTNAME
 CADDY_BASIC_AUTH_HASH=$CADDY_BASIC_AUTH_HASH
 COMPOSE_PROFILES=$COMPOSE_PROFILES
+ALERT_ENV=$ALERT_ENV
 ENV
 chmod 600 "$D/.env"

@@ -32,6 +32,9 @@ services:
       - ./prometheus/rules.yml:/etc/prometheus/rules.yml:ro
       - ./prometheus/thresholds.yml:/etc/prometheus/thresholds.yml:ro
       - prometheus-data:/prometheus
+    # prometheus.yml 의 external_labels 가 읽는다. .env 가 없는 로컬 실행은 local 이다 (#161)
+    environment:
+      ALERT_ENV: ${ALERT_ENV:-local}
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
