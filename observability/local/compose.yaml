@@ -66,8 +66,10 @@ services:
       - "127.0.0.1:${PROMETHEUS_PORT:-19090}:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      # 06 처리 시간 목표 초과가 읽는 기준은 운영과 같은 파일을 쓴다. 알람 규칙(rules.yml)은 로컬에 두지 않는다
+      # 06 처리 시간 목표 초과가 읽는 기준은 운영과 같은 파일을 쓴다
       - ../prometheus/thresholds.yml:/etc/prometheus/thresholds.yml:ro
+      # 01 의 경보 패널을 로컬에서도 보려고 경보 규칙도 운영과 같은 파일을 쓴다. 로컬에는 Alertmanager 가 없어 Slack 으로 나가지 않는다
+      - ../prometheus/rules.yml:/etc/prometheus/rules.yml:ro
       # 09 SLI 의 기록 규칙도 운영과 같은 파일을 쓴다
       - ../prometheus/sli.yml:/etc/prometheus/sli.yml:ro
     command:
