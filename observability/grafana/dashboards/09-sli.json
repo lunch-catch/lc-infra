@@ -13,7 +13,7 @@
     "from": "now-1h",
     "to": "now"
   },
-  "refresh": "",
+  "refresh": "30s",
   "annotations": {
     "list": []
   },
@@ -56,7 +56,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "1 - sum (increase(http_server_requests_seconds_count{job=\"app\", uri!~\"UNKNOWN|/actuator.*\", status=~\"5..\"}[$__range])) / (sum (increase(http_server_requests_seconds_count{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__range])) > 0)",
+          "expr": "1 - (sum (increase(http_server_requests_seconds_count{job=\"app\", uri!~\"UNKNOWN|/actuator.*\", status=~\"5..\"}[$__range])) or sum (increase(http_server_requests_seconds_count{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__range])) * 0) / (sum (increase(http_server_requests_seconds_count{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__range])) > 0)",
           "legendFormat": "",
           "instant": true
         }
@@ -113,7 +113,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum (increase(http_server_requests_target_total{job=\"app\", uri!~\"UNKNOWN|/actuator.*\", outcome!=\"SERVER_ERROR\", result=\"within\"}[$__range])) / (sum (increase(http_server_requests_target_total{job=\"app\", uri!~\"UNKNOWN|/actuator.*\", outcome!=\"SERVER_ERROR\"}[$__range])) > 0)",
+          "expr": "(sum (increase(http_server_requests_target_total{job=\"app\", uri!~\"UNKNOWN|/actuator.*\", outcome!=\"SERVER_ERROR\", result=\"within\"}[$__range])) or sum (increase(http_server_requests_target_total{job=\"app\", uri!~\"UNKNOWN|/actuator.*\", outcome!=\"SERVER_ERROR\"}[$__range])) * 0) / (sum (increase(http_server_requests_target_total{job=\"app\", uri!~\"UNKNOWN|/actuator.*\", outcome!=\"SERVER_ERROR\"}[$__range])) > 0)",
           "legendFormat": "",
           "instant": true
         }
@@ -238,7 +238,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "1 - sum by (method, uri) (increase(http_server_requests_seconds_count{job=\"app\", uri!~\"UNKNOWN|/actuator.*\", status=~\"5..\"}[$__range])) / (sum by (method, uri) (increase(http_server_requests_seconds_count{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__range])) > 0)",
+          "expr": "1 - (sum by (method, uri) (increase(http_server_requests_seconds_count{job=\"app\", uri!~\"UNKNOWN|/actuator.*\", status=~\"5..\"}[$__range])) or sum by (method, uri) (increase(http_server_requests_seconds_count{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__range])) * 0) / (sum by (method, uri) (increase(http_server_requests_seconds_count{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__range])) > 0)",
           "legendFormat": "",
           "instant": true,
           "format": "table"
@@ -249,7 +249,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (method, uri) (increase(http_server_requests_target_total{job=\"app\", uri!~\"UNKNOWN|/actuator.*\", outcome!=\"SERVER_ERROR\", result=\"within\"}[$__range])) / (sum by (method, uri) (increase(http_server_requests_target_total{job=\"app\", uri!~\"UNKNOWN|/actuator.*\", outcome!=\"SERVER_ERROR\"}[$__range])) > 0)",
+          "expr": "(sum by (method, uri) (increase(http_server_requests_target_total{job=\"app\", uri!~\"UNKNOWN|/actuator.*\", outcome!=\"SERVER_ERROR\", result=\"within\"}[$__range])) or sum by (method, uri) (increase(http_server_requests_target_total{job=\"app\", uri!~\"UNKNOWN|/actuator.*\", outcome!=\"SERVER_ERROR\"}[$__range])) * 0) / (sum by (method, uri) (increase(http_server_requests_target_total{job=\"app\", uri!~\"UNKNOWN|/actuator.*\", outcome!=\"SERVER_ERROR\"}[$__range])) > 0)",
           "legendFormat": "",
           "instant": true,
           "format": "table"
@@ -397,7 +397,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "1 - sum by (method, uri) (uri_method:sli_requests_failed:rate5m) / (sum by (method, uri) (uri_method:sli_requests:rate5m) > 0)",
+          "expr": "1 - (sum by (method, uri) (uri_method:sli_requests_failed:rate5m) or sum by (method, uri) (uri_method:sli_requests:rate5m) * 0) / (sum by (method, uri) (uri_method:sli_requests:rate5m) > 0)",
           "legendFormat": "{{method}} {{uri}}"
         }
       ],
@@ -462,7 +462,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (method, uri) (uri_method:sli_target_requests_within:rate5m) / (sum by (method, uri) (uri_method:sli_target_requests:rate5m) > 0)",
+          "expr": "(sum by (method, uri) (uri_method:sli_target_requests_within:rate5m) or sum by (method, uri) (uri_method:sli_target_requests:rate5m) * 0) / (sum by (method, uri) (uri_method:sli_target_requests:rate5m) > 0)",
           "legendFormat": "{{method}} {{uri}}"
         }
       ],
