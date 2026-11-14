@@ -272,12 +272,227 @@
       ]
     },
     {
+      "type": "stat",
+      "title": "지금 울리는 경보",
+      "description": "지금 울리는 경보의 수를 심각도마다 센다. critical 이 있으면 빨강, warning 이 있으면 노랑이다. 늘 울리는 생존 신호(Watchdog)는 뺀다. 알림은 Slack 으로 가고, 어떤 경보인지는 오른쪽 타임라인에서 본다",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 6,
+        "h": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "critical"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "warning"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(ALERTS{alertstate=\"firing\", severity=\"critical\"}) or vector(0)",
+          "legendFormat": "critical",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "count(ALERTS{alertstate=\"firing\", severity=\"warning\"}) or vector(0)",
+          "legendFormat": "warning",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "state-timeline",
+      "title": "고른 범위에 울린 경보",
+      "description": "보고 있는 범위에서 경보마다 울린 구간을 막대로 그린다. 붉은 막대는 critical, 노란 막대는 warning 이다. 경보의 조건과 문턱은 observability/prometheus/rules.yml 에 있다. 늘 울리는 생존 신호(Watchdog)는 뺀다",
+      "gridPos": {
+        "x": 6,
+        "y": 5,
+        "w": 18,
+        "h": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "울림"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "yellow",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showValue": "never",
+        "mergeValues": true,
+        "alignValue": "left",
+        "rowHeight": 0.8,
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (alertname) (ALERTS{alertstate=\"firing\", severity=\"critical\"})",
+          "legendFormat": "critical {{alertname}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "max by (alertname) (ALERTS{alertstate=\"firing\", severity=\"warning\"})",
+          "legendFormat": "warning {{alertname}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
       "type": "row",
       "title": "애플리케이션",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 5,
+        "y": 11,
         "w": 24,
         "h": 1
       },
@@ -289,7 +504,7 @@
       "description": "",
       "gridPos": {
         "x": 0,
-        "y": 6,
+        "y": 12,
         "w": 12,
         "h": 8
       },
@@ -337,7 +552,7 @@
       "description": "rules.yml 의 HighFiveXXRate 는 이 값을 한 시간 전과 비교한다.",
       "gridPos": {
         "x": 12,
-        "y": 6,
+        "y": 12,
         "w": 12,
         "h": 8
       },
@@ -385,7 +600,7 @@
       "description": "모든 API 를 합친 요청 시간의 분위수다. 노출처럼 요청이 많은 API 에 끌려가므로 API 별로는 아래 느린 엔드포인트 상위 5개를 본다. 앱이 요청을 받은 때부터 재므로 톰캣 대기 줄에서 기다린 시간은 빠진다. P99Slow 알람이 아직 (미정) 인 이유가 여기 있다. 기준선을 이 패널에서 읽어 채운다.",
       "gridPos": {
         "x": 0,
-        "y": 14,
+        "y": 20,
         "w": 12,
         "h": 8
       },
@@ -451,7 +666,7 @@
       "description": "API 마다 p99 를 계산해 가장 느린 다섯을 그린다. 지표는 API 종류 200 개까지 받는다(lc-backend#1093).",
       "gridPos": {
         "x": 12,
-        "y": 14,
+        "y": 20,
         "w": 12,
         "h": 8
       },
@@ -499,7 +714,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 22,
+        "y": 28,
         "w": 24,
         "h": 1
       },
@@ -511,7 +726,7 @@
       "description": "앱이 아니라 ALB 가 만든 5xx(HTTPCode_ELB_5XX)의 분당 건수다. 앱이 낸 500 은 들어가지 않는다. 앱의 5xx 는 위의 5xx 비율에서 본다.",
       "gridPos": {
         "x": 0,
-        "y": 23,
+        "y": 29,
         "w": 12,
         "h": 8
       },
@@ -568,7 +783,7 @@
       "description": "ALB 가 요청을 앱에 넘긴 뒤 응답이 오기까지의 시간(TargetResponseTime)이다. ALB 자신의 처리 시간이 아니다. 앱이 잰 응답시간보다 크면 그 차이는 앱 앞(톰캣 대기 줄, 연결)에서 기다린 시간이다.",
       "gridPos": {
         "x": 12,
-        "y": 23,
+        "y": 29,
         "w": 12,
         "h": 8
       },

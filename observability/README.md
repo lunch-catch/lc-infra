@@ -206,7 +206,7 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 
 | 파일 | 화면 | 무엇을 보나 |
 |---|---|---|
-| `01-overview.json` | 01 서비스 개요 | 요청률, 5xx 비율, 응답시간 분위수, ALB 지표 |
+| `01-overview.json` | 01 서비스 개요 | 지금 울리는 경보와 고른 범위에 울린 경보, 요청률, 5xx 비율, 응답시간 분위수, ALB 지표 |
 | `02-hosts.json` | 02 호스트 | CPU 크레딧, CPU, 메모리, 디스크, 컨테이너 재기동 |
 | `03-app-jvm.json` | 03 앱과 JVM | 힙, GC, HikariCP, 톰캣 스레드, 배치 마지막 성공 |
 | `04-data-stores.json` | 04 데이터 저장소 | MySQL 커넥션과 쿼리, RDS 메모리, 캐시 적중률 |

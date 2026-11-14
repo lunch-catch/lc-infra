@@ -3,6 +3,7 @@ global:
   scrape_interval: 15s
 
 rule_files:
+  - /etc/prometheus/rules.yml
   - /etc/prometheus/thresholds.yml
   - /etc/prometheus/sli.yml
 
