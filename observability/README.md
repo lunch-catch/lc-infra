@@ -210,6 +210,7 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 | `02-hosts.json` | 02 호스트 | CPU 크레딧, CPU, 메모리, 디스크, 컨테이너 재기동 |
 | `03-app-jvm.json` | 03 앱과 JVM | 힙, GC, HikariCP, 톰캣 스레드, 배치 마지막 성공 |
 | `04-data-stores.json` | 04 데이터 저장소 | MySQL 커넥션과 쿼리, RDS 메모리, 캐시 적중률 |
+| `09-sli.json` | 09 SLI | API 마다 5xx 가 아닌 요청의 비율과 그 API 의 목표 안에 끝난 비율. 기록 규칙은 `prometheus/sli.yml` 이다 |
 
 **임계값이 있는 패널에는 선을 그어 두었다.** `rules.yml` 의 값과 같은 값이다.
 CPU 크레딧 173 과 58(알람이 아니라 시험 전 참고선이다. 알람은 초과분을 본다), 디스크 80%, Hikari 대기 9, 컨테이너 재기동 3회, 배치 1800초다.
