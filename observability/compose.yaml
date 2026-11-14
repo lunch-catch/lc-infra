@@ -31,6 +31,7 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/rules.yml:/etc/prometheus/rules.yml:ro
       - ./prometheus/thresholds.yml:/etc/prometheus/thresholds.yml:ro
+      - ./prometheus/sli.yml:/etc/prometheus/sli.yml:ro
       - prometheus-data:/prometheus
     # prometheus.yml 의 external_labels 가 읽는다. .env 가 없는 로컬 실행은 local 이다 (#161)
     environment:
