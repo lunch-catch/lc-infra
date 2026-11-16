@@ -1,0 +1,55 @@
+# API 의 SLI 기록이 무엇을 세고 무엇을 빼는지 확인한다(lc-infra #165).
+#   docker run --rm -v "$PWD/observability/prometheus:/p" --entrypoint promtool prom/prometheus:v3.13.1 test rules /p/sli_test.yml
+rule_files:
+  - sli.yml
+
+evaluation_interval: 1m
+
+tests:
+  # 분당 60건은 초당 1건이다
+  - interval: 1m
+    input_series:
+      - series: 'http_server_requests_seconds_count{job="app", uri="/v1/feed", method="GET", status="200", outcome="SUCCESS"}'
+        values: '0+60x10'
+      - series: 'http_server_requests_seconds_count{job="app", uri="/v1/feed", method="GET", status="500", outcome="SERVER_ERROR"}'
+        values: '0+6x10'
+      - series: 'http_server_requests_seconds_count{job="app", uri="/v1/feed", method="GET", status="401", outcome="CLIENT_ERROR"}'
+        values: '0+12x10'
+      # 아래 셋은 세지 않는다
+      - series: 'http_server_requests_seconds_count{job="app", uri="UNKNOWN", method="GET", status="401", outcome="CLIENT_ERROR"}'
+        values: '0+60x10'
+      - series: 'http_server_requests_seconds_count{job="app", uri="/actuator/prometheus", method="GET", status="200", outcome="SUCCESS"}'
+        values: '0+60x10'
+      - series: 'http_server_requests_seconds_count{job="batch", uri="/v1/feed", method="GET", status="200", outcome="SUCCESS"}'
+        values: '0+60x10'
+      - series: 'http_server_requests_target_total{job="app", uri="/v1/feed", method="GET", outcome="SUCCESS", result="within"}'
+        values: '0+30x10'
+      - series: 'http_server_requests_target_total{job="app", uri="/v1/feed", method="GET", outcome="SUCCESS", result="over"}'
+        values: '0+30x10'
+      - series: 'http_server_requests_target_total{job="app", uri="/v1/feed", method="GET", outcome="CLIENT_ERROR", result="within"}'
+        values: '0+12x10'
+      - series: 'http_server_requests_target_total{job="app", uri="/v1/feed", method="GET", outcome="SERVER_ERROR", result="within"}'
+        values: '0+6x10'
+    promql_expr_test:
+      # 4xx 는 요청에 들고 실패에 들지 않는다
+      - expr: uri_method:sli_requests:rate5m
+        eval_time: 10m
+        exp_samples:
+          - labels: 'uri_method:sli_requests:rate5m{uri="/v1/feed", method="GET"}'
+            value: 1.3
+      - expr: uri_method:sli_requests_failed:rate5m
+        eval_time: 10m
+        exp_samples:
+          - labels: 'uri_method:sli_requests_failed:rate5m{uri="/v1/feed", method="GET"}'
+            value: 0.1
+      # 5xx 는 목표 판정의 분모와 분자에서 모두 빠진다
+      - expr: uri_method:sli_target_requests:rate5m
+        eval_time: 10m
+        exp_samples:
+          - labels: 'uri_method:sli_target_requests:rate5m{uri="/v1/feed", method="GET"}'
+            value: 1.2
+      - expr: uri_method:sli_target_requests_within:rate5m
+        eval_time: 10m
+        exp_samples:
+          - labels: 'uri_method:sli_target_requests_within:rate5m{uri="/v1/feed", method="GET"}'
+            value: 0.7

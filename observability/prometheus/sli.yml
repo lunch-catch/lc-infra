@@ -1,0 +1,36 @@
+# API 의 SLI 다(lc-infra #165). 09 SLI 대시보드가 읽는다.
+#
+# SLI 는 둘이다. 성공 비율은 5xx 가 아닌 요청의 비율이고, 목표 안 비율은 5xx 가 아닌 요청 가운데 그 API 의 목표 안에 끝난 비율이다.
+# 목표 값은 앱 설정(lc-backend 의 lunchcatch.observability.targets.api)이 갖고, 앱이 요청마다 목표 안인지 세어 http_server_requests_target_total 로 낸다.
+# 그래서 이 파일에는 목표 값을 적지 않는다. 히스토그램 버킷에는 목표 값이 없어 그 수로는 셀 수 없다.
+#
+# 5분 비율만 기록한다. 09 의 시간에 따른 그래프가 쓰고, 오류 예산 소진 경보를 둘 때 그 경보가 쓰는 창을 여기에 더한다.
+# 보고 있는 범위 하나의 값은 09 가 원본 카운터의 increase 로 센다. 5분 기록을 더하면 범위 끝 쪽 요청에 무게가 실려, 처음과 끝이 다른 부하 시험 회차에서 값이 틀린다.
+# 긴 창의 rate 를 15초마다 기록하면 30일치 원본 표본을 매번 다시 읽어 기록하지 않는다.
+#
+# 지표 수집 경로(/actuator)와 경로를 모르는 요청(UNKNOWN, 인증 전에 막힌 요청 등)은 뺀다.
+# 4xx 는 실패로 세지 않는다. 사용자의 잘못된 요청이지 서버가 못 한 것이 아니다.
+groups:
+  - name: api-sli
+    rules:
+      - record: uri_method:sli_requests:rate5m
+        expr: |
+          sum by (uri, method) (
+            rate(http_server_requests_seconds_count{job="app", uri!~"UNKNOWN|/actuator.*"}[5m])
+          )
+      - record: uri_method:sli_requests_failed:rate5m
+        expr: |
+          sum by (uri, method) (
+            rate(http_server_requests_seconds_count{job="app", uri!~"UNKNOWN|/actuator.*", status=~"5.."}[5m])
+          )
+      # 실패는 대개 빨리 끝나 섞이면 목표 안 비율이 좋아 보이므로 5xx 를 분모에서도 뺀다
+      - record: uri_method:sli_target_requests:rate5m
+        expr: |
+          sum by (uri, method) (
+            rate(http_server_requests_target_total{job="app", uri!~"UNKNOWN|/actuator.*", outcome!="SERVER_ERROR"}[5m])
+          )
+      - record: uri_method:sli_target_requests_within:rate5m
+        expr: |
+          sum by (uri, method) (
+            rate(http_server_requests_target_total{job="app", uri!~"UNKNOWN|/actuator.*", outcome!="SERVER_ERROR", result="within"}[5m])
+          )
