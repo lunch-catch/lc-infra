@@ -511,7 +511,7 @@
     },
     {
       "type": "row",
-      "title": "영역별 핵심 지표 (패널을 누르면 자세한 대시보드가 같은 시간 범위로 열린다)",
+      "title": "애플리케이션",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -523,12 +523,190 @@
       "id": 8
     },
     {
+      "type": "timeseries",
+      "title": "요청률 (상태코드별)",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (status) (rate(http_server_requests_seconds_count{job=\"app\"}[$__rate_interval]))",
+          "legendFormat": "{{status}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 9
+    },
+    {
+      "type": "timeseries",
+      "title": "5xx 비율",
+      "description": "rules.yml 의 HighFiveXXRate 는 이 값을 한 시간 전과 비교한다.",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"app\",status=~\"5..\"}[$__rate_interval])) / sum(rate(http_server_requests_seconds_count{job=\"app\"}[$__rate_interval]))",
+          "legendFormat": "5xx",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 10
+    },
+    {
+      "type": "timeseries",
+      "title": "전체 API 응답시간 분위수",
+      "description": "모든 API 를 합친 요청 시간의 분위수다. 노출처럼 요청이 많은 API 에 끌려가므로 API 별로는 아래 느린 엔드포인트 상위 5개를 본다. 앱이 요청을 받은 때부터 재므로 톰캣 대기 줄에서 기다린 시간은 빠진다. P99Slow 알람이 아직 (미정) 인 이유가 여기 있다. 기준선을 이 패널에서 읽어 채운다.",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval])))",
+          "legendFormat": "p99",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 11
+    },
+    {
+      "type": "row",
+      "title": "영역별 핵심 지표 (패널을 누르면 자세한 대시보드가 같은 시간 범위로 열린다)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [],
+      "id": 12
+    },
+    {
       "type": "stat",
       "title": "API",
       "description": "앱의 기준 지표보다 p99 가 높은 API 의 수다. 하나라도 넘으면 빨강이다",
       "gridPos": {
         "x": 0,
-        "y": 12,
+        "y": 29,
         "w": 6,
         "h": 5
       },
@@ -618,7 +796,7 @@
           "instant": true
         }
       ],
-      "id": 9
+      "id": 13
     },
     {
       "type": "stat",
@@ -626,7 +804,7 @@
       "description": "발행 지연 p99 가 기준을 넘은 릴레이 수와 미발행, 포기한 건수다. 미발행 건수는 정상으로 돌아도 쌓여 판정하지 않는다",
       "gridPos": {
         "x": 6,
-        "y": 12,
+        "y": 29,
         "w": 6,
         "h": 5
       },
@@ -796,7 +974,7 @@
           "instant": true
         }
       ],
-      "id": 10
+      "id": 14
     },
     {
       "type": "stat",
@@ -804,7 +982,7 @@
       "description": "가장 오래 기다린 일의 대기 시간이 기준을 넘은 워커 수와 대기열이 가장 많이 찬 비율이다",
       "gridPos": {
         "x": 12,
-        "y": 12,
+        "y": 29,
         "w": 6,
         "h": 5
       },
@@ -932,7 +1110,7 @@
           "instant": true
         }
       ],
-      "id": 11
+      "id": 15
     },
     {
       "type": "stat",
@@ -940,7 +1118,7 @@
       "description": "시작 뒤 지난 시간이나 실행 한 번의 시간이 기준을 넘은 작업 수, 고른 범위에 실패한 실행 수, 오늘 00:00 묶음이 끝났는지다",
       "gridPos": {
         "x": 18,
-        "y": 12,
+        "y": 29,
         "w": 6,
         "h": 5
       },
@@ -1110,15 +1288,317 @@
           "instant": true
         }
       ],
-      "id": 12
+      "id": 16
+    },
+    {
+      "type": "stat",
+      "title": "Valkey",
+      "description": "Valkey 명령의 평균 지연과 가장 긴 지연이다",
+      "gridPos": {
+        "x": 0,
+        "y": 34,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "links": [
+        {
+          "title": "데이터 저장소",
+          "url": "/d/lc-data-stores?${__url_time_range}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "지표 없음",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(lettuce_command_completion_seconds_sum[$__rate_interval])) / sum(rate(lettuce_command_completion_seconds_count[$__rate_interval]))",
+          "legendFormat": "평균 지연",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "max(lettuce_command_completion_seconds_max)",
+          "legendFormat": "가장 긴 지연",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ],
+      "id": 17
+    },
+    {
+      "type": "stat",
+      "title": "외부 연동",
+      "description": "카카오와 토스 같은 외부 HTTP 호출의 서버 오류와 응답 없음 비율, 상대와 경로마다의 p99 중 가장 큰 값, AWS SDK 호출 p99 중 가장 큰 값이다",
+      "gridPos": {
+        "x": 6,
+        "y": 34,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "links": [
+        {
+          "title": "외부 연동",
+          "url": "/d/lc-external?${__url_time_range}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "지표 없음",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum(rate(http_client_requests_seconds_count{outcome=~\"SERVER_ERROR|UNKNOWN\"}[$__rate_interval])) or vector(0)) / sum(rate(http_client_requests_seconds_count[$__rate_interval]))",
+          "legendFormat": "외부 HTTP 실패율",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "max(histogram_quantile(0.99, sum by (client_name, uri, le) (rate(http_client_requests_histogram_seconds_bucket[$__rate_interval]))))",
+          "legendFormat": "외부 HTTP p99",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "expr": "max(histogram_quantile(0.99, sum by (service, operation, le) (rate(aws_sdk_calls_seconds_bucket[$__rate_interval]))))",
+          "legendFormat": "AWS SDK p99",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ],
+      "id": 18
     },
     {
       "type": "stat",
       "title": "DB 커넥션",
       "description": "앱의 DB 커넥션 풀이 가장 많이 찬 비율과 기다리는 요청 수, 고른 범위에 커넥션을 얻지 못하고 시간 제한에 걸린 횟수다",
       "gridPos": {
-        "x": 0,
-        "y": 17,
+        "x": 12,
+        "y": 34,
         "w": 6,
         "h": 5
       },
@@ -1288,147 +1768,15 @@
           "instant": true
         }
       ],
-      "id": 13
-    },
-    {
-      "type": "stat",
-      "title": "Valkey",
-      "description": "Valkey 명령의 평균 지연과 가장 긴 지연이다",
-      "gridPos": {
-        "x": 6,
-        "y": 17,
-        "w": 6,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "links": [
-        {
-          "title": "데이터 저장소",
-          "url": "/d/lc-data-stores?${__url_time_range}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 2,
-          "noValue": "지표 없음",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "transparent",
-                      "value": null
-                    }
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "transparent",
-                      "value": null
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "background",
-        "graphMode": "none",
-        "textMode": "value_and_name",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(rate(lettuce_command_completion_seconds_sum[$__rate_interval])) / sum(rate(lettuce_command_completion_seconds_count[$__rate_interval]))",
-          "legendFormat": "평균 지연",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        },
-        {
-          "refId": "B",
-          "expr": "max(lettuce_command_completion_seconds_max)",
-          "legendFormat": "가장 긴 지연",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        }
-      ],
-      "id": 14
+      "id": 19
     },
     {
       "type": "stat",
       "title": "JVM",
       "description": "GC 로 멈춘 비율이나 가장 긴 멈춤, GC 뒤 남은 힙이 기준을 넘은 서버 수와 톰캣 작업 스레드가 가장 많이 찬 비율이다",
       "gridPos": {
-        "x": 12,
-        "y": 17,
+        "x": 18,
+        "y": 34,
         "w": 6,
         "h": 5
       },
@@ -1598,177 +1946,7 @@
           "instant": true
         }
       ],
-      "id": 15
-    },
-    {
-      "type": "stat",
-      "title": "외부 연동",
-      "description": "카카오와 토스 같은 외부 HTTP 호출의 서버 오류와 응답 없음 비율, 상대와 경로마다의 p99 중 가장 큰 값, AWS SDK 호출 p99 중 가장 큰 값이다",
-      "gridPos": {
-        "x": 18,
-        "y": 17,
-        "w": 6,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "links": [
-        {
-          "title": "외부 연동",
-          "url": "/d/lc-external?${__url_time_range}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 2,
-          "noValue": "지표 없음",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percentunit"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "transparent",
-                      "value": null
-                    }
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "transparent",
-                      "value": null
-                    }
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "transparent",
-                      "value": null
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "background",
-        "graphMode": "none",
-        "textMode": "value_and_name",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "(sum(rate(http_client_requests_seconds_count{outcome=~\"SERVER_ERROR|UNKNOWN\"}[$__rate_interval])) or vector(0)) / sum(rate(http_client_requests_seconds_count[$__rate_interval]))",
-          "legendFormat": "외부 HTTP 실패율",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        },
-        {
-          "refId": "B",
-          "expr": "max(histogram_quantile(0.99, sum by (client_name, uri, le) (rate(http_client_requests_histogram_seconds_bucket[$__rate_interval]))))",
-          "legendFormat": "외부 HTTP p99",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        },
-        {
-          "refId": "C",
-          "expr": "max(histogram_quantile(0.99, sum by (service, operation, le) (rate(aws_sdk_calls_seconds_bucket[$__rate_interval]))))",
-          "legendFormat": "AWS SDK p99",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        }
-      ],
-      "id": 16
+      "id": 20
     },
     {
       "type": "stat",
@@ -1776,7 +1954,7 @@
       "description": "고른 범위에 앱과 배치의 지표 수집이 빠진 칸(15초) 수다. 수집이 실패한 칸과 표본이 아예 없는 칸을 함께 센다. 0 이 아니면 그 구간의 다른 패널을 덜 믿는다",
       "gridPos": {
         "x": 0,
-        "y": 22,
+        "y": 39,
         "w": 24,
         "h": 3
       },
@@ -1864,184 +2042,6 @@
             "uid": "prometheus"
           },
           "instant": true
-        }
-      ],
-      "id": 17
-    },
-    {
-      "type": "row",
-      "title": "애플리케이션",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 25,
-        "w": 24,
-        "h": 1
-      },
-      "panels": [],
-      "id": 18
-    },
-    {
-      "type": "timeseries",
-      "title": "요청률 (상태코드별)",
-      "description": "",
-      "gridPos": {
-        "x": 0,
-        "y": 26,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (status) (rate(http_server_requests_seconds_count{job=\"app\"}[$__rate_interval]))",
-          "legendFormat": "{{status}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "id": 19
-    },
-    {
-      "type": "timeseries",
-      "title": "5xx 비율",
-      "description": "rules.yml 의 HighFiveXXRate 는 이 값을 한 시간 전과 비교한다.",
-      "gridPos": {
-        "x": 12,
-        "y": 26,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"app\",status=~\"5..\"}[$__rate_interval])) / sum(rate(http_server_requests_seconds_count{job=\"app\"}[$__rate_interval]))",
-          "legendFormat": "5xx",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "id": 20
-    },
-    {
-      "type": "timeseries",
-      "title": "전체 API 응답시간 분위수",
-      "description": "모든 API 를 합친 요청 시간의 분위수다. 노출처럼 요청이 많은 API 에 끌려가므로 API 별로는 아래 느린 엔드포인트 상위 5개를 본다. 앱이 요청을 받은 때부터 재므로 톰캣 대기 줄에서 기다린 시간은 빠진다. P99Slow 알람이 아직 (미정) 인 이유가 여기 있다. 기준선을 이 패널에서 읽어 채운다.",
-      "gridPos": {
-        "x": 0,
-        "y": 34,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval])))",
-          "legendFormat": "p99",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval])))",
-          "legendFormat": "p95",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "C",
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval])))",
-          "legendFormat": "p50",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
         }
       ],
       "id": 21

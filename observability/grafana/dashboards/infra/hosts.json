@@ -1,7 +1,7 @@
 {
   "uid": "lc-hosts",
   "title": "호스트와 로드밸런서",
-  "description": "인스턴스와 컨테이너의 자원, 그리고 로드밸런서(ALB)가 잰 오류와 응답 시간이다. CPU 크레딧이 이 화면의 핵심이다",
+  "description": "요청이 지나는 순서대로 로드밸런서(ALB)가 잰 오류와 응답 시간, 인스턴스의 자원, 컨테이너의 자원이다. CPU 크레딧이 이 화면의 핵심이다",
   "tags": [
     "lunchcatch"
   ],
@@ -39,16 +39,145 @@
   "panels": [
     {
       "type": "row",
-      "title": "CPU 크레딧",
+      "title": "로드밸런서 (CloudWatch)",
       "collapsed": false,
+      "panels": [],
       "gridPos": {
         "x": 0,
         "y": 0,
         "w": 24,
         "h": 1
       },
-      "panels": [],
       "id": 1
+    },
+    {
+      "type": "timeseries",
+      "title": "ALB 가 직접 낸 5xx (분당)",
+      "description": "앱이 아니라 ALB 가 만든 5xx(HTTPCode_ELB_5XX)의 분당 건수다. 앱이 낸 500 은 들어가지 않는다. 앱의 5xx 는 위의 5xx 비율에서 본다.",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_applicationelb_httpcode_elb_5_xx_count_sum",
+          "legendFormat": "5xx 전체",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "aws_applicationelb_httpcode_elb_502_count_sum",
+          "legendFormat": "502",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 2
+    },
+    {
+      "type": "timeseries",
+      "title": "앱 응답시간 (ALB 측정)",
+      "description": "ALB 가 요청을 앱에 넘긴 뒤 응답이 오기까지의 시간(TargetResponseTime)이다. ALB 자신의 처리 시간이 아니다. 앱이 잰 응답시간과 다르면 앱 앞(톰캣 대기 줄, 연결)에서 기다렸을 수 있지만, 요청 집합과 집계 구간이 달라도 차이가 난다. 차이가 크면 트레이스로 어디서 기다렸는지 확인한다",
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_applicationelb_target_response_time_p99",
+          "legendFormat": "p99",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "aws_applicationelb_target_response_time_average",
+          "legendFormat": "평균",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 3
+    },
+    {
+      "type": "row",
+      "title": "CPU 크레딧",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [],
+      "id": 4
     },
     {
       "type": "timeseries",
@@ -56,7 +185,7 @@
       "description": "node_exporter 에는 이 값이 없다. 하이퍼바이저가 관리해 호스트 안에서 보이지 않는다. 인스턴스가 unlimited 모드라 이 선을 넘어도 느려지지 않는다. 새 인스턴스는 0 에서 시작해 시간당 24 씩 쌓인다. 선은 최대 누적량 576 의 30%(173) 와 10%(58) 로 부하 시험 전에 보는 참고선이다. 알람은 잔량이 아니라 초과분(CpuSurplusCreditInUse, CpuSurplusCreditCharged)을 본다.",
       "gridPos": {
         "x": 0,
-        "y": 1,
+        "y": 10,
         "w": 12,
         "h": 8
       },
@@ -117,7 +246,7 @@
           }
         }
       ],
-      "id": 2
+      "id": 5
     },
     {
       "type": "row",
@@ -125,12 +254,12 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 9,
+        "y": 18,
         "w": 24,
         "h": 1
       },
       "panels": [],
-      "id": 3
+      "id": 6
     },
     {
       "type": "timeseries",
@@ -138,7 +267,7 @@
       "description": "",
       "gridPos": {
         "x": 0,
-        "y": 10,
+        "y": 19,
         "w": 12,
         "h": 8
       },
@@ -181,7 +310,7 @@
           }
         }
       ],
-      "id": 4
+      "id": 7
     },
     {
       "type": "timeseries",
@@ -189,7 +318,7 @@
       "description": "",
       "gridPos": {
         "x": 12,
-        "y": 10,
+        "y": 19,
         "w": 12,
         "h": 8
       },
@@ -232,7 +361,7 @@
           }
         }
       ],
-      "id": 5
+      "id": 8
     },
     {
       "type": "timeseries",
@@ -240,7 +369,7 @@
       "description": "DiskUsageHigh 임계 80% 를 선으로 그렸다.",
       "gridPos": {
         "x": 0,
-        "y": 18,
+        "y": 27,
         "w": 12,
         "h": 8
       },
@@ -299,7 +428,7 @@
           }
         }
       ],
-      "id": 6
+      "id": 9
     },
     {
       "type": "timeseries",
@@ -307,7 +436,7 @@
       "description": "",
       "gridPos": {
         "x": 12,
-        "y": 18,
+        "y": 27,
         "w": 12,
         "h": 8
       },
@@ -348,7 +477,7 @@
           }
         }
       ],
-      "id": 7
+      "id": 10
     },
     {
       "type": "row",
@@ -356,12 +485,12 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 26,
+        "y": 35,
         "w": 24,
         "h": 1
       },
       "panels": [],
-      "id": 8
+      "id": 11
     },
     {
       "type": "timeseries",
@@ -369,7 +498,7 @@
       "description": "ContainerRestartLoop 임계 3회를 선으로 그렸다. OOM 이 가장 흔한 원인이다.",
       "gridPos": {
         "x": 0,
-        "y": 27,
+        "y": 36,
         "w": 12,
         "h": 8
       },
@@ -426,7 +555,7 @@
           }
         }
       ],
-      "id": 9
+      "id": 12
     },
     {
       "type": "timeseries",
@@ -434,7 +563,7 @@
       "description": "",
       "gridPos": {
         "x": 12,
-        "y": 27,
+        "y": 36,
         "w": 12,
         "h": 8
       },
@@ -469,135 +598,6 @@
           "refId": "A",
           "expr": "container_memory_usage_bytes{name!=\"\"}",
           "legendFormat": "{{instance}} {{instance_id}} {{name}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "id": 10
-    },
-    {
-      "type": "row",
-      "title": "로드밸런서 (CloudWatch)",
-      "collapsed": false,
-      "panels": [],
-      "gridPos": {
-        "x": 0,
-        "y": 35,
-        "w": 24,
-        "h": 1
-      },
-      "id": 11
-    },
-    {
-      "type": "timeseries",
-      "title": "ALB 가 직접 낸 5xx (분당)",
-      "description": "앱이 아니라 ALB 가 만든 5xx(HTTPCode_ELB_5XX)의 분당 건수다. 앱이 낸 500 은 들어가지 않는다. 앱의 5xx 는 위의 5xx 비율에서 본다.",
-      "gridPos": {
-        "x": 0,
-        "y": 36,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "aws_applicationelb_httpcode_elb_5_xx_count_sum",
-          "legendFormat": "5xx 전체",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "aws_applicationelb_httpcode_elb_502_count_sum",
-          "legendFormat": "502",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "id": 12
-    },
-    {
-      "type": "timeseries",
-      "title": "앱 응답시간 (ALB 측정)",
-      "description": "ALB 가 요청을 앱에 넘긴 뒤 응답이 오기까지의 시간(TargetResponseTime)이다. ALB 자신의 처리 시간이 아니다. 앱이 잰 응답시간과 다르면 앱 앞(톰캣 대기 줄, 연결)에서 기다렸을 수 있지만, 요청 집합과 집계 구간이 달라도 차이가 난다. 차이가 크면 트레이스로 어디서 기다렸는지 확인한다",
-      "gridPos": {
-        "x": 12,
-        "y": 36,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "aws_applicationelb_target_response_time_p99",
-          "legendFormat": "p99",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "aws_applicationelb_target_response_time_average",
-          "legendFormat": "평균",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
