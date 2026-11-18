@@ -330,7 +330,7 @@
     },
     {
       "type": "timeseries",
-      "title": "규칙 평가 실패 (5분)",
+      "title": "규칙 평가 실패 (분당)",
       "description": "Prometheus 가 규칙 묶음 안의 규칙을 평가하다 오류가 난 수다. 0 이 정상이다. 0 이 아니면 실패한 규칙의 경보가 그동안 평가되지 않았을 수 있고 경보 PrometheusRuleEvaluationFailures 가 울린다. Prometheus 자기 자신을 수집하지 못하면 0 이 아니라 비어 있다",
       "datasource": {
         "type": "prometheus",
@@ -364,7 +364,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (rule_group) (increase(prometheus_rule_evaluation_failures_total[5m]))",
+          "expr": "sum by (rule_group) (rate(prometheus_rule_evaluation_failures_total[$__rate_interval])) * 60",
           "legendFormat": "{{rule_group}}"
         }
       ],
