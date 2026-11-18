@@ -154,7 +154,7 @@
     {
       "type": "timeseries",
       "title": "버리거나 못 쓴 노출 (분당)",
-      "description": "큐가 차서 버린 노출, 끝내 못 쓴 노출(왼쪽, 노출 건수)과 저장이 실패한 묶음(오른쪽, 묶음 수)이다. 정상이면 모두 0 이다. 노출 수집 v3 부터 있는 지표다. 그 전 버전에서는 비어 있다. 오른쪽 축은 유실률이다. 버린 노출과 잃은 노출의 합을 받아들인 노출 요청(/v1/impressions 의 202)으로 나눈다. 붉은 선 0.1% 를 10분 넘게 넘으면 경보 AdservingImpressionLossHigh 가 울린다. 못 쓴 노출(write_failed)은 다시 쓰므로 유실률에 넣지 않는다",
+      "description": "큐가 차서 버린 노출, 끝내 못 쓴 노출(왼쪽, 노출 건수)과 저장이 실패한 묶음(오른쪽, 묶음 수)이다. 정상이면 모두 0 이다. 노출 수집 v3 부터 있는 지표다. 그 전 버전에서는 비어 있다. 오른쪽 축은 유실률이다. 버린 노출과 잃은 노출의 합을 받아들인 노출 요청(/v1/impressions 의 202)으로 나눈다. 붉은 선은 0.1% 다. 경보 AdservingImpressionLossHigh 는 이 그래프와 따로 최근 10분의 유실률을 계산해, 0.1% 를 넘은 상태가 10분 이어지면 울린다. 그래프가 선을 넘은 것만으로 울리지는 않는다. 못 쓴 노출(write_failed)은 다시 쓰므로 유실률에 넣지 않는다",
       "gridPos": {
         "x": 0,
         "y": 1,
@@ -296,7 +296,7 @@
     {
       "type": "timeseries",
       "title": "정산 묶음 시간과 처리량",
-      "description": "릴레이가 정산 한 번에 쓴 평균 시간(왼쪽)과 초당 넘긴 건수다. 처리량이 들어오는 노출보다 낮으면 밀림이 는다. 노출 수집 v2 부터 있는 지표다. 그 전 버전에서는 비어 있다. 실행 실패는 노출 릴레이의 실행 하나가 통째로 실패한 수다(정산이 예외를 던졌거나 임대를 확인하지 못함). 0 이 아니면 경보 AdservingDispatchError 가 울린다. 노출마다의 실패(실패 건수)는 다시 넘기므로 경보가 없다",
+      "description": "릴레이가 정산 한 번에 쓴 평균 시간(왼쪽)과 초당 넘긴 건수다. 처리량이 들어오는 노출보다 낮으면 밀림이 는다. 노출 수집 v2 부터 있는 지표다. 그 전 버전에서는 비어 있다. 실행 실패는 노출 릴레이의 실행 하나가 통째로 실패한 수다(정산이 예외를 던졌거나 임대를 확인하지 못함). 최근 5분의 실행 실패가 0 보다 큰 상태가 10분 이어지면 경보 AdservingDispatchError 가 울린다. 노출마다의 실패(실패 건수)는 다시 넘기므로 경보가 없다",
       "gridPos": {
         "x": 12,
         "y": 1,
@@ -384,7 +384,7 @@
             "uid": "prometheus"
           },
           "legendFormat": "실행 실패/초",
-          "expr": "sum(rate(adserving_impression_dispatch_error_total[$__rate_interval])) or vector(0)"
+          "expr": "sum(rate(adserving_impression_dispatch_error_total[$__rate_interval])) or (sum(up{job=\"batch\"}) * 0)"
         }
       ],
       "id": 12

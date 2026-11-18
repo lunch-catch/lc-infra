@@ -270,7 +270,7 @@ tests:
 
   # 03 의 세 경보(#108). 평소, 기준 초과, 해소, 카운터 초기화를 본다. a2 는 시리즈가 없어 어느 경보도 울리지 않는다.
   #   GC         20분까지 평소(0.5%), 20~50분 20%, 그 뒤 평소. 80분에 서버가 다시 떠 카운터가 0 으로 돌아간다
-  #   힙         처음 2분은 GC 전이라 최대 크기가 0 이다. 20~50분 90%, 그 밖은 10%
+  #   힙         처음 2분은 GC 전이라 최대 크기가 0 이다. 20~50분 80%, 그 밖은 10%. 80% 는 기준 70% 와 옛 기준 85% 사이라 기준을 되돌리면 시험이 깨진다
   #   트랜잭션   분당 100건. 20~50분은 3% 가 1초를 넘는다. 80분에 카운터 초기화.
   #              b1 은 분당 10건이라 절반이 1초를 넘어도 5분 100건이 안 돼 울리지 않는다
   - interval: 1m
@@ -278,7 +278,7 @@ tests:
       - series: 'jvm_gc_pause_seconds_sum{job="app", instance="a1"}'
         values: '0+0.3x20 6+12x30 366+0.3x29 0+0.3x20'
       - series: 'jvm_gc_live_data_size_bytes{job="app", instance="a1"}'
-        values: '0 0 100x18 900x30 100x50'
+        values: '0 0 100x18 800x30 100x50'
       - series: 'jvm_gc_max_data_size_bytes{job="app", instance="a1"}'
         values: '0 0 1000x98'
       - series: 'hikaricp_connections_usage_seconds_count{job="app", instance="a1"}'
@@ -320,7 +320,7 @@ tests:
         alertname: TransactionSlow
         exp_alerts:
           - exp_labels: {severity: warning, job: app, instance: a1}
-            exp_annotations: {description: "a1 에서 커넥션을 1초 넘게 쥔 사용이 1% 를 넘었다. 03 의 트랜잭션 시간과 누수 감지 경고 로그로 오래 쥔 코드를 확인하라"}
+            exp_annotations: {description: "a1 에서 커넥션을 1초 넘게 쥔 사용이 1% 를 넘었다. 4. 런타임의 애플리케이션 서버 자원에 있는 트랜잭션 시간 (커넥션을 쥔 시간의 p99) 패널과 누수 감지 경고 로그로 오래 쥔 코드를 확인하라"}
       - eval_time: 65m
         alertname: GcOverheadHigh
         exp_alerts: []

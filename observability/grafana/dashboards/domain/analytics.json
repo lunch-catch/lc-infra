@@ -185,7 +185,7 @@
     {
       "type": "timeseries",
       "title": "밀린 날짜",
-      "description": "집계하지 못하고 밀린 날짜 수다. 배치 서버만 본다. 3 이상이면 경보 AnalyticsPendingDatesHigh 가 울린다. 붉은 선 3일에 닿은 채 10분이 지나면 경보 AnalyticsPendingDatesHigh 가 울린다",
+      "description": "집계하지 못하고 밀린 날짜 수다. 배치 서버만 본다. 붉은 선은 3일이다. 3일 이상인 상태가 10분 이어지면 경보 AnalyticsPendingDatesHigh 가 울린다",
       "gridPos": {
         "x": 12,
         "y": 0,

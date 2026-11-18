@@ -210,7 +210,7 @@
       "id": 4,
       "type": "table",
       "title": "API별 SLI",
-      "description": "보고 있는 범위의 API별 요청 수, 성공 비율, 목표 안 비율이다. 목표 안 비율이 낮은 API 는 API 대시보드의 기준을 넘은 API 에서 트레이스로 넘어가 원인을 본다",
+      "description": "보고 있는 범위의 API별 요청 수, 성공 비율, 목표 안 비율이다. 목표 안 비율이 낮은 API 는 API 대시보드의 기준을 넘은 API 에서 트레이스로 넘어가 원인을 본다. 일부 요청만 늦어 p99 가 기준 안이면 그 그래프에 점이 없다. 그때는 Tempo 에서 그 API 의 경로와 지연 조건으로 트레이스를 직접 찾는다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

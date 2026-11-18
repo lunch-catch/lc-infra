@@ -205,7 +205,8 @@
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
-          }
+          },
+          "instant": true
         }
       ],
       "id": 2
@@ -213,7 +214,7 @@
     {
       "type": "stat",
       "title": "RDS CPU 크레딧",
-      "description": "",
+      "description": "RDS 의 CPU 크레딧 잔량이다(CloudWatch CPUCreditBalance). 지금 값은 10분쯤 늦은 마지막 표본이다. CloudWatch 값은 익스포터가 10분 늦게 가져와, 최근 10분 남짓을 고르면 비어 있다. 비어 있으면 시간 범위를 넓혀 본다",
       "gridPos": {
         "x": 6,
         "y": 1,
@@ -287,7 +288,7 @@
     {
       "type": "timeseries",
       "title": "MySQL 연결 수",
-      "description": "MySQL 연결 수를 두 출처로 함께 그린다. mysqld_exporter 는 수집한 그 순간의 연결 수와 쿼리를 도는 스레드 수다. CloudWatch 는 RDS 가 1분마다 집계한 연결 수의 평균과 최대이고, 몇 분 늦게 들어와 같은 시각의 exporter 값과 바로 맞지 않을 수 있다",
+      "description": "MySQL 연결 수를 두 출처로 함께 그린다. mysqld_exporter 는 수집한 그 순간의 연결 수와 쿼리를 도는 스레드 수다. CloudWatch 는 RDS 가 1분마다 집계한 연결 수의 평균과 최대이고, 몇 분 늦게 들어와 같은 시각의 exporter 값과 바로 맞지 않을 수 있다. CloudWatch 값은 익스포터가 10분 늦게 가져와, 최근 10분 남짓을 고르면 비어 있다. 비어 있으면 시간 범위를 넓혀 본다",
       "gridPos": {
         "x": 0,
         "y": 6,
@@ -421,7 +422,7 @@
     {
       "type": "timeseries",
       "title": "Slow query (분당)",
-      "description": "long_query_time(1초)을 넘긴 쿼리 수를 분당으로 본다. 0 이면 그 구간에 1초를 넘긴 쿼리가 없었다. 어떤 쿼리였는지는 이 패널로 알 수 없다. 쿼리 원문과 걸린 시간, lock wait 시간(Lock_time)은 CloudWatch Logs 의 /aws/rds/instance/<project>-db/slowquery 에 있다.",
+      "description": "그 MySQL 의 long_query_time 을 넘긴 쿼리 수를 분당으로 본다. 운영 RDS 는 파라미터 그룹에서 1초로 둔다(modules/data/rds.tf). 문턱이 다른 MySQL 에서는 0 이어도 1초를 넘긴 쿼리가 없었다는 뜻이 아니다. 어떤 쿼리였는지는 이 패널로 알 수 없다. 운영 RDS 에서는 쿼리 원문과 걸린 시간, lock wait 시간(Lock_time)이 CloudWatch Logs 의 /aws/rds/instance/<project>-db/slowquery 에 있다.",
       "gridPos": {
         "x": 0,
         "y": 14,
@@ -474,7 +475,7 @@
     {
       "type": "timeseries",
       "title": "InnoDB row lock wait",
-      "description": "쿼리가 다른 트랜잭션이 잡은 행을 기다린 row lock wait 횟수(분당)와 한 번 기다린 평균 시간(오른쪽 축), 지금 기다리는 수다. 모두 0 이면 그 구간에 row lock wait 가 없었다. slow query 가 늘었는데 이 값이 0 이면 느린 까닭은 lock 이 아니라 쿼리 자체다.",
+      "description": "쿼리가 다른 트랜잭션이 잡은 행을 기다린 row lock wait 횟수(분당)와 한 번 기다린 평균 시간(오른쪽 축), 지금 기다리는 수다. 모두 0 이면 그 구간에 관측된 InnoDB 행 잠금 대기가 없었다는 뜻이다. 메타데이터 잠금 같은 다른 잠금의 대기는 여기에 잡히지 않는다. 대기 횟수가 0 이면 평균 대기 시간은 정의되지 않아 비어 있다.",
       "gridPos": {
         "x": 12,
         "y": 14,
@@ -575,7 +576,7 @@
     {
       "type": "timeseries",
       "title": "여유 메모리",
-      "description": "RdsFreeableMemoryLow 알람이 (미정) 이다. 정상 구간을 여기서 읽어 채운다.",
+      "description": "RdsFreeableMemoryLow 알람이 (미정) 이다. 정상 구간을 여기서 읽어 채운다. CloudWatch 값은 익스포터가 10분 늦게 가져와, 최근 10분 남짓을 고르면 비어 있다. 비어 있으면 시간 범위를 넓혀 본다",
       "gridPos": {
         "x": 0,
         "y": 23,

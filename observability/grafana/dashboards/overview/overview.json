@@ -186,11 +186,12 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "count(up{job=\"app\"} == 1)",
+          "expr": "count(up{job=\"app\"} == 1) or vector(0)",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
-          }
+          },
+          "instant": true
         }
       ],
       "id": 2
@@ -258,7 +259,8 @@
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
-          }
+          },
+          "instant": true
         }
       ],
       "id": 3
@@ -326,7 +328,8 @@
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
-          }
+          },
+          "instant": true
         }
       ],
       "id": 4
@@ -334,7 +337,7 @@
     {
       "type": "stat",
       "title": "배치 서버 수",
-      "description": "2대보다 적으면 빨강이다. 경보 BatchDegraded 가 2대 미만이 5분 이어지면 울린다",
+      "description": "살아 있는 배치 서버 수다. 2대보다 적으면 빨강이다. 한 대만 남은 채 5분이 지나면 경보 BatchDegraded 가, 한 대도 없이 3분이 지나면 경보 BatchAllDown 이 울린다",
       "gridPos": {
         "x": 18,
         "y": 1,
@@ -379,11 +382,12 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "count(up{job=\"batch\"} == 1)",
+          "expr": "count(up{job=\"batch\"} == 1) or vector(0)",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
-          }
+          },
+          "instant": true
         }
       ],
       "id": 5
@@ -705,7 +709,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "count((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})))) or vector(0)",
+          "expr": "count((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__rate_interval]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__rate_interval]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})))) or vector(0)",
           "legendFormat": "기준을 넘은 API",
           "datasource": {
             "type": "prometheus",
@@ -1187,7 +1191,7 @@
         },
         {
           "refId": "B",
-          "expr": "sum(increase(batch_job_duration_seconds_count{job=\"batch\", outcome=\"failure\"}[$__range])) or vector(0)",
+          "expr": "sum(increase(batch_job_duration_seconds_count{job=\"batch\", outcome=\"failure\", scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}[$__range])) or vector(0)",
           "legendFormat": "실패한 실행",
           "datasource": {
             "type": "prometheus",
@@ -1935,7 +1939,7 @@
     {
       "type": "timeseries",
       "title": "5xx 비율",
-      "description": "rules.yml 의 HighFiveXXRate 는 이 값을 한 시간 전과 비교한다. 붉은 점선은 1시간 전 5xx 비율의 2배다. 경보 HighFiveXXRate 는 3분 동안 이 선을 넘으면 울린다",
+      "description": "rules.yml 의 HighFiveXXRate 는 이 값을 한 시간 전과 비교한다. 붉은 점선은 1시간 전 5xx 비율의 2배다. 경보 HighFiveXXRate 는 3분 동안 이 선을 넘으면 울린다. 경보와 같게 3분 창으로 센다. 1시간 전에 5xx 가 없었으면 경보가 견줄 값이 없어 점선도 비운다",
       "gridPos": {
         "x": 12,
         "y": 23,
@@ -2001,7 +2005,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(sum(rate(http_server_requests_seconds_count{job=\"app\",status=~\"5..\"}[$__rate_interval])) or sum(rate(http_server_requests_seconds_count{job=\"app\"}[$__rate_interval])) * 0) / (sum(rate(http_server_requests_seconds_count{job=\"app\"}[$__rate_interval])) > 0)",
+          "expr": "(sum(rate(http_server_requests_seconds_count{job=\"app\",status=~\"5..\"}[3m])) or sum(rate(http_server_requests_seconds_count{job=\"app\"}[3m])) * 0) / (sum(rate(http_server_requests_seconds_count{job=\"app\"}[3m])) > 0)",
           "legendFormat": "5xx",
           "datasource": {
             "type": "prometheus",
@@ -2014,7 +2018,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "2 * (sum(rate(http_server_requests_seconds_count{job=\"app\",status=~\"5..\"}[$__rate_interval] offset 1h)) or sum(rate(http_server_requests_seconds_count{job=\"app\"}[$__rate_interval] offset 1h)) * 0) / (sum(rate(http_server_requests_seconds_count{job=\"app\"}[$__rate_interval] offset 1h)) > 0)",
+          "expr": "2 * sum(rate(http_server_requests_seconds_count{job=\"app\",status=~\"5..\"}[3m] offset 1h)) / (sum(rate(http_server_requests_seconds_count{job=\"app\"}[3m] offset 1h)) > 0)",
           "legendFormat": "경보 문턱 (1시간 전의 2배)"
         }
       ],
