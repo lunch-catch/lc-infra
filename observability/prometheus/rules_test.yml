@@ -214,7 +214,7 @@ tests:
       - eval_time: 35m
         alertname: AnalyticsPendingDatesHigh
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: warning}
             exp_annotations: {description: "집계하지 못한 날짜가 3 일 쌓였다. 일 집계가 며칠째 실패하고 있다. 통계 화면이 그만큼 비어 있다"}
       - eval_time: 70m
         alertname: AnalyticsPendingDatesHigh
@@ -611,3 +611,84 @@ tests:
       - eval_time: 20m
         alertname: AdservingImpressionLossHigh
         exp_alerts: []
+
+  # API 지연(lc-infra #171). /v1/feed 는 20분부터 모든 요청이 0.5~1초라 p99 가 목표 0.3초를 넘는다.
+  # /v1/other 는 목표가 없어 기본 0.5초와 견주고, 모든 요청이 0.1초 안이라 울리지 않는다.
+  #   15분  둘 다 빠르다: 울리지 않는다
+  #   25분  넘은 지 5분 남짓: for 10분이 안 차 울리지 않는다
+  #   40분  넘은 지 20분: /v1/feed 만 울린다
+  - interval: 1m
+    input_series:
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/feed", le="0.1"}'
+        values: '0+60x20 1200x40'
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/feed", le="0.5"}'
+        values: '0+60x20 1200x40'
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/feed", le="1.0"}'
+        values: '0+60x60'
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/feed", le="+Inf"}'
+        values: '0+60x60'
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/other", le="0.1"}'
+        values: '0+60x60'
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/other", le="0.5"}'
+        values: '0+60x60'
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/other", le="1.0"}'
+        values: '0+60x60'
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/other", le="+Inf"}'
+        values: '0+60x60'
+      - series: 'overrun_threshold_seconds{kind="api", name="GET /v1/feed"}'
+        values: '0.3x60'
+      - series: 'overrun_threshold_seconds{kind="api", name="default"}'
+        values: '0.5x60'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: ApiLatencyHigh
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: ApiLatencyHigh
+        exp_alerts: []
+      - eval_time: 40m
+        alertname: ApiLatencyHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, uri: /v1/feed}
+            exp_annotations: {description: "/v1/feed 의 p99 가 10분 넘게 목표를 넘었다. API 대시보드의 기준을 넘은 API 에서 트레이스를 확인하라"}
+
+  # MySQL 연결 끊김과 수집 대상이 내려감(lc-infra #171). 둘 다 5분에 내려간다.
+  #   MySQL 은 1분을 기다려 7분부터, 수집 대상은 5분을 기다려 10분부터 울린다
+  - interval: 1m
+    input_series:
+      - series: 'mysql_up{job="mysqld", instance="m1"}'
+        values: '1x5 0x10'
+      - series: 'up{job="node", instance="n1"}'
+        values: '1x5 0x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: MysqlConnectionFailed
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: MysqlConnectionFailed
+        exp_alerts:
+          - exp_labels: {severity: critical, job: mysqld, instance: m1}
+            exp_annotations: {description: "MySQL 연결이 1분간 끊겼다. RDS 상태와 보안 그룹을 확인하라"}
+      - eval_time: 8m
+        alertname: TargetDown
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: TargetDown
+        exp_alerts:
+          - exp_labels: {severity: warning, job: node, instance: n1}
+            exp_annotations: {description: "수집 대상 node n1 가 5분 넘게 응답하지 않는다. 그 대상의 지표를 보는 경보가 멈춰 있다"}
+
+  # 경보 전달 실패(lc-infra #171). 10분에 Slack 으로 한 번 보내지 못한다
+  - interval: 1m
+    input_series:
+      - series: 'alertmanager_notifications_failed_total{job="alertmanager", instance="alertmanager:9093", integration="slack"}'
+        values: '0x10 1x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: AlertmanagerNotificationsFailing
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: AlertmanagerNotificationsFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, integration: slack}
+            exp_annotations: {description: "Alertmanager 가 slack 로 알림을 보내지 못했다. 웹훅과 Alertmanager 로그를 확인하라"}

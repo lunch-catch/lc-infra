@@ -25,6 +25,11 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
+  # Alertmanager 가 알림을 보내지 못한 수를 본다(lc-infra #171). 모니터링 자체가 도는지 확인하는 메타 모니터링이다
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["alertmanager:9093"]
+
   # 앱은 ASG 가 교체하므로 주소가 바뀐다. 정적 목록을 쓸 수 없다.
   # EC2 서비스 디스커버리로 태그를 보고 찾는다.
   #
