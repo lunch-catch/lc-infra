@@ -181,6 +181,8 @@ services:
       GF_SECURITY_COOKIE_SECURE: "true"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      # Grafana 를 열면 시스템 개요가 먼저 뜨게 홈 대시보드로 둔다(lc-infra #169). 운영과 같은 대시보드를 common 아래에 올린다
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: "/etc/grafana/dashboards/common/overview/overview.json"
       # CloudWatch 데이터 소스가 서버 역할로 인증한다
       AWS_REGION: "${region}"
     volumes:

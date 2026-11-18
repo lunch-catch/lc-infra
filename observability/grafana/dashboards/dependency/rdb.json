@@ -1,0 +1,626 @@
+{
+  "uid": "lc-rdb",
+  "title": "1. RDB",
+  "description": "관계형 DB(RDS 의 MySQL)다. 익스포터(mysqld_exporter)가 보는 것과 CloudWatch 가 보는 것을 나눠 둔다",
+  "tags": [
+    "lunchcatch",
+    "의존 시스템"
+  ],
+  "timezone": "browser",
+  "editable": false,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "1. 개요",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "개요"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "2. 서비스",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "서비스"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "3. 도메인",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "도메인"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "4. 런타임",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "런타임"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "5. 의존 시스템",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "의존 시스템"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "6. 인프라",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "인프라"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "7. 테스트",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "테스트"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    }
+  ],
+  "panels": [
+    {
+      "type": "row",
+      "title": "지금 상태",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "id": 1
+    },
+    {
+      "type": "stat",
+      "title": "MySQL",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "mysql_up",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ],
+      "id": 2
+    },
+    {
+      "type": "stat",
+      "title": "RDS CPU 크레딧",
+      "description": "RDS 의 CPU 크레딧 잔량이다(CloudWatch CPUCreditBalance). 지금 값은 10분쯤 늦은 마지막 표본이다. CloudWatch 값은 익스포터가 10분 늦게 가져와, 최근 10분 남짓을 고르면 비어 있다. 비어 있으면 시간 범위를 넓혀 본다",
+      "gridPos": {
+        "x": 6,
+        "y": 1,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 58
+              },
+              {
+                "color": "green",
+                "value": 173
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_cpucredit_balance_average",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 3
+    },
+    {
+      "type": "row",
+      "title": "MySQL (mysqld_exporter)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 1
+      },
+      "id": 4
+    },
+    {
+      "type": "timeseries",
+      "title": "MySQL 연결 수",
+      "description": "MySQL 연결 수를 두 출처로 함께 그린다. mysqld_exporter 는 수집한 그 순간의 연결 수와 쿼리를 도는 스레드 수다. CloudWatch 는 RDS 가 1분마다 집계한 연결 수의 평균과 최대이고, 몇 분 늦게 들어와 같은 시각의 exporter 값과 바로 맞지 않을 수 있다. CloudWatch 값은 익스포터가 10분 늦게 가져와, 최근 10분 남짓을 고르면 비어 있다. 비어 있으면 시간 범위를 넓혀 본다",
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "mysql_global_status_threads_connected",
+          "legendFormat": "연결",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "mysql_global_status_threads_running",
+          "legendFormat": "쿼리 실행 중 스레드",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "mysql_global_variables_max_connections",
+          "legendFormat": "상한",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "D",
+          "expr": "aws_rds_database_connections_average",
+          "legendFormat": "평균",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "E",
+          "expr": "aws_rds_database_connections_maximum",
+          "legendFormat": "최대",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 5
+    },
+    {
+      "type": "timeseries",
+      "title": "쿼리",
+      "description": "MySQL 이 처리한 쿼리 수를 초당으로 본다. slow query 는 값의 크기가 달라 아래 패널에 따로 그린다.",
+      "gridPos": {
+        "x": 12,
+        "y": 6,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(mysql_global_status_queries[$__rate_interval])",
+          "legendFormat": "쿼리/초",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 6
+    },
+    {
+      "type": "timeseries",
+      "title": "Slow query (분당)",
+      "description": "그 MySQL 의 long_query_time 을 넘긴 쿼리 수를 분당으로 본다. 운영 RDS 는 파라미터 그룹에서 1초로 둔다(modules/data/rds.tf). 문턱이 다른 MySQL 에서는 0 이어도 1초를 넘긴 쿼리가 없었다는 뜻이 아니다. 어떤 쿼리였는지는 이 패널로 알 수 없다. 운영 RDS 에서는 쿼리 원문과 걸린 시간, lock wait 시간(Lock_time)이 CloudWatch Logs 의 /aws/rds/instance/<project>-db/slowquery 에 있다.",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(mysql_global_status_slow_queries[$__rate_interval])) * 60",
+          "legendFormat": "slow query/분",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 7
+    },
+    {
+      "type": "timeseries",
+      "title": "InnoDB row lock wait",
+      "description": "쿼리가 다른 트랜잭션이 잡은 행을 기다린 row lock wait 횟수(분당)와 한 번 기다린 평균 시간(오른쪽 축), 지금 기다리는 수다. 모두 0 이면 그 구간에 관측된 InnoDB 행 잠금 대기가 없었다는 뜻이다. 메타데이터 잠금 같은 다른 잠금의 대기는 여기에 잡히지 않는다. 대기 횟수가 0 이면 평균 대기 시간은 정의되지 않아 비어 있다.",
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "평균 wait (ms)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(mysql_global_status_innodb_row_lock_waits[$__rate_interval])) * 60",
+          "legendFormat": "row lock wait/분",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(mysql_global_status_innodb_row_lock_time[$__rate_interval])) / (sum(rate(mysql_global_status_innodb_row_lock_waits[$__rate_interval])) > 0)",
+          "legendFormat": "평균 wait (ms)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "sum(mysql_global_status_innodb_row_lock_current_waits)",
+          "legendFormat": "현재 wait",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 8
+    },
+    {
+      "type": "row",
+      "title": "RDS (CloudWatch)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 1
+      },
+      "id": 9
+    },
+    {
+      "type": "timeseries",
+      "title": "여유 메모리",
+      "description": "RdsFreeableMemoryLow 알람이 (미정) 이다. 정상 구간을 여기서 읽어 채운다. CloudWatch 값은 익스포터가 10분 늦게 가져와, 최근 10분 남짓을 고르면 비어 있다. 비어 있으면 시간 범위를 넓혀 본다",
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_freeable_memory_average",
+          "legendFormat": "{{dbinstance_identifier}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 10
+    }
+  ]
+}

@@ -121,7 +121,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          description: "{{ $labels.instance }} 에서 커넥션을 1초 넘게 쥔 사용이 1% 를 넘었다. 03 의 트랜잭션 시간과 누수 감지 경고 로그로 오래 쥔 코드를 확인하라"
+          description: "{{ $labels.instance }} 에서 커넥션을 1초 넘게 쥔 사용이 1% 를 넘었다. 4. 런타임의 애플리케이션 서버 자원에 있는 트랜잭션 시간 (커넥션을 쥔 시간의 p99) 패널과 누수 감지 경고 로그로 오래 쥔 코드를 확인하라"
 
       # GC 만 하고 일을 못 하는 상태다. 메모리가 모자라기 시작한 가장 이른 신호다(#108).
       # 10% 는 실무에서 흔한 범위(10~20%)의 아래쪽이다. 로컬의 부하 시험 환경 흉내 구성에서 평소의 1분 최대는 1.1% 였다.
@@ -135,15 +135,15 @@ groups:
           description: "{{ $labels.instance }} 가 5분 넘게 시간의 10% 넘게 GC 로 멈췄다. GC 뒤에 남은 힙을 확인하라"
 
       # GC 를 해도 힙이 비워지지 않는다. 그대로 가면 OutOfMemoryError 로 죽는다(#108).
-      # 03 의 선은 품질 문서의 70% 이고, 경보는 평소 부하에 울리지 않게 85% 로 나눈다.
+      # 경보는 품질 문서의 기준 70% 와 같은 값이고, 애플리케이션 서버 자원의 GC 뒤에 남은 힙 선(thresholds.yml 의 heap-after-gc)과 같다. 기준을 고치면 여기도 같이 고친다.
       # 앱이 막 떠 아직 GC 를 하지 않으면 최대 크기가 0 이라 그때는 뺀다
       - alert: HeapAfterGcHigh
-        expr: max by (job, instance, instance_id) (jvm_gc_live_data_size_bytes / (jvm_gc_max_data_size_bytes > 0)) > 0.85
+        expr: max by (job, instance, instance_id) (jvm_gc_live_data_size_bytes / (jvm_gc_max_data_size_bytes > 0)) > 0.7
         for: 10m
         labels:
           severity: warning
         annotations:
-          description: "{{ $labels.instance }} 의 GC 뒤에 남은 힙이 10분 넘게 85% 를 넘었다. 메모리 누수와 힙 크기를 확인하라"
+          description: "{{ $labels.instance }} 의 GC 뒤에 남은 힙이 10분 넘게 70% 를 넘었다. 메모리 누수와 힙 크기를 확인하라"
 
       # 캐시는 Degradable 이라 죽어도 서비스는 돈다. 강등 경로가 실제로 동작하는지 확인한다.
       - alert: CacheConnectionFailed
@@ -210,28 +210,15 @@ groups:
       # 에러 알람은 작업이 돌아야 울리므로 프로세스가 아예 안 뜨면 아무 신호도 없다.
       # 그래서 실패가 아니라 마지막 성공 시각이 낡는 것으로 감시한다.
       #
-      # 주기가 작업마다 달라 임계값을 넷으로 나눈다 (lc-infra #44).
-      # 임계값은 다음 실행까지의 간격이 아니라 마지막 성공 뒤 허용하는 시간이다.
-      #   30분: 생존 신호(30초), 이어받기(1분), 쿠폰 만료(5분), 후보 예산 갱신(10분). 30분이면 여러 번을 연달아 놓친 것이다
-      #   5분: 결제 재조회(1분 간격), 충전 재예약(1분 간격), 노출 릴레이(1초 간격). 멈추면 승인 결과를 모르는 결제가 확정되지 않고, 충전한 광고주의 예약이 다시 잡히지 않고, 유효 노출이 정산에 넘어가지 않아 차감이 멈춘다
-      #   50시간: 이벤트 보존(04:00). 하루 놓쳐도 장애가 아니고 다음 날 몰아서 지운다
-      #   25시간: 그 밖의 작업. 00:00 묶음, 01:00 집계, 01:30 PG 대사, 02:00 쿠폰 정합과 광고 로그 보존,
-      #           03:00 쿠폰 준비와 카카오 연결 해제 재시도, 04:00 템플릿 버전 정리, 10:55 쿠폰 대기열, 11:00 발급 시작, 14:00 발급 마감
-      #           하루 한 번 도는 작업을 30분으로 두면 성공한 지 30분 뒤부터 매일 울린다. 2026-10-26 운영에서 9개가 이렇게 울렸다
-      # 새 작업은 기본으로 25시간에 들어간다. 분 단위로 도는 작업을 더하면 30분 목록에 이름을 넣는다.
+      # 주기가 작업마다 달라 임계값을 넷으로 나눈다 (lc-infra #44). 작업마다의 임계값과 그 까닭은 thresholds.yml 의
+      # batch_job_not_run_threshold_seconds 가 갖는다. 백그라운드 작업 대시보드도 같은 값을 읽어 경보와 화면이 어긋나지 않는다(lc-infra #169).
       #
       # 서버마다 따로 본다. 점유하지 못한 서버의 묶음도 "다른 서버가 잡았다" 로 정상 종료해
       # 성공 시각이 갱신되므로, 한 대만 낡으면 그 서버의 스케줄러가 멈춘 것이다.
       # 시계열은 기동 뒤 첫 성공 때 생긴다. 재시작 뒤 아직 한 번도 돌지 않은 하루 작업은 시계열이 없어 울리지 않는다.
       - alert: BatchNotRun
         expr: |
-          (time() - batch_job_last_success_timestamp_seconds{scheduler=~".*\\.(sendHeartbeat|takeOverStale|expireCoupons)\\(\\).*|.*CandidateBudgetRefreshJob\\.refresh\\(\\).*"} > 1800)
-          or
-          (time() - batch_job_last_success_timestamp_seconds{scheduler=~".*\\.(recheckUnknownPayments|reserveCharged|dispatchPending)\\(\\).*"} > 300)
-          or
-          (time() - batch_job_last_success_timestamp_seconds{scheduler=~".*\\.purgeExpiredEvents\\(\\).*"} > 180000)
-          or
-          (time() - batch_job_last_success_timestamp_seconds{scheduler!~".*\\.(sendHeartbeat|takeOverStale|expireCoupons|recheckUnknownPayments|reserveCharged|dispatchPending|purgeExpiredEvents)\\(\\).*|.*CandidateBudgetRefreshJob\\.refresh\\(\\).*"} > 90000)
+          (time() - batch_job_last_success_timestamp_seconds) > on (scheduler) group_left() batch_job_not_run_threshold_seconds
         for: 5m
         labels:
           severity: warning
@@ -344,7 +331,7 @@ groups:
 
       # adserving_impression_campaign_mismatch_total 은 알람을 두지 않는다.
       # 클라이언트 버그나 조작된 요청이고 판정은 serve 기록으로 하므로 서비스는 맞게 돈다.
-      # 대시보드 06 의 패널로 본다.
+      # 광고 서빙 대시보드의 노출 캠페인 불일치 패널로 본다.
 
   # 정산 경보의 1차다 (lc-infra #43). 평소 0 이어야 하는 지표만 건다.
   #
@@ -436,7 +423,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          description: "릴레이 {{ $labels.relay }} 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 06 처리 시간 목표 초과의 릴레이 줄에서 실행 트레이스를 확인하라"
+          description: "릴레이 {{ $labels.relay }} 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 백그라운드 작업 대시보드의 릴레이 줄에서 실행 트레이스를 확인하라"
 
       # 품질 문서의 아웃박스 미발행 적체(100건 초과 시 경보)다. 포기한 건은 빠지고 다시 넘길 시각을 기다리는 건은 든다
       - alert: RelayBacklogHigh
@@ -446,7 +433,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          description: "릴레이 {{ $labels.relay }} 의 미발행이 {{ $value }} 건이다. 기준은 100건이다. 06 의 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라"
+          description: "릴레이 {{ $labels.relay }} 의 미발행이 {{ $value }} 건이다. 기준은 100건이다. 백그라운드 작업 대시보드의 아웃박스 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라"
 
       # 상한만큼 실패해 넘기기를 포기한 건이 있다. 데드레터처럼 사람이 원인을 고쳐야 줄어드니 기다리지 않고 곧바로 울린다
       - alert: RelayAbandoned
@@ -475,7 +462,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          description: "워커 {{ $labels.worker }} 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 06 처리 시간 목표 초과의 워커 줄을 확인하라"
+          description: "워커 {{ $labels.worker }} 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 백그라운드 작업 대시보드의 워커 줄을 확인하라"
 
   # 임계값이 정해지지 않은 알람들. 부하 시험 후 채운다.
   #

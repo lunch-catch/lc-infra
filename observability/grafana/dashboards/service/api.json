@@ -1,0 +1,724 @@
+{
+  "uid": "lc-api",
+  "title": "2. API",
+  "description": "API 의 요청률, 오류, 처리 시간(RED)을 API별로 본다. 기준을 넘은 API 의 그래프에서 튄 곳을 드래그해 좁히고 선의 점을 눌러 그 구간의 트레이스를 연다. 트레이스에서 오래 걸린 단계를 찾은 뒤 위쪽의 Profiling 링크에서 그 코드가 시간을 쓴 곳을 본다. Wall Time 에서 크고 CPU Time 에서도 크면 연산이, 작으면 대기가 오래 걸린 것이다. 맨 위는 앱 앞의 로드밸런서(ALB)가 잰 오류와 응답 시간이다. 사용자 -> ALB -> 앱으로 요청이 지나는 순서대로 위에서 아래로 둔다",
+  "tags": [
+    "lunchcatch",
+    "서비스"
+  ],
+  "timezone": "browser",
+  "editable": false,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "1. 개요",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "개요"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "2. 서비스",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "서비스"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "3. 도메인",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "도메인"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "4. 런타임",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "런타임"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "5. 의존 시스템",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "의존 시스템"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "6. 인프라",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "인프라"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "7. 테스트",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "테스트"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "Profiling Wall Time (실행 경과 시간)",
+      "type": "link",
+      "targetBlank": false,
+      "keepTime": true,
+      "icon": "external link",
+      "tooltip": "",
+      "url": "/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=wall:wall:nanoseconds:cpu:nanoseconds"
+    },
+    {
+      "title": "Profiling CPU Time (CPU 연산 시간)",
+      "type": "link",
+      "targetBlank": false,
+      "keepTime": true,
+      "icon": "external link",
+      "tooltip": "",
+      "url": "/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=process_cpu:cpu:nanoseconds:cpu:nanoseconds"
+    }
+  ],
+  "panels": [
+    {
+      "type": "row",
+      "title": "로드밸런서 (ALB, CloudWatch)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "id": 11
+    },
+    {
+      "type": "timeseries",
+      "title": "ALB 가 직접 낸 5xx (분당)",
+      "description": "앱이 아니라 ALB 가 만든 5xx(HTTPCode_ELB_5XX)의 분당 건수다. 앱이 낸 500 은 들어가지 않는다. 앱의 5xx 는 시스템 개요의 5xx 비율과 API 대시보드의 API별 5xx 비율에서 본다.",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_applicationelb_httpcode_elb_5_xx_count_sum",
+          "legendFormat": "5xx 전체",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "aws_applicationelb_httpcode_elb_502_count_sum",
+          "legendFormat": "502",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 12
+    },
+    {
+      "type": "timeseries",
+      "title": "앱 응답시간 (ALB 측정)",
+      "description": "ALB 가 요청을 앱에 넘긴 뒤 응답이 오기까지의 시간(TargetResponseTime)이다. ALB 자신의 처리 시간이 아니다. 앱이 잰 응답시간(아래 API별 p99)과 다르면 앱 앞(톰캣 대기 줄, 연결)에서 기다렸을 수 있지만, 요청 집합과 집계 구간이 달라도 차이가 난다. 차이가 크면 트레이스로 어디서 기다렸는지 확인한다",
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_applicationelb_target_response_time_p99",
+          "legendFormat": "p99",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "aws_applicationelb_target_response_time_average",
+          "legendFormat": "평균",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 13
+    },
+    {
+      "type": "row",
+      "title": "기준 초과",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 1
+      },
+      "id": 2
+    },
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "기준을 넘은 API",
+      "description": "목표를 넘은 순간의 API p99 를 그린다. 목표는 기본 500ms 이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 API 에서 300ms 를 넘은 요청의 트레이스 목록이 보고 있는 구간으로 열린다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 12
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__rate_interval]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__rate_interval]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})))",
+          "legendFormat": "{{uri}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "lines",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false,
+            "showPoints": "auto"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          },
+          "links": [
+            {
+              "title": "이 API 의 300ms 넘은 요청 트레이스 (보고 있는 구간)",
+              "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%20%7B%22datasource%22%3A%20%22tempo%22%2C%20%22queries%22%3A%20%5B%7B%22refId%22%3A%20%22A%22%2C%20%22datasource%22%3A%20%7B%22type%22%3A%20%22tempo%22%2C%20%22uid%22%3A%20%22tempo%22%7D%2C%20%22queryType%22%3A%20%22traceql%22%2C%20%22query%22%3A%20%22%7B%20nestedSetParent%20%3D%20-1%20%26%26%20span.http.route%20%3D%20%5C%22${__field.labels.uri:percentencode}%5C%22%20%26%26%20duration%20%3E%20300ms%20%7D%22%2C%20%22limit%22%3A%20100%2C%20%22tableType%22%3A%20%22traces%22%7D%5D%2C%20%22range%22%3A%20%7B%22from%22%3A%20%22${__from}%22%2C%20%22to%22%3A%20%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "느린 엔드포인트 상위 10개 (p99)",
+      "description": "API별로 p99 를 계산해 가장 느린 열을 그린다. 지표는 API 종류 200 개까지 받는다(lc-backend#1093). 붉은 점선은 목표를 정하지 않은 API 의 기본 상한(0.5초)이다. 모든 API 의 기준은 아니다. API마다의 목표는 기준을 넘은 API 패널이 견준다",
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "기본 상한 0.5초"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, histogram_quantile(0.99, sum by (le, uri) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__rate_interval]))))",
+          "legendFormat": "{{uri}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})",
+          "legendFormat": "기본 상한 0.5초"
+        }
+      ],
+      "id": 3
+    },
+    {
+      "type": "row",
+      "title": "API별",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 1
+      },
+      "id": 4
+    },
+    {
+      "type": "timeseries",
+      "title": "API별 요청률",
+      "description": "API별 초당 요청 수다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (method, uri) (rate(http_server_requests_seconds_count{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__rate_interval]))",
+          "legendFormat": "{{method}} {{uri}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 12,
+        "h": 8
+      },
+      "id": 5
+    },
+    {
+      "type": "timeseries",
+      "title": "API별 5xx 비율",
+      "description": "API별 요청 가운데 5xx 로 끝난 비율이다. 요청이 없는 구간은 비운다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum by (method, uri) (rate(http_server_requests_seconds_count{job=\"app\", uri!~\"UNKNOWN|/actuator.*\", status=~\"5..\"}[$__rate_interval])) or sum by (method, uri) (rate(http_server_requests_seconds_count{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__rate_interval])) * 0) / (sum by (method, uri) (rate(http_server_requests_seconds_count{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__rate_interval])) > 0)",
+          "legendFormat": "{{method}} {{uri}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 23,
+        "w": 12,
+        "h": 8
+      },
+      "id": 6
+    },
+    {
+      "type": "timeseries",
+      "title": "API별 p99",
+      "description": "API별 처리 시간의 p99 다. 붉은 점선은 목표를 정하지 않은 API 의 기본 상한(0.5초)이다. 모든 API 의 기준은 아니다. API마다의 목표는 기준을 넘은 API 패널이 견준다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "기본 상한 0.5초"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__rate_interval])))",
+          "legendFormat": "{{uri}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})",
+          "legendFormat": "기본 상한 0.5초"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 12,
+        "h": 8
+      },
+      "id": 7
+    },
+    {
+      "type": "row",
+      "title": "성공과 실패",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 24,
+        "h": 1
+      },
+      "id": 8
+    },
+    {
+      "type": "timeseries",
+      "title": "성공과 실패의 평균 처리 시간",
+      "description": "결과(outcome)마다 요청 하나의 평균 처리 시간이다. 실패는 빨리 끝나기도 해 섞으면 지연이 좋아 보이므로 나눠 본다. 분위수를 내는 히스토그램은 결과로 나뉘지 않아 평균으로 본다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (rate(http_server_requests_seconds_sum{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__rate_interval])) / sum by (outcome) (rate(http_server_requests_seconds_count{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"}[$__rate_interval]))",
+          "legendFormat": "{{outcome}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "id": 9
+    },
+    {
+      "type": "timeseries",
+      "title": "성공과 실패의 가장 긴 처리 시간",
+      "description": "결과(outcome)마다 가장 오래 걸린 요청의 처리 시간이다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (outcome) (http_server_requests_seconds_max{job=\"app\", uri!~\"UNKNOWN|/actuator.*\"})",
+          "legendFormat": "{{outcome}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "id": 10
+    }
+  ]
+}

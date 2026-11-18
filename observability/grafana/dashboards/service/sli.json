@@ -1,9 +1,10 @@
 {
   "uid": "lc-sli",
-  "title": "09 SLI",
+  "title": "1. SLI",
   "description": "API 의 성공 비율과 목표 안 비율을 본다 (lc-infra #165). 위의 숫자와 표는 보고 있는 범위의 원본 카운터로 정확히 세고, 아래 그래프는 Prometheus 가 기록한 5분 비율을 그린다. 목표(SLO)는 아직 정하지 않아 색과 선이 없고, 정하면 lc-backend #1250 에서 더한다",
   "tags": [
-    "lunchcatch"
+    "lunchcatch",
+    "서비스"
   ],
   "timezone": "browser",
   "editable": false,
@@ -208,8 +209,8 @@
     {
       "id": 4,
       "type": "table",
-      "title": "API 마다의 SLI",
-      "description": "보고 있는 범위의 API 마다 요청 수, 성공 비율, 목표 안 비율이다. 목표 안 비율이 낮은 API 는 06 처리 시간 목표 초과에서 트레이스로 넘어가 원인을 본다",
+      "title": "API별 SLI",
+      "description": "보고 있는 범위의 API별 요청 수, 성공 비율, 목표 안 비율이다. 목표 안 비율이 낮은 API 는 API 대시보드의 기준을 넘은 API 에서 트레이스로 넘어가 원인을 본다. 일부 요청만 늦어 p99 가 기준 안이면 그 그래프에 점이 없다. 그때는 Tempo 에서 그 API 의 경로와 지연 조건으로 트레이스를 직접 찾는다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -378,8 +379,8 @@
     {
       "id": 5,
       "type": "timeseries",
-      "title": "API 마다의 성공 비율(5분)",
-      "description": "API 마다 5분 동안 5xx 가 아닌 요청의 비율이다. 요청이 없던 5분은 비운다",
+      "title": "API별 성공 비율(5분)",
+      "description": "API별로 5분 동안 5xx 가 아닌 요청의 비율이다. 요청이 없던 5분은 비운다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -443,8 +444,8 @@
     {
       "id": 6,
       "type": "timeseries",
-      "title": "API 마다의 목표 안 비율(5분)",
-      "description": "API 마다 5분 동안 5xx 가 아닌 요청 가운데 그 API 의 목표 안에 끝난 비율이다. 요청이 없던 5분은 비운다",
+      "title": "API별 목표 안 비율(5분)",
+      "description": "API별로 5분 동안 5xx 가 아닌 요청 가운데 그 API 의 목표 안에 끝난 비율이다. 요청이 없던 5분은 비운다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -504,6 +505,113 @@
           "sort": "asc"
         }
       }
+    }
+  ],
+  "links": [
+    {
+      "title": "1. 개요",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "개요"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "2. 서비스",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "서비스"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "3. 도메인",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "도메인"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "4. 런타임",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "런타임"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "5. 의존 시스템",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "의존 시스템"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "6. 인프라",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "인프라"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "7. 테스트",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "테스트"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
     }
   ]
 }

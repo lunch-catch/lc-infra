@@ -1,0 +1,1161 @@
+{
+  "uid": "lc-app-jvm",
+  "title": "애플리케이션 서버 자원",
+  "description": "API 서버와 배치 서버에서 도는 자바 프로세스가 쓰는 자원(스레드, DB 커넥션 풀, JVM 의 CPU 와 메모리와 GC)이다. 스레드 줄은 HTTP 요청을 받는 톰캣 스레드를 맨 위에 두고 그 아래에 톰캣, Lettuce, 스케줄러, 워커를 포함한 모든 스레드를 둔다. 컨테이너가 쓰는 메모리는 위쪽 링크의 호스트에서 본다. 위쪽의 서버에서 API 서버(app)와 배치 서버(batch)를 고른다. 기계의 자원은 호스트가 본다. 앱이 느려질 때 원인을 여기서 좁힌다",
+  "tags": [
+    "lunchcatch",
+    "런타임"
+  ],
+  "timezone": "browser",
+  "editable": false,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "job",
+        "label": "서버",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": {
+          "query": "label_values(jvm_threads_live_threads{job=~\"app|batch\"}, job)",
+          "refId": "job"
+        },
+        "definition": "label_values(jvm_threads_live_threads{job=~\"app|batch\"}, job)",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "sort": 1
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "1. 개요",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "개요"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "2. 서비스",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "서비스"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "3. 도메인",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "도메인"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "4. 런타임",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "런타임"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "5. 의존 시스템",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "의존 시스템"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "6. 인프라",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "인프라"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "7. 테스트",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "테스트"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "호스트",
+      "type": "link",
+      "url": "/d/lc-hosts",
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "컨테이너가 쓰는 메모리는 호스트의 컨테이너 메모리에서 본다"
+    }
+  ],
+  "panels": [
+    {
+      "type": "row",
+      "title": "스레드",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "id": 1
+    },
+    {
+      "type": "timeseries",
+      "title": "톰캣 스레드 (HTTP 요청 스레드)",
+      "description": "TomcatThreadsHigh 알람이 (미정) 이다. 정상 구간의 사용률을 여기서 읽어 채운다.",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "tomcat_threads_busy_threads{job=~\"$job\"}",
+          "legendFormat": "처리 중 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "tomcat_threads_config_max_threads{job=~\"$job\"}",
+          "legendFormat": "상한 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 2
+    },
+    {
+      "type": "timeseries",
+      "title": "서버별 스레드 수",
+      "description": "서버마다 JVM 의 전체 플랫폼 스레드 수를 그린다. 스레드가 새면 보통 한 서버에서 먼저 늘어 이 패널에서 잡힌다. 가상 스레드는 들어가지 않는다.",
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "jvm_threads_live_threads{job=~\"$job\"}",
+          "legendFormat": "{{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 3
+    },
+    {
+      "type": "timeseries",
+      "title": "종류별 스레드 수",
+      "description": "백엔드 개발자가 볼 스레드만 종류별로 그리고 나머지는 '그 밖' 으로 합친다. 요청(http-nio-8080-exec), Valkey I/O(lettuce-*EventLoop), 스케줄러(scheduling), 개발자가 만든 작업 스레드(노출과 서빙 로그 저장, 퍼널 이벤트, 쿠폰)다. 종류는 스레드 이름 끝의 숫자를 지운 것이다(http-nio-8080-exec-12 는 http-nio-8080-exec). 앱과 배치로 나눠 서버를 합쳐 쌓는다(lc-backend#1095). 작업 스레드를 새로 만들면 두 쿼리의 kind 목록에 그 이름을 더한다. 모든 종류는 Explore 에서 jvm_threads_kind_threads 로 본다.",
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 10
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (job, kind) (jvm_threads_kind_threads{job=~\"$job\", kind=~\"http-nio-8080-exec|lettuce-.*EventLoop|scheduling|impression-writer|serve-log-writer|funnel-event|coupon-batch|coupon-http-recovery|coupon-reservation-waiter|coupon-sold-out\"})",
+          "legendFormat": "{{job}} {{kind}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (job) (jvm_threads_kind_threads{job=~\"$job\", kind!~\"http-nio-8080-exec|lettuce-.*EventLoop|scheduling|impression-writer|serve-log-writer|funnel-event|coupon-batch|coupon-http-recovery|coupon-reservation-waiter|coupon-sold-out\"})",
+          "legendFormat": "{{job}} 그 밖",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 4
+    },
+    {
+      "type": "timeseries",
+      "title": "상태별 스레드 수",
+      "description": "스레드 수가 늘 때 무엇이 쌓이는지 가른다. blocked 가 늘면 잠금 경합이다. waiting 과 timed-waiting 이 늘면 무엇을 기다리며 쌓이는 것이다. 앱과 배치로 나눠 서버를 합쳤으니 한 대만 늘었는지는 서버별 스레드 수에서 본다. 어느 풀이 늘었는지는 그 서버에서 8081 의 스레드 덤프로 본다(curl -s localhost:8081/actuator/threaddump).",
+      "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 10
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (job, state) (jvm_threads_states_threads{job=~\"$job\", state!~\"new|terminated\"})",
+          "legendFormat": "{{job}} {{state}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 5
+    },
+    {
+      "type": "row",
+      "title": "DB 커넥션 풀 (HTTP 요청과 백그라운드 작업이 함께 씀)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 24,
+        "h": 1
+      },
+      "id": 6
+    },
+    {
+      "type": "timeseries",
+      "title": "DB 커넥션 풀",
+      "description": "앱의 DB 커넥션 풀에서 쓰는 커넥션, 쉬는 커넥션, 커넥션을 기다리는 스레드 수다. 풀 크기는 API 서버 8, 배치 서버 6 이다(lc-backend 의 application.yml, application-batch.yml). 붉은 선 9 는 경보 HikariPendingHigh 의 기준(기다리는 스레드 9 초과, 2분 지속)이고, 앱과 배치에 같은 값이다. 이 값은 풀이 10 이던 때 정해 지금 풀 크기의 비율이 아니다. 대기가 쌓이면 톰캣 스레드가 먼저 마른다",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 9
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "hikaricp_connections_active{job=~\"$job\"}",
+          "legendFormat": "사용 중 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "hikaricp_connections_idle{job=~\"$job\"}",
+          "legendFormat": "유휴 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "hikaricp_connections_pending{job=~\"$job\"}",
+          "legendFormat": "기다리는 스레드 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 7
+    },
+    {
+      "type": "timeseries",
+      "title": "DB 커넥션 얻기 시간",
+      "description": "DB 커넥션을 얻기까지 기다린 시간이다. DB 커넥션 풀 패널의 기다리는 스레드는 몇 개가 기다리는지를, 이 패널은 얼마나 오래 기다렸는지를 본다. 3초(`connection-timeout`)를 넘기면 기다리다 실패하므로 이 그래프는 3초를 넘지 않는다. 실패한 횟수는 커넥션을 얻지 못하고 시간 제한에 걸린 횟수 (분당) 패널이 센다.",
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, instance_id) (rate(hikaricp_connections_acquire_seconds_sum{job=~\"$job\"}[$__rate_interval])) / sum by (instance, instance_id) (rate(hikaricp_connections_acquire_seconds_count{job=~\"$job\"}[$__rate_interval]))",
+          "legendFormat": "평균 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "max by (instance, instance_id) (hikaricp_connections_acquire_seconds_max{job=~\"$job\"})",
+          "legendFormat": "최대 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 8
+    },
+    {
+      "type": "timeseries",
+      "title": "커넥션을 얻지 못하고 시간 제한에 걸린 횟수 (분당)",
+      "description": "풀에서 커넥션을 시간 제한(`connection-timeout`, 3초) 안에 얻지 못해 실패한 횟수다. 0 이 정상이다. 한 건이라도 생기면 `HikariConnectionTimeout` 경보가 울린다.",
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, instance_id) (rate(hikaricp_connections_timeout_total{job=~\"$job\"}[$__rate_interval])) * 60",
+          "legendFormat": "{{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 9
+    },
+    {
+      "type": "timeseries",
+      "title": "트랜잭션 시간 (커넥션을 쥔 시간의 p99)",
+      "description": "커넥션을 빌려 돌려줄 때까지의 시간의 p99 다. 트랜잭션 시간에 가깝고, 트랜잭션 밖에서 빌린 커넥션도 섞인다. 붉은 점선 1초는 품질 문서 데이터 무결성의 트랜잭션 기본 상한이다. 모든 트랜잭션의 기준은 아니다. 배치는 별도 기준이고, 트랜잭션마다 @Transactional(timeout) 으로 다른 시간 제한을 둔 곳이 있다. 이 패널의 p99 는 커넥션 풀 전체의 값이라 트랜잭션마다 나누지 못한다. 경보 TransactionSlow 는 이 그래프와 따로 최근 5분 창에서 센다. 5분에 커넥션을 100번 넘게 쓴 서버에서 1초 넘게 쥔 사용이 1% 를 넘은 상태가 5분 이어지면 울린다. 비율의 분모는 HTTP 요청이 아니라 커넥션 사용이다. 오래 쥔 코드는 앱의 누수 감지 경고 로그(5초 넘게 쥔 커넥션의 스택)로 찾는다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다",
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "기본 상한 1초"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le, instance, instance_id) (rate(hikaricp_connections_usage_seconds_bucket{job=~\"$job\"}[$__rate_interval])))",
+          "legendFormat": "p99 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "max(overrun_threshold_seconds{kind=\"global\", name=\"transaction\"})",
+          "legendFormat": "기본 상한 1초",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 10
+    },
+    {
+      "type": "row",
+      "title": "JVM (CPU, Memory, GC)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 1
+      },
+      "id": 11
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU 사용률",
+      "description": "고른 서버(API 서버나 배치 서버)의 JVM 이 쓸 수 있는 코어 가운데 실제로 쓴 CPU 의 비율이다. 컨테이너에 CPU 상한이 있으면 그 상한이, 없으면 기계의 코어 전체가 기준이다. 기계 전체의 CPU 는 호스트가 본다",
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          },
+          "max": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_cpu_usage{job=~\"$job\"}",
+          "legendFormat": "{{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 12
+    },
+    {
+      "type": "timeseries",
+      "title": "Heap 사용량",
+      "description": "서버마다 자바 힙의 메모리 풀들(Eden, Survivor, Old)을 더한 사용량과 최대값이다. GC 뒤에 남은 힙 패널은 GC 가 끝난 뒤 오래 사는 객체가 차지한 몫의 비율이라, 이 패널과 집계가 다르다",
+      "gridPos": {
+        "x": 12,
+        "y": 37,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, instance_id) (jvm_memory_used_bytes{job=~\"$job\", area=\"heap\"})",
+          "legendFormat": "사용 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (instance, instance_id) (jvm_memory_max_bytes{job=~\"$job\", area=\"heap\"})",
+          "legendFormat": "상한 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 13
+    },
+    {
+      "type": "timeseries",
+      "title": "힙 밖 메모리",
+      "description": "JVM 이 힙 밖에 쓰는 메모리다. 클래스와 JIT 코드(non-heap)와 다이렉트 버퍼다. 트레이싱 에이전트를 붙이면 non-heap 이 는다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, instance_id) (jvm_memory_used_bytes{job=~\"$job\", area=\"nonheap\"})",
+          "legendFormat": "non-heap {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (instance, instance_id) (jvm_buffer_memory_used_bytes{job=~\"$job\"})",
+          "legendFormat": "버퍼 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 45,
+        "w": 12,
+        "h": 8
+      },
+      "id": 14
+    },
+    {
+      "type": "timeseries",
+      "title": "GC 로 멈춘 시간 비율과 최대 멈춤",
+      "description": "왼쪽은 GC 로 멈춘 시간의 비율이다. 10% 면 시간의 10% 를 GC 에 썼다. 오른쪽은 GC 한 번이 가장 길게 멈춘 시간이다. 비율이 낮아도 한 번의 긴 멈춤은 p99 를 튀게 한다. 주황 점선은 비율의 경보 문턱 10% 다. 5분 넘게 넘으면 경보 GcOverheadHigh 가 울린다. 붉은 점선은 최대 멈춤의 기준(품질 문서의 GC 일시정지 p99 200ms)이다. 패널은 최대 멈춤이라 최대가 선 아래면 기준 안이다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다.",
+      "gridPos": {
+        "x": 12,
+        "y": 45,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "최대 멈춤.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "최대 멈춤 기준"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "비율 경보 문턱"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, instance_id) (rate(jvm_gc_pause_seconds_sum{job=~\"$job\"}[$__rate_interval]))",
+          "legendFormat": "비율 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "max by (instance, instance_id) (jvm_gc_pause_seconds_max{job=~\"$job\"})",
+          "legendFormat": "최대 멈춤 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "max(overrun_threshold_seconds{kind=\"global\", name=\"gc-pause\"})",
+          "legendFormat": "최대 멈춤 기준",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "D",
+          "expr": "max(overrun_threshold_ratio{kind=\"global\", name=\"gc-overhead\"})",
+          "legendFormat": "비율 경보 문턱",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 15
+    },
+    {
+      "type": "timeseries",
+      "title": "GC 뒤에 남은 힙",
+      "description": "GC 직후에도 살아 남은 데이터가 힙 최대 크기에서 차지하는 비율이다. GC 를 해도 줄지 않고 오르면 메모리가 새거나 힙이 작은 것이고, 그대로 가면 OutOfMemoryError 로 죽는다. 붉은 점선은 품질 문서 성능 효율성의 기준(GC 직후 70% 이하)이다. 이 선을 10분 넘게 넘으면 경보 HeapAfterGcHigh 가 울린다. 앱이 막 떠 아직 GC 를 하지 않은 동안은 비어 있다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다.",
+      "gridPos": {
+        "x": 0,
+        "y": 53,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "기준(70%)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (instance, instance_id) (jvm_gc_live_data_size_bytes{job=~\"$job\"} / (jvm_gc_max_data_size_bytes{job=~\"$job\"} > 0))",
+          "legendFormat": "{{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "max(overrun_threshold_ratio{kind=\"global\", name=\"heap-after-gc\"})",
+          "legendFormat": "기준(70%)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 16
+    },
+    {
+      "type": "timeseries",
+      "title": "열린 파일 비율",
+      "description": "프로세스가 연 파일(소켓 포함) 수를 상한에 견준 비율이다. 상한(지금 1,048,576)이 열린 수보다 훨씬 커 수로 함께 그리면 열린 수가 보이지 않아 비율로 그린다. 상한에 닿으면 새 연결을 열지 못한다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (instance, instance_id) (process_files_open_files{job=~\"$job\"} / process_files_max_files{job=~\"$job\"})",
+          "legendFormat": "{{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 53,
+        "w": 12,
+        "h": 8
+      },
+      "id": 17
+    }
+  ]
+}

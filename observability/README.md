@@ -20,6 +20,7 @@
 cd /opt/lunchcatch/infra && git pull --ff-only
 cd observability && docker compose restart prometheus       # 규칙과 스크레이프 설정
 docker compose up -d --force-recreate cloudwatch-exporter   # 익스포터 설정
+docker compose up -d --force-recreate grafana               # 대시보드 공급 설정과 환경 변수(홈 대시보드 같은 것)
 ```
 
 반영됐는지는 파일이 아니라 **프로세스에 물어본다.**
@@ -201,20 +202,33 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 
 ## 대시보드
 
-`grafana/dashboards/*.json` 이 Git 에 있고 프로비저닝으로 올라간다.
+`grafana/dashboards/{계층}/*.json` 이 Git 에 있고 프로비저닝으로 올라간다.
 화면에서 고친 것은 저장되지 않는다 (`allowUiUpdates: false`). 데이터소스를 코드로 넣은 것과 같은 이유다 (`OPS-2-18`).
+대시보드는 계층마다 폴더 하나에 묶는다(lc-infra #169). 디렉터리는 영어이고, 화면의 폴더 이름은 `grafana/provisioning/dashboards/dashboards.yml` 이 디렉터리마다 붙인다. 폴더와 폴더 안의 대시보드는 계층 순서로 둔다. Grafana 는 이름순으로만 놓아, 폴더 이름과 대시보드 제목 앞에 "1." 꼴의 순번을 붙인다. 대시보드가 하나뿐인 폴더는 붙이지 않고, 파일 이름과 uid 에는 붙이지 않는다. 대시보드마다 `lunchcatch` 와 계층 태그(순번을 뺀 폴더 이름)를 달고, 위쪽 링크는 그 태그로 거른 계층마다의 드롭다운 일곱 개다.
 
-| 파일 | 화면 | 무엇을 보나 |
-|---|---|---|
-| `01-overview.json` | 01 서비스 개요 | 지금 울리는 경보와 고른 범위에 울린 경보, 영역별 핵심 지표(누르면 그 영역의 대시보드로 넘어간다), 요청률, 5xx 비율, 응답시간 분위수, ALB 지표 |
-| `02-hosts.json` | 02 호스트 | CPU 크레딧, CPU, 메모리, 디스크, 컨테이너 재기동 |
-| `03-app-jvm.json` | 03 앱과 JVM | 힙, GC, HikariCP, 톰캣 스레드, 배치 마지막 성공 |
-| `04-data-stores.json` | 04 데이터 저장소 | MySQL 커넥션과 쿼리, RDS 메모리, 캐시 적중률 |
-| `09-sli.json` | 09 SLI | API 마다 5xx 가 아닌 요청의 비율과 그 API 의 목표 안에 끝난 비율. 기록 규칙은 `prometheus/sli.yml` 이다 |
+| 파일 | 폴더 | 화면 | 무엇을 보나 |
+|---|---|---|---|
+| `overview/overview.json` | 1. 개요 | 시스템 개요 | 지금 울리는 경보와 고른 범위에 울린 경보, 영역별 핵심 지표(누르면 그 영역의 대시보드로 넘어간다), 요청률, 5xx 비율, 응답시간 분위수. Grafana 의 홈 대시보드다 |
+| `service/sli.json` | 2. 서비스 | 1. SLI | API별 5xx 가 아닌 요청의 비율과 그 API 의 목표 안에 끝난 비율. 기록 규칙은 `prometheus/sli.yml` 이다 |
+| `service/api.json` | 2. 서비스 | 2. API | 로드밸런서(ALB)가 잰 5xx 와 응답 시간, 기준을 넘은 API, API별 요청률, 5xx 비율, p99, 성공과 실패의 처리 시간 |
+| `service/background.json` | 2. 서비스 | 3. 백그라운드 작업 | 아웃박스 릴레이, 비동기 워커, cron 배치의 기준 초과와 밀린 양, 배치 마지막 성공과 그 기준 대비 |
+| `domain/adserving.json` | 3. 도메인 | 1. 광고 서빙 | 노출 유실, 정산 청크, 캐시 장애로 건너뛴 규칙, 서빙 로그, 경고 로그 |
+| `domain/billing.json` | 3. 도메인 | 2. 정산 | 결제 승인, 재조회, 웹훅, PG 대사, 노출 차감 |
+| `domain/analytics.json` | 3. 도메인 | 3. 분석 | 일 집계, 정합성, 퍼널 이벤트 |
+| `runtime/app-jvm.json` | 4. 런타임 | 애플리케이션 서버 자원 | 스레드(톰캣 스레드와 모든 스레드), HikariCP, JVM(CPU 사용률, Heap, 힙 밖 메모리, GC, 열린 파일). 서버 종류(`job`)를 고른다 |
+| `dependency/rdb.json` | 5. 의존 시스템 | 1. RDB | MySQL(RDS)의 연결 수, 쿼리, 느린 쿼리, 행 잠금 대기, 여유 메모리 |
+| `dependency/in-memory-db.json` | 5. 의존 시스템 | 2. 인메모리 DB | Valkey(ElastiCache)의 메모리, 적중률, 연결 수, 명령 수와 지연 |
+| `dependency/external.json` | 5. 의존 시스템 | 3. 외부 연동 | 외부 HTTP 호출과 AWS SDK 호출의 호출 수, 실패율, p99 |
+| `infra/hosts.json` | 6. 인프라 | 1. 호스트 | CPU 크레딧, 기계 전체의 CPU, 메모리, 디스크, 컨테이너마다의 CPU 와 메모리, 컨테이너 재기동 |
+| `infra/monitoring.json` | 6. 인프라 | 2. 모니터링 상태 | 앱과 배치의 지표 수집 시간과 수집이 빠진 칸 |
+| `test/loadtest.json` | 7. 테스트 | 부하 시험 | k6 가 보낸 것과 목표 부하를 다 보냈는지 |
 
 **임계값이 있는 패널에는 선을 그어 두었다.** `rules.yml` 의 값과 같은 값이다.
-CPU 크레딧 173 과 58(알람이 아니라 시험 전 참고선이다. 알람은 초과분을 본다), 디스크 80%, Hikari 대기 9, 컨테이너 재기동 3회, 배치 1800초다.
-배치의 00:00 묶음은 하루 한 번이라 `rules.yml` 이 90000초로 따로 본다. 패널의 1800초 선은 생존 신호와 이어받기 기준이다.
+CPU 크레딧 173 과 58(알람이 아니라 시험 전 참고선이다. 알람은 초과분을 본다), 디스크 80%, Hikari 대기 9, 컨테이너 재기동 3회,
+5xx 비율의 1시간 전의 2배, 배치 서버 2대, GC 뒤에 남은 힙 70%, Valkey 메모리 상한의 70%, 노출과 서빙 로그 유실률 0.1%, 분석의 밀린 날짜 3일이다.
+경보가 0 보다 크면 울리는 값(OOM 거절, 커넥션 시간 제한, 실행 실패 같은 것)은 선을 긋지 않고 0 이 정상이라고 패널 설명에 적는다.
+API 의 응답 시간 패널(전체 분위수, 느린 엔드포인트, API별 p99)에는 경보가 아니라 앱의 기본 상한 0.5초(`overrun_threshold_seconds{kind="api", name="default"}`)를 긋는다. API마다의 목표는 기준을 넘은 API 패널이 견준다.
+배치 작업은 작업마다 BatchNotRun 기준이 달라(300초, 1800초, 90000초, 180000초) 선 하나를 긋지 않는다. 기준은 `prometheus/thresholds.yml` 의 `batch_job_not_run_threshold_seconds` 가 작업마다 갖고, 경보와 백그라운드 작업 대시보드의 기준 대비 패널(100% 선)이 같은 값을 읽는다.
 알람이 울리기 전에 어디쯤 와 있는지 화면에서 먼저 보라고 맞춰 둔 것이다.
 
 **`(미정)` 을 채울 값을 읽는 자리도 표시해 두었다.** p99 기준선, 톰캣 스레드 사용률,
@@ -224,7 +238,9 @@ RDS 여유 메모리가 그것이고, 해당 패널 설명에 적어 두었다. 
 
 ```bash
 cd /opt/lunchcatch/infra && git pull --ff-only
-# 프로비저닝이 30초마다 파일을 다시 읽어 재시작이 필요 없다.
+# 대시보드 JSON 만 바뀌었으면 프로비저닝이 30초마다 파일을 다시 읽어 재시작이 필요 없다.
+# 공급 설정(grafana/provisioning/dashboards/dashboards.yml)이 바뀌었으면 Grafana 가 뜰 때만 읽으므로 다시 띄운다.
+docker restart grafana
 ```
 
 ### CloudWatch 지표 이름 확인
@@ -237,7 +253,7 @@ ALB 와 RDS 쪽 이름은 첫 기동 때 한 번 맞춰 보는 것이 빠르다.
 curl -s localhost:9106/metrics | grep -o '^aws_[a-z_0-9]*' | sort -u
 ```
 
-다르면 `01-overview.json` 과 `04-data-stores.json` 의 해당 패널 `expr` 을 고친다.
+다르면 `infra/hosts.json` 과 `dependency/rdb.json`, `dependency/in-memory-db.json` 의 해당 패널 `expr` 을 고친다.
 
 ## 아직 채우지 못한 임계값
 

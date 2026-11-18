@@ -66,15 +66,15 @@ services:
       - "127.0.0.1:${PROMETHEUS_PORT:-19090}:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      # 06 처리 시간 목표 초과가 읽는 기준은 운영과 같은 파일을 쓴다
+      # API 와 백그라운드 작업 대시보드가 읽는 기준은 운영과 같은 파일을 쓴다
       - ../prometheus/thresholds.yml:/etc/prometheus/thresholds.yml:ro
-      # 01 의 경보 패널을 로컬에서도 보려고 경보 규칙도 운영과 같은 파일을 쓴다. 로컬에는 Alertmanager 가 없어 Slack 으로 나가지 않는다
+      # 시스템 개요의 경보 패널을 로컬에서도 보려고 경보 규칙도 운영과 같은 파일을 쓴다. 로컬에는 Alertmanager 가 없어 Slack 으로 나가지 않는다
       - ../prometheus/rules.yml:/etc/prometheus/rules.yml:ro
-      # 09 SLI 의 기록 규칙도 운영과 같은 파일을 쓴다
+      # SLI 대시보드의 기록 규칙도 운영과 같은 파일을 쓴다
       - ../prometheus/sli.yml:/etc/prometheus/sli.yml:ro
     command:
       - --config.file=/etc/prometheus/prometheus.yml
-      # 로컬에서 k6 를 돌릴 때 05 부하 시험 대시보드에 결과가 들어오게 받는다.
+      # 로컬에서 k6 를 돌릴 때 부하 시험 대시보드에 결과가 들어오게 받는다.
       - --web.enable-remote-write-receiver
 
   grafana:
@@ -89,6 +89,8 @@ services:
       # 캡처 스크립트(scripts/loadtest-snapshot.sh --local)가 패널을 PNG 로 받는다
       GF_RENDERING_SERVER_URL: http://renderer:8081/render
       GF_RENDERING_CALLBACK_URL: http://grafana:3000/
+      # Grafana 를 열면 시스템 개요가 먼저 뜨게 홈 대시보드로 둔다(lc-infra #169)
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/overview/overview.json
 
   renderer:
     image: grafana/grafana-image-renderer:v5.12.4
@@ -129,7 +131,7 @@ services:
       TEMPO_ENDPOINT: tempo
     command: [run, --server.http.listen-addr=0.0.0.0:12345, /etc/alloy]
 
-  # 02 호스트와 04 데이터 저장소의 패널을 채운다. 운영은 각 서버와 모니터링 서버에서 돈다
+  # 호스트, RDB, 인메모리 DB 의 패널을 채운다. 운영은 각 서버와 모니터링 서버에서 돈다
   node-exporter:
     image: prom/node-exporter:v1.9.1
     pid: host

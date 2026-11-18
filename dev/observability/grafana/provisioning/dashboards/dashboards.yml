@@ -1,12 +1,69 @@
 # 대시보드는 저장소가 갖는다. 화면에서 고친 것은 저장되지 않는다 (운영과 같다).
 apiVersion: 1
 
+# 운영과 같은 대시보드다. 개발에 없는 RDS, ALB, 배치 서버, 호스트 지표 패널은 비어 보인다.
+# 운영처럼 계층마다 폴더 하나에 묶는다(lc-infra #169). 폴더와 디렉터리는 observability/grafana/provisioning/dashboards/dashboards.yml 과 같다.
 providers:
-  # 운영과 같은 대시보드다. 개발에 없는 RDS, ALB, 배치 서버, 호스트 지표 패널은 비어 보인다
-  - name: lunchcatch
+  - name: lunchcatch-overview
     type: file
+    folder: "1. 개요"
+    folderUid: lc-folder-overview
     disableDeletion: false
     allowUiUpdates: false
     updateIntervalSeconds: 30
     options:
-      path: /etc/grafana/dashboards/common
+      path: /etc/grafana/dashboards/common/overview
+  - name: lunchcatch-service
+    type: file
+    folder: "2. 서비스"
+    folderUid: lc-folder-service
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards/common/service
+  - name: lunchcatch-dependency
+    type: file
+    folder: "5. 의존 시스템"
+    folderUid: lc-folder-dependency
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards/common/dependency
+  - name: lunchcatch-runtime
+    type: file
+    folder: "4. 런타임"
+    folderUid: lc-folder-runtime
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards/common/runtime
+  - name: lunchcatch-infra
+    type: file
+    folder: "6. 인프라"
+    folderUid: lc-folder-infra
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards/common/infra
+  - name: lunchcatch-domain
+    type: file
+    folder: "3. 도메인"
+    folderUid: lc-folder-domain
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards/common/domain
+  - name: lunchcatch-test
+    type: file
+    folder: "7. 테스트"
+    folderUid: lc-folder-test
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards/common/test
