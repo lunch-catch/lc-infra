@@ -706,7 +706,7 @@
         {
           "refId": "A",
           "expr": "count((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})))) or vector(0)",
-          "legendFormat": "목표를 넘은 API",
+          "legendFormat": "기준을 넘은 API",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -1210,10 +1210,188 @@
     },
     {
       "type": "stat",
+      "title": "JVM",
+      "description": "GC 로 멈춘 비율이나 가장 긴 멈춤, GC 뒤 남은 힙이 기준을 넘은 서버 수와 톰캣 작업 스레드가 가장 많이 찬 비율이다",
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "links": [
+        {
+          "title": "애플리케이션 서버 자원",
+          "url": "/d/lc-app-jvm?${__url_time_range}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "지표 없음",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count((sum by (instance, instance_id) (rate(jvm_gc_pause_seconds_sum[$__rate_interval])) > scalar(max(overrun_threshold_ratio{kind=\"global\", name=\"gc-overhead\"}))) or (max by (instance, instance_id) (jvm_gc_pause_seconds_max) > scalar(max(overrun_threshold_seconds{kind=\"global\", name=\"gc-pause\"})))) or vector(0)",
+          "legendFormat": "GC 초과 서버",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "count(max by (instance, instance_id) (jvm_gc_live_data_size_bytes / (jvm_gc_max_data_size_bytes > 0)) > scalar(max(overrun_threshold_ratio{kind=\"global\", name=\"heap-after-gc\"}))) or vector(0)",
+          "legendFormat": "힙 초과 서버",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "expr": "max(tomcat_threads_busy_threads / tomcat_threads_config_max_threads)",
+          "legendFormat": "톰캣 스레드",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ],
+      "id": 13
+    },
+    {
+      "type": "stat",
       "title": "DB 커넥션",
       "description": "앱의 DB 커넥션 풀이 가장 많이 찬 비율과 기다리는 요청 수, 고른 범위에 커넥션을 얻지 못하고 시간 제한에 걸린 횟수다. 기다리는 요청은 9 를 넘으면 빨강이다(경보 HikariPendingHigh 와 같은 값)",
       "gridPos": {
-        "x": 0,
+        "x": 6,
         "y": 17,
         "w": 6,
         "h": 5
@@ -1381,184 +1559,6 @@
           "refId": "C",
           "expr": "sum(increase(hikaricp_connections_timeout_total[$__range])) or vector(0)",
           "legendFormat": "시간 제한",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        }
-      ],
-      "id": 13
-    },
-    {
-      "type": "stat",
-      "title": "JVM",
-      "description": "GC 로 멈춘 비율이나 가장 긴 멈춤, GC 뒤 남은 힙이 기준을 넘은 서버 수와 톰캣 작업 스레드가 가장 많이 찬 비율이다",
-      "gridPos": {
-        "x": 6,
-        "y": 17,
-        "w": 6,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "links": [
-        {
-          "title": "애플리케이션 서버 자원",
-          "url": "/d/lc-app-jvm?${__url_time_range}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 2,
-          "noValue": "지표 없음",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 1
-                    }
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 1
-                    }
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percentunit"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "transparent",
-                      "value": null
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "background",
-        "graphMode": "none",
-        "textMode": "value_and_name",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "count((sum by (instance, instance_id) (rate(jvm_gc_pause_seconds_sum[$__rate_interval])) > scalar(max(overrun_threshold_ratio{kind=\"global\", name=\"gc-overhead\"}))) or (max by (instance, instance_id) (jvm_gc_pause_seconds_max) > scalar(max(overrun_threshold_seconds{kind=\"global\", name=\"gc-pause\"})))) or vector(0)",
-          "legendFormat": "GC 초과 서버",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        },
-        {
-          "refId": "B",
-          "expr": "count(max by (instance, instance_id) (jvm_gc_live_data_size_bytes / (jvm_gc_max_data_size_bytes > 0)) > scalar(max(overrun_threshold_ratio{kind=\"global\", name=\"heap-after-gc\"}))) or vector(0)",
-          "legendFormat": "힙 초과 서버",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        },
-        {
-          "refId": "C",
-          "expr": "max(tomcat_threads_busy_threads / tomcat_threads_config_max_threads)",
-          "legendFormat": "톰캣 스레드",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -1871,115 +1871,17 @@
       "id": 16
     },
     {
-      "type": "stat",
-      "title": "지표 수집",
-      "description": "고른 범위에 앱과 배치의 지표 수집이 빠진 칸(15초) 수다. 수집이 실패한 칸과 표본이 아예 없는 칸을 함께 센다. 0 이 아니면 그 구간의 다른 패널을 덜 믿는다",
-      "gridPos": {
-        "x": 0,
-        "y": 22,
-        "w": 24,
-        "h": 3
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "links": [
-        {
-          "title": "모니터링 상태",
-          "url": "/d/lc-monitoring?${__url_time_range}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 2,
-          "noValue": "지표 없음",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 1
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "background",
-        "graphMode": "none",
-        "textMode": "value_and_name",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(floor(clamp_min(($__range_s / 15 - 1) - sum by (job, instance, instance_id) (sum_over_time(up{job=~\"app|batch\"}[$__range])), 0)))",
-          "legendFormat": "수집 실패(칸)",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        }
-      ],
-      "id": 17
-    },
-    {
       "type": "row",
       "title": "애플리케이션",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 25,
+        "y": 22,
         "w": 24,
         "h": 1
       },
       "panels": [],
-      "id": 18
+      "id": 17
     },
     {
       "type": "timeseries",
@@ -1987,7 +1889,7 @@
       "description": "API 서버(job=\"app\")가 받은 요청을 상태 코드마다 초당 요청 수로 더한 값이다",
       "gridPos": {
         "x": 0,
-        "y": 26,
+        "y": 23,
         "w": 12,
         "h": 8
       },
@@ -2028,7 +1930,7 @@
           }
         }
       ],
-      "id": 19
+      "id": 18
     },
     {
       "type": "timeseries",
@@ -2036,7 +1938,7 @@
       "description": "rules.yml 의 HighFiveXXRate 는 이 값을 한 시간 전과 비교한다. 붉은 점선은 1시간 전 5xx 비율의 2배다. 경보 HighFiveXXRate 는 3분 동안 이 선을 넘으면 울린다",
       "gridPos": {
         "x": 12,
-        "y": 26,
+        "y": 23,
         "w": 12,
         "h": 8
       },
@@ -2116,7 +2018,7 @@
           "legendFormat": "경보 문턱 (1시간 전의 2배)"
         }
       ],
-      "id": 20
+      "id": 19
     },
     {
       "type": "timeseries",
@@ -2124,7 +2026,7 @@
       "description": "모든 API 를 합친 요청 시간의 분위수다. 노출처럼 요청이 많은 API 에 끌려가므로 API 별로는 영역별 핵심 지표의 API 패널 링크에서 API 대시보드로 넘어가 본다. 앱이 요청을 받은 때부터 재므로 톰캣 대기 줄에서 기다린 시간은 빠진다. P99Slow 알람이 아직 (미정) 인 이유가 여기 있다. 기준선을 이 패널에서 읽어 채운다. 붉은 점선은 목표를 정하지 않은 API 의 기본 상한(0.5초)이다. 모든 API 의 기준은 아니다. API마다의 목표는 기준을 넘은 API 패널이 견준다",
       "gridPos": {
         "x": 0,
-        "y": 34,
+        "y": 31,
         "w": 12,
         "h": 8
       },
@@ -2222,7 +2124,118 @@
           "legendFormat": "기본 상한 0.5초"
         }
       ],
+      "id": 20
+    },
+    {
+      "type": "row",
+      "title": "지표 수집 (이 화면의 값이 빠졌는지)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 24,
+        "h": 1
+      },
       "id": 21
+    },
+    {
+      "type": "stat",
+      "title": "지표 수집",
+      "description": "고른 범위에 앱과 배치의 지표 수집이 빠진 칸(15초) 수다. 수집이 실패한 칸과 표본이 아예 없는 칸을 함께 센다. 0 이 아니면 그 구간의 다른 패널을 덜 믿는다",
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 24,
+        "h": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "links": [
+        {
+          "title": "모니터링 상태",
+          "url": "/d/lc-monitoring?${__url_time_range}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "지표 없음",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(floor(clamp_min(($__range_s / 15 - 1) - sum by (job, instance, instance_id) (sum_over_time(up{job=~\"app|batch\"}[$__range])), 0)))",
+          "legendFormat": "수집 실패(칸)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ],
+      "id": 22
     }
   ]
 }
