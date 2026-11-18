@@ -19,7 +19,22 @@
     "list": []
   },
   "annotations": {
-    "list": []
+    "list": [
+      {
+        "name": "배포와 재기동",
+        "enable": true,
+        "iconColor": "blue",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "step": "60s",
+        "expr": "max by (job, instance, instance_id, version) (process_start_time_seconds{job=~\"app|batch\"}) * 1000",
+        "titleFormat": "{{job}} 기동",
+        "textFormat": "{{instance}} {{instance_id}} 버전 {{version}}",
+        "useValueForTime": true
+      }
+    ]
   },
   "links": [
     {
@@ -263,6 +278,103 @@
         }
       },
       "id": 2
+    },
+    {
+      "type": "timeseries",
+      "title": "모니터링 구성 요소가 살아 있는지",
+      "description": "지표, 경보, 로그, 트레이스, 프로파일을 받는 구성 요소마다 수집이 되는지(1)와 안 되는지(0)다. 0 이 5분 이어지면 경보 TargetDown 이 울린다. 그 구성 요소가 받는 신호는 그동안 빠진다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          },
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (job) (up{job=~\"prometheus|alertmanager|loki|tempo|pyroscope|alloy|node|cadvisor|mysqld|redis|cloudwatch\"})",
+          "legendFormat": "{{job}}"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "id": 3
+    },
+    {
+      "type": "timeseries",
+      "title": "규칙 평가 실패 (5분)",
+      "description": "Prometheus 가 규칙 묶음을 평가하다 오류가 난 수다. 0 이 정상이다. 0 이 아니면 그 묶음의 경보가 울리지 않은 채 멈춰 있고 경보 PrometheusRuleEvaluationFailures 가 울린다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (rule_group) (increase(prometheus_rule_evaluation_failures_total[5m])) or vector(0)",
+          "legendFormat": "{{rule_group}}"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "id": 4
     }
   ]
 }

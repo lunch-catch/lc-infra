@@ -29,8 +29,22 @@ metrics:
     aws_extended_statistics: [p99]
     delay_seconds: 120
 
+  # 대상 그룹의 정상과 비정상 대상 수다(lc-infra #171). 정상 0 은 CloudWatch 경보가 직접 보고, 여기서는 대시보드에서 한 대만 빠진 것을 본다
   - aws_namespace: AWS/ApplicationELB
-    aws_metric_name: ConsumedLCUs
+    aws_metric_name: HealthyHostCount
+    aws_dimensions: [TargetGroup, LoadBalancer]
+    aws_statistics: [Minimum]
+    delay_seconds: 120
+
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: UnHealthyHostCount
+    aws_dimensions: [TargetGroup, LoadBalancer]
+    aws_statistics: [Maximum]
+    delay_seconds: 120
+
+  # 연결 상한에 걸려 ALB 가 받지 못한 연결 수다(lc-infra #171). 앱이 보지 못하는 실패다
+  - aws_namespace: AWS/ApplicationELB
+    aws_metric_name: RejectedConnectionCount
     aws_dimensions: [LoadBalancer]
     aws_statistics: [Sum]
     delay_seconds: 120
@@ -50,6 +64,29 @@ metrics:
     aws_metric_name: DatabaseConnections
     aws_dimensions: [DBInstanceIdentifier]
     aws_statistics: [Average, Maximum]
+
+  # DB 가 느린지를 앱의 커넥션 대기로 짐작하지 않고 DB 쪽에서 본다(lc-infra #171). AWS 권장 경보의 대상이다.
+  # DBLoad 는 Performance Insights 를 켜야 나와 넣지 않는다
+  - aws_namespace: AWS/RDS
+    aws_metric_name: CPUUtilization
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: ReadLatency
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: WriteLatency
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+
+  # Valkey 는 명령을 한 스레드로 돌려 노드 CPU 보다 엔진 CPU 가 먼저 찬다(lc-infra #171). 경보 CacheEngineCpuHigh 가 본다
+  - aws_namespace: AWS/ElastiCache
+    aws_metric_name: EngineCPUUtilization
+    aws_dimensions: [CacheClusterId]
+    aws_statistics: [Average]
 
   # 크레딧은 서서히 변한다. 300초로 긁어 API 요청을 아낀다.
   - aws_namespace: AWS/RDS

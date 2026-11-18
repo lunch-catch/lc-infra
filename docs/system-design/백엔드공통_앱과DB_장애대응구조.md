@@ -558,7 +558,6 @@ resource "aws_lb" "main" {
 | CloudWatch `HTTPCode_ELB_502_Count` | 대상 연결 실패 | 무료 한도 |
 | CloudWatch `HealthyHostCount` | 대상 그룹 정상 호스트 수 | 무료 한도 |
 | CloudWatch `TargetResponseTime` | 대상 응답 지연 | 무료 한도 |
-| CloudWatch `ConsumedLCUs` | LCU 소모량 | 무료 한도 |
 | ACM `DaysToExpiry` | 인증서 잔여일 | 무료 한도 |
 
 **Route 53 헬스체크는 모니터링 인스턴스와 독립적이다.** 모니터링이 죽어도 동작하므로, 단일 장애점 보완책으로도 기능한다.

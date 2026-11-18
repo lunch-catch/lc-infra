@@ -19,7 +19,22 @@
     "list": []
   },
   "annotations": {
-    "list": []
+    "list": [
+      {
+        "name": "배포와 재기동",
+        "enable": true,
+        "iconColor": "blue",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "step": "60s",
+        "expr": "max by (job, instance, instance_id, version) (process_start_time_seconds{job=~\"app|batch\"}) * 1000",
+        "titleFormat": "{{job}} 기동",
+        "textFormat": "{{instance}} {{instance_id}} 버전 {{version}}",
+        "useValueForTime": true
+      }
+    ]
   },
   "links": [
     {

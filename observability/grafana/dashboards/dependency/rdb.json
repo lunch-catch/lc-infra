@@ -19,7 +19,22 @@
     "list": []
   },
   "annotations": {
-    "list": []
+    "list": [
+      {
+        "name": "배포와 재기동",
+        "enable": true,
+        "iconColor": "blue",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "step": "60s",
+        "expr": "max by (job, instance, instance_id, version) (process_start_time_seconds{job=~\"app|batch\"}) * 1000",
+        "titleFormat": "{{job}} 기동",
+        "textFormat": "{{instance}} {{instance_id}} 버전 {{version}}",
+        "useValueForTime": true
+      }
+    ]
   },
   "links": [
     {
@@ -739,6 +754,111 @@
         "h": 8
       },
       "id": 11
+    },
+    {
+      "type": "timeseries",
+      "title": "RDS CPU 사용률",
+      "description": "RDS 인스턴스의 CPU 사용률이다(CloudWatch CPUUtilization). 느린 쿼리와 커넥션 대기의 원인이 DB 쪽인지 가른다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "aws_rds_cpuutilization_average",
+          "legendFormat": "CPU"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 12,
+        "h": 8
+      },
+      "id": 12
+    },
+    {
+      "type": "timeseries",
+      "title": "RDS 읽기와 쓰기 지연",
+      "description": "RDS 가 디스크 I/O 한 번에 걸린 평균 시간이다(CloudWatch ReadLatency, WriteLatency). 쿼리 시간이 아니라 저장 장치의 지연이다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "aws_rds_read_latency_average",
+          "legendFormat": "읽기"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "aws_rds_write_latency_average",
+          "legendFormat": "쓰기"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 31,
+        "w": 12,
+        "h": 8
+      },
+      "id": 13
     }
   ]
 }

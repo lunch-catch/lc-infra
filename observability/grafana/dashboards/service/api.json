@@ -19,7 +19,22 @@
     "list": []
   },
   "annotations": {
-    "list": []
+    "list": [
+      {
+        "name": "배포와 재기동",
+        "enable": true,
+        "iconColor": "blue",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "step": "60s",
+        "expr": "max by (job, instance, instance_id, version) (process_start_time_seconds{job=~\"app|batch\"}) * 1000",
+        "titleFormat": "{{job}} 기동",
+        "textFormat": "{{instance}} {{instance_id}} 버전 {{version}}",
+        "useValueForTime": true
+      }
+    ]
   },
   "links": [
     {
@@ -277,13 +292,118 @@
       "id": 13
     },
     {
+      "type": "timeseries",
+      "title": "대상 그룹의 정상과 비정상 대상 수",
+      "description": "ALB 가 헬스체크로 본 대상 그룹의 정상 대상 수(1분 안의 최소)와 비정상 대상 수(최대)다. 한 대만 빠져도 여기서 보인다. 정상이 0 이 되면 CloudWatch 경보 healthy_host_count 가 울린다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "aws_applicationelb_healthy_host_count_minimum",
+          "legendFormat": "정상 {{dimension_TargetGroup}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "aws_applicationelb_un_healthy_host_count_maximum",
+          "legendFormat": "비정상 {{dimension_TargetGroup}}"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      },
+      "id": 14
+    },
+    {
+      "type": "timeseries",
+      "title": "ALB 가 받지 못한 연결 (분당)",
+      "description": "ALB 가 연결 상한에 걸려 거절한 연결 수다(RejectedConnectionCount). 앱에 닿지 않아 앱 지표에는 나오지 않는 실패다. 0 이 정상이다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "aws_applicationelb_rejected_connection_count_sum",
+          "legendFormat": "거절된 연결"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      },
+      "id": 15
+    },
+    {
       "type": "row",
       "title": "기준 초과",
       "collapsed": false,
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 9,
+        "y": 17,
         "w": 24,
         "h": 1
       },
@@ -300,7 +420,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 10,
+        "y": 18,
         "w": 12,
         "h": 12
       },
@@ -361,7 +481,7 @@
       "description": "API별로 p99 를 계산해 가장 느린 열을 그린다. 지표는 API 종류 200 개까지 받는다(lc-backend#1093). 붉은 점선은 목표를 정하지 않은 API 의 기본 상한(0.5초)이다. 모든 API 의 기준은 아니다. API마다의 목표는 기준을 넘은 API 패널이 견준다",
       "gridPos": {
         "x": 12,
-        "y": 10,
+        "y": 18,
         "w": 12,
         "h": 12
       },
@@ -450,7 +570,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 22,
+        "y": 30,
         "w": 24,
         "h": 1
       },
@@ -492,7 +612,7 @@
       ],
       "gridPos": {
         "x": 0,
-        "y": 23,
+        "y": 31,
         "w": 12,
         "h": 8
       },
@@ -536,7 +656,7 @@
       ],
       "gridPos": {
         "x": 12,
-        "y": 23,
+        "y": 31,
         "w": 12,
         "h": 8
       },
@@ -617,7 +737,7 @@
       ],
       "gridPos": {
         "x": 0,
-        "y": 31,
+        "y": 39,
         "w": 12,
         "h": 8
       },
@@ -630,7 +750,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 39,
+        "y": 47,
         "w": 24,
         "h": 1
       },
@@ -672,7 +792,7 @@
       ],
       "gridPos": {
         "x": 0,
-        "y": 40,
+        "y": 48,
         "w": 12,
         "h": 8
       },
@@ -714,7 +834,7 @@
       ],
       "gridPos": {
         "x": 12,
-        "y": 40,
+        "y": 48,
         "w": 12,
         "h": 8
       },
