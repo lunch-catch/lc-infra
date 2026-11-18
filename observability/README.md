@@ -203,7 +203,7 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 
 `grafana/dashboards/{계층}/*.json` 이 Git 에 있고 프로비저닝으로 올라간다.
 화면에서 고친 것은 저장되지 않는다 (`allowUiUpdates: false`). 데이터소스를 코드로 넣은 것과 같은 이유다 (`OPS-2-18`).
-대시보드는 계층마다 폴더 하나에 묶는다(lc-infra #169). 디렉터리는 영어이고, 화면의 폴더 이름은 `grafana/provisioning/dashboards/dashboards.yml` 이 디렉터리마다 붙인다. 폴더와 폴더 안의 대시보드는 계층 순서로 둔다. Grafana 는 이름순으로만 놓아, 폴더 이름과 대시보드 제목 앞에 "1." 꼴의 순번을 붙인다. 대시보드가 하나뿐인 폴더는 붙이지 않고, 파일 이름과 uid 에는 붙이지 않는다.
+대시보드는 계층마다 폴더 하나에 묶는다(lc-infra #169). 디렉터리는 영어이고, 화면의 폴더 이름은 `grafana/provisioning/dashboards/dashboards.yml` 이 디렉터리마다 붙인다. 폴더와 폴더 안의 대시보드는 계층 순서로 둔다. Grafana 는 이름순으로만 놓아, 폴더 이름과 대시보드 제목 앞에 "1." 꼴의 순번을 붙인다. 대시보드가 하나뿐인 폴더는 붙이지 않고, 파일 이름과 uid 에는 붙이지 않는다. 대시보드마다 `lunchcatch` 와 계층 태그(순번을 뺀 폴더 이름)를 달고, 위쪽 링크는 그 태그로 거른 계층마다의 드롭다운 일곱 개다.
 
 | 파일 | 폴더 | 화면 | 무엇을 보나 |
 |---|---|---|---|

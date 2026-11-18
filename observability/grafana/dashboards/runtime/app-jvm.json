@@ -3,7 +3,8 @@
   "title": "애플리케이션 서버 자원",
   "description": "API 서버와 배치 서버에서 도는 자바 프로세스가 쓰는 자원(톰캣 스레드, DB 커넥션 풀, 스레드, JVM 의 CPU 와 GC 와 메모리)이다. 컨테이너가 쓰는 메모리는 위쪽 링크의 호스트에서 본다. 위쪽의 서버에서 API 서버(app)와 배치 서버(batch)를 고른다. 기계의 자원은 호스트가 본다. 앱이 느려질 때 원인을 여기서 좁힌다",
   "tags": [
-    "lunchcatch"
+    "lunchcatch",
+    "런타임"
   ],
   "timezone": "browser",
   "editable": false,
@@ -51,10 +52,101 @@
   },
   "links": [
     {
-      "title": "대시보드",
+      "title": "1. 개요",
       "type": "dashboards",
       "tags": [
-        "lunchcatch"
+        "lunchcatch",
+        "개요"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "2. 서비스",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "서비스"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "3. 도메인",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "도메인"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "4. 런타임",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "런타임"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "5. 의존 시스템",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "의존 시스템"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "6. 인프라",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "인프라"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "7. 테스트",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "테스트"
       ],
       "asDropdown": true,
       "keepTime": true,

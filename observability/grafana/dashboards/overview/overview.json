@@ -1,9 +1,10 @@
 {
   "uid": "lc-overview",
   "title": "시스템 개요",
-  "description": "요청, 지연, 에러와 계층마다의 핵심 지표를 한 화면에서 본다. 장애 판단의 첫 화면이다. 영역의 패널을 누르면 그 영역의 대시보드로 넘어가고, 다른 대시보드는 위쪽의 대시보드 목록에서 연다",
+  "description": "요청, 지연, 에러와 계층마다의 핵심 지표를 한 화면에서 본다. 장애 판단의 첫 화면이다. 영역의 패널을 누르면 그 영역의 대시보드로 넘어가고, 다른 대시보드는 위쪽의 계층마다의 목록(1. 개요 ~ 7. 테스트)에서 연다",
   "tags": [
-    "lunchcatch"
+    "lunchcatch",
+    "개요"
   ],
   "timezone": "browser",
   "editable": false,
@@ -22,10 +23,101 @@
   },
   "links": [
     {
-      "title": "대시보드",
+      "title": "1. 개요",
       "type": "dashboards",
       "tags": [
-        "lunchcatch"
+        "lunchcatch",
+        "개요"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "2. 서비스",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "서비스"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "3. 도메인",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "도메인"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "4. 런타임",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "런타임"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "5. 의존 시스템",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "의존 시스템"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "6. 인프라",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "인프라"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "7. 테스트",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch",
+        "테스트"
       ],
       "asDropdown": true,
       "keepTime": true,
