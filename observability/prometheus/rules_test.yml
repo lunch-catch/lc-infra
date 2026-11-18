@@ -5,6 +5,8 @@
 # 0+60x... 은 매분 성공해 늘 최신인 작업이다.
 rule_files:
   - rules.yml
+  # BatchNotRun 이 작업마다의 임계값을 여기서 읽는다(lc-infra #169)
+  - thresholds.yml
 
 evaluation_interval: 1m
 

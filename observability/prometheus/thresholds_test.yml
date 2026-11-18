@@ -23,3 +23,29 @@ tests:
             value: 0.1
           - labels: 'overrun_threshold_ratio{kind="global", name="heap-after-gc"}'
             value: 0.7
+
+  # 배치 작업마다 마지막 성공 뒤 허용하는 시간이다. 서버가 둘이어도 작업마다 하나다(lc-infra #169)
+  - interval: 1m
+    input_series:
+      - series: 'batch_job_last_success_timestamp_seconds{job="batch", instance="a", scheduler="DailyJobScheduler.sendHeartbeat()"}'
+        values: '0x3'
+      - series: 'batch_job_last_success_timestamp_seconds{job="batch", instance="b", scheduler="DailyJobScheduler.sendHeartbeat()"}'
+        values: '0x3'
+      - series: 'batch_job_last_success_timestamp_seconds{job="batch", instance="a", scheduler="ImpressionDispatchJob.dispatchPending()"}'
+        values: '0x3'
+      - series: 'batch_job_last_success_timestamp_seconds{job="batch", instance="a", scheduler="EventLogRetentionJob.purgeExpiredEvents()"}'
+        values: '0x3'
+      - series: 'batch_job_last_success_timestamp_seconds{job="batch", instance="a", scheduler="DailyJobScheduler.runDailyBundle()"}'
+        values: '0x3'
+    promql_expr_test:
+      - expr: batch_job_not_run_threshold_seconds
+        eval_time: 1m
+        exp_samples:
+          - labels: 'batch_job_not_run_threshold_seconds{scheduler="DailyJobScheduler.sendHeartbeat()"}'
+            value: 1800
+          - labels: 'batch_job_not_run_threshold_seconds{scheduler="ImpressionDispatchJob.dispatchPending()"}'
+            value: 300
+          - labels: 'batch_job_not_run_threshold_seconds{scheduler="EventLogRetentionJob.purgeExpiredEvents()"}'
+            value: 180000
+          - labels: 'batch_job_not_run_threshold_seconds{scheduler="DailyJobScheduler.runDailyBundle()"}'
+            value: 90000

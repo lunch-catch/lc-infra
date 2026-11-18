@@ -716,7 +716,7 @@
     {
       "type": "timeseries",
       "title": "마지막 성공 이후 경과",
-      "description": "작업마다 마지막으로 성공한 뒤 지난 시간이다. 배치는 실패가 아니라 조용히 멈추는 것이 문제라 이 값으로 본다. 경보 BatchNotRun 의 기준이 작업마다 달라(재조회, 재예약, 발행은 300초, 생존 신호, 이어받기, 쿠폰 만료, 예산 갱신은 1800초, 00:00 묶음 같은 하루 작업은 90000초, 이벤트 로그 정리는 180000초) 한 선을 긋지 않는다. 작업마다의 기준은 rules.yml 의 BatchNotRun 에 있다",
+      "description": "작업마다 마지막으로 성공한 뒤 지난 시간이다. 배치는 실패가 아니라 조용히 멈추는 것이 문제라 이 값으로 본다. 경보 BatchNotRun 의 기준이 작업마다 달라(재조회, 재예약, 발행은 300초, 생존 신호, 이어받기, 쿠폰 만료, 예산 갱신은 1800초, 00:00 묶음 같은 하루 작업은 90000초, 이벤트 로그 정리는 180000초) 한 선을 긋지 않는다. 작업마다 자기 기준과 견준 값은 옆의 기준 대비 패널에서 본다",
       "gridPos": {
         "x": 0,
         "y": 44,
@@ -780,6 +780,68 @@
     },
     {
       "type": "timeseries",
+      "title": "마지막 성공 이후 경과 (기준 대비)",
+      "description": "작업마다 마지막 성공 뒤 지난 시간을 그 작업의 BatchNotRun 기준으로 나눈 비율이다. 붉은 선 100% 를 넘은 작업은 5분 넘게 이어지면 BatchNotRun 이 울린다. 기준은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml 의 batch_job_not_run_threshold_seconds)에서 읽고, 경보도 같은 값을 쓴다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(time() - batch_job_last_success_timestamp_seconds{job=\"batch\"}) / on (scheduler) group_left() batch_job_not_run_threshold_seconds",
+          "legendFormat": "{{scheduler}} {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 44,
+        "w": 12,
+        "h": 8
+      },
+      "id": 6
+    },
+    {
+      "type": "timeseries",
       "title": "cron 작업마다 실패한 실행 수 (1시간)",
       "description": "cron 작업마다 최근 1시간에 실패로 끝난 실행 수다. 0 이 정상이다. 같은 줄의 다른 패널처럼 fixedDelay 로 도는 작업(발행, 재조회, 재예약, 생존 신호, 이어받기)은 뺀다",
       "datasource": {
@@ -813,12 +875,12 @@
         }
       ],
       "gridPos": {
-        "x": 12,
-        "y": 44,
+        "x": 0,
+        "y": 52,
         "w": 12,
         "h": 8
       },
-      "id": 6
+      "id": 7
     }
   ]
 }
