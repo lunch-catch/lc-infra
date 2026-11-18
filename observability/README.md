@@ -233,7 +233,9 @@ RDS 여유 메모리가 그것이고, 해당 패널 설명에 적어 두었다. 
 
 ```bash
 cd /opt/lunchcatch/infra && git pull --ff-only
-# 프로비저닝이 30초마다 파일을 다시 읽어 재시작이 필요 없다.
+# 대시보드 JSON 만 바뀌었으면 프로비저닝이 30초마다 파일을 다시 읽어 재시작이 필요 없다.
+# 공급 설정(grafana/provisioning/dashboards/dashboards.yml)이 바뀌었으면 Grafana 가 뜰 때만 읽으므로 다시 띄운다.
+docker restart grafana
 ```
 
 ### CloudWatch 지표 이름 확인

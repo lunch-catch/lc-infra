@@ -58,8 +58,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max by (job, instance) (scrape_duration_seconds{job=~\"app|batch\"})",
-          "legendFormat": "{{job}} {{instance}}"
+          "expr": "max by (job, instance, instance_id) (scrape_duration_seconds{job=~\"app|batch\"})",
+          "legendFormat": "{{job}} {{instance}} {{instance_id}}"
         }
       ],
       "fieldConfig": {
@@ -98,7 +98,8 @@
         "tooltip": {
           "mode": "multi"
         }
-      }
+      },
+      "id": 1
     },
     {
       "type": "stat",
@@ -107,7 +108,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "보고 있는 범위에서 수집이 빠진 칸(15초)의 수를 서버마다 센다. 0 이 아니면 그 칸의 그래프는 비어 있고, 비어 있는 것은 괜찮았다는 뜻이 아니다",
+      "description": "보고 있는 범위에서 수집이 빠진 칸(15초)의 수를 서버마다 센다. 받아야 할 칸에서 수집에 성공한 칸을 빼, 수집이 실패한 칸(up 이 0)과 표본이 아예 없는 칸(가상 머신이나 서버가 멈춤)을 함께 센다. 0 이 아니면 그 칸의 그래프는 비어 있고, 비어 있는 것은 괜찮았다는 뜻이 아니다. 범위 전체에 표본이 없는 서버는 나오지 않는다",
       "gridPos": {
         "x": 12,
         "y": 0,
@@ -121,8 +122,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (job, instance) (count_over_time((up{job=~\"app|batch\"} == 0)[$__range:15s])) or sum by (job, instance) (up{job=~\"app|batch\"}) * 0",
-          "legendFormat": "{{job}} {{instance}}",
+          "expr": "floor(clamp_min(($__range_s / 15 - 1) - sum by (job, instance, instance_id) (sum_over_time(up{job=~\"app|batch\"}[$__range])), 0))",
+          "legendFormat": "{{job}} {{instance}} {{instance_id}}",
           "instant": true
         }
       ],
@@ -158,7 +159,8 @@
           "fields": "",
           "values": false
         }
-      }
+      },
+      "id": 2
     }
   ]
 }

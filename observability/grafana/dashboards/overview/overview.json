@@ -47,7 +47,8 @@
         "w": 24,
         "h": 1
       },
-      "panels": []
+      "panels": [],
+      "id": 1
     },
     {
       "type": "stat",
@@ -99,7 +100,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 2
     },
     {
       "type": "stat",
@@ -166,7 +168,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 3
     },
     {
       "type": "stat",
@@ -233,7 +236,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 4
     },
     {
       "type": "stat",
@@ -285,7 +289,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 5
     },
     {
       "type": "stat",
@@ -400,7 +405,8 @@
           },
           "instant": true
         }
-      ]
+      ],
+      "id": 6
     },
     {
       "type": "state-timeline",
@@ -500,7 +506,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 7
     },
     {
       "type": "row",
@@ -512,7 +519,8 @@
         "w": 24,
         "h": 1
       },
-      "panels": []
+      "panels": [],
+      "id": 8
     },
     {
       "type": "stat",
@@ -609,7 +617,8 @@
           },
           "instant": true
         }
-      ]
+      ],
+      "id": 9
     },
     {
       "type": "stat",
@@ -786,7 +795,8 @@
           },
           "instant": true
         }
-      ]
+      ],
+      "id": 10
     },
     {
       "type": "stat",
@@ -921,7 +931,8 @@
           },
           "instant": true
         }
-      ]
+      ],
+      "id": 11
     },
     {
       "type": "stat",
@@ -1098,7 +1109,8 @@
           },
           "instant": true
         }
-      ]
+      ],
+      "id": 12
     },
     {
       "type": "stat",
@@ -1275,7 +1287,8 @@
           },
           "instant": true
         }
-      ]
+      ],
+      "id": 13
     },
     {
       "type": "stat",
@@ -1406,7 +1419,8 @@
           },
           "instant": true
         }
-      ]
+      ],
+      "id": 14
     },
     {
       "type": "stat",
@@ -1583,7 +1597,8 @@
           },
           "instant": true
         }
-      ]
+      ],
+      "id": 15
     },
     {
       "type": "stat",
@@ -1752,12 +1767,13 @@
           },
           "instant": true
         }
-      ]
+      ],
+      "id": 16
     },
     {
       "type": "stat",
       "title": "지표 수집",
-      "description": "고른 범위에 앱과 배치의 지표 수집이 실패한 칸(15초) 수다. 0 이 아니면 그 구간의 다른 패널을 덜 믿는다",
+      "description": "고른 범위에 앱과 배치의 지표 수집이 빠진 칸(15초) 수다. 수집이 실패한 칸과 표본이 아예 없는 칸을 함께 센다. 0 이 아니면 그 구간의 다른 패널을 덜 믿는다",
       "gridPos": {
         "x": 0,
         "y": 22,
@@ -1841,7 +1857,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(count_over_time((up{job=~\"app|batch\"} == 0)[$__range:15s])) or vector(0)",
+          "expr": "sum(floor(clamp_min(($__range_s / 15 - 1) - sum by (job, instance, instance_id) (sum_over_time(up{job=~\"app|batch\"}[$__range])), 0))) or vector(0)",
           "legendFormat": "수집 실패(칸)",
           "datasource": {
             "type": "prometheus",
@@ -1849,7 +1865,8 @@
           },
           "instant": true
         }
-      ]
+      ],
+      "id": 17
     },
     {
       "type": "row",
@@ -1861,7 +1878,8 @@
         "w": 24,
         "h": 1
       },
-      "panels": []
+      "panels": [],
+      "id": 18
     },
     {
       "type": "timeseries",
@@ -1909,7 +1927,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 19
     },
     {
       "type": "timeseries",
@@ -1957,7 +1976,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 20
     },
     {
       "type": "timeseries",
@@ -2023,7 +2043,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 21
     }
   ]
 }

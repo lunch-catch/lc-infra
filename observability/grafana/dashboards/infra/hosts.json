@@ -47,7 +47,8 @@
         "w": 24,
         "h": 1
       },
-      "panels": []
+      "panels": [],
+      "id": 1
     },
     {
       "type": "timeseries",
@@ -115,7 +116,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 2
     },
     {
       "type": "row",
@@ -127,7 +129,8 @@
         "w": 24,
         "h": 1
       },
-      "panels": []
+      "panels": [],
+      "id": 3
     },
     {
       "type": "timeseries",
@@ -177,7 +180,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 4
     },
     {
       "type": "timeseries",
@@ -227,7 +231,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 5
     },
     {
       "type": "timeseries",
@@ -293,7 +298,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 6
     },
     {
       "type": "timeseries",
@@ -341,7 +347,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 7
     },
     {
       "type": "row",
@@ -353,7 +360,8 @@
         "w": 24,
         "h": 1
       },
-      "panels": []
+      "panels": [],
+      "id": 8
     },
     {
       "type": "timeseries",
@@ -417,7 +425,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 9
     },
     {
       "type": "timeseries",
@@ -465,7 +474,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 10
     },
     {
       "type": "row",
@@ -477,7 +487,8 @@
         "y": 35,
         "w": 24,
         "h": 1
-      }
+      },
+      "id": 11
     },
     {
       "type": "timeseries",
@@ -534,12 +545,13 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 12
     },
     {
       "type": "timeseries",
       "title": "앱 응답시간 (ALB 측정)",
-      "description": "ALB 가 요청을 앱에 넘긴 뒤 응답이 오기까지의 시간(TargetResponseTime)이다. ALB 자신의 처리 시간이 아니다. 앱이 잰 응답시간보다 크면 그 차이는 앱 앞(톰캣 대기 줄, 연결)에서 기다린 시간이다.",
+      "description": "ALB 가 요청을 앱에 넘긴 뒤 응답이 오기까지의 시간(TargetResponseTime)이다. ALB 자신의 처리 시간이 아니다. 앱이 잰 응답시간과 다르면 앱 앞(톰캣 대기 줄, 연결)에서 기다렸을 수 있지만, 요청 집합과 집계 구간이 달라도 차이가 난다. 차이가 크면 트레이스로 어디서 기다렸는지 확인한다",
       "gridPos": {
         "x": 12,
         "y": 36,
@@ -591,7 +603,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 13
     }
   ]
 }

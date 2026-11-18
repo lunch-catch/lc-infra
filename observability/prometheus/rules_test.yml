@@ -385,7 +385,7 @@ tests:
         alertname: RelayBacklogHigh
         exp_alerts:
           - exp_labels: {severity: warning, relay: adserving.impression}
-            exp_annotations: {description: "릴레이 adserving.impression 의 미발행이 150 건이다. 기준은 100건이다. 06 의 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라"}
+            exp_annotations: {description: "릴레이 adserving.impression 의 미발행이 150 건이다. 기준은 100건이다. 백그라운드 작업 대시보드의 아웃박스 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라"}
       # 포기한 건은 기다리지 않고 곧바로 울린다
       - eval_time: 5m
         alertname: RelayAbandoned
@@ -484,7 +484,7 @@ tests:
         alertname: RelayBacklogHigh
         exp_alerts:
           - exp_labels: {severity: warning, relay: adserving.impression}
-            exp_annotations: {description: "릴레이 adserving.impression 의 미발행이 150 건이다. 기준은 100건이다. 06 의 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라"}
+            exp_annotations: {description: "릴레이 adserving.impression 의 미발행이 150 건이다. 기준은 100건이다. 백그라운드 작업 대시보드의 아웃박스 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라"}
       - eval_time: 35m
         alertname: RelayAbandoned
         exp_alerts:

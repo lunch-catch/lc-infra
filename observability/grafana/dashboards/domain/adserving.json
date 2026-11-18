@@ -56,7 +56,8 @@
         "w": 24,
         "h": 1
       },
-      "panels": []
+      "panels": [],
+      "id": 5
     },
     {
       "type": "timeseries",
@@ -142,7 +143,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 11
     },
     {
       "type": "timeseries",
@@ -228,7 +230,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 12
     },
     {
       "type": "row",
@@ -240,12 +243,14 @@
         "w": 24,
         "h": 1
       },
+      "id": 1,
       "panels": []
     },
     {
       "type": "timeseries",
       "title": "캐시 장애로 건너뛴 규칙 (분당)",
       "description": "Valkey 명령이 실패해 그 규칙을 건너뛴 횟수다. 정상이면 0 이다. 10분 넘게 이어지면 AdservingCacheBypass 가 use 별로 울린다.",
+      "id": 2,
       "gridPos": {
         "x": 0,
         "y": 10,
@@ -295,6 +300,7 @@
       "type": "timeseries",
       "title": "정산에서 예산을 못 읽은 횟수",
       "description": "광고 서빙이 정산에서 그날 예산(예약액과 단가)을 읽지 못한 횟수다. 00:00 후보 적재 끝과 10분마다 읽어 10분 창으로 센다. 못 읽으면 이전 값을 쓴다. 값이 처음부터 없으면 그동안 피드가 예산 규칙 없이 나간다. AdservingBudgetUnavailable.",
+      "id": 3,
       "gridPos": {
         "x": 12,
         "y": 10,
@@ -350,12 +356,14 @@
         "w": 24,
         "h": 1
       },
+      "id": 4,
       "panels": []
     },
     {
       "type": "timeseries",
       "title": "서빙 로그를 못 쓴 수와 유실률",
-      "description": "서빙 로그와 첫 접속 위치를 버리거나 쓰지 못한 수를 분당으로, 그 합이 서빙 로그 전체에서 차지하는 비율을 오른쪽 축에 그린다",
+      "description": "서빙 로그를 버리거나 쓰지 못한 수와 첫 접속 위치를 쓰지 못한 수를 분당으로 그리고, 오른쪽 축에 유실률을 그린다. 유실률은 서빙 로그를 버린 수와 못 쓴 수(adserving_serve_log_dropped_total, adserving_serve_log_failed_total)의 합을 내려준 카드 수로 나눈 값이다. 첫 접속 위치를 못 쓴 수는 분당 수에만 들어가고 유실률에는 들어가지 않는다",
+      "id": 6,
       "gridPos": {
         "x": 0,
         "y": 19,
@@ -457,6 +465,7 @@
       "type": "timeseries",
       "title": "내려준 카드 (분당)",
       "description": "피드로 내려준 카드 수다. 경보 대상이 아니고 유실률의 분모다.",
+      "id": 7,
       "gridPos": {
         "x": 12,
         "y": 19,
@@ -506,6 +515,7 @@
       "type": "timeseries",
       "title": "노출 캠페인 불일치 (분당)",
       "description": "노출 요청의 캠페인이 serve 기록과 다른 횟수다. 클라이언트 버그나 조작된 요청이다. 판정은 serve 기록으로 해서 알람은 두지 않는다.",
+      "id": 8,
       "gridPos": {
         "x": 0,
         "y": 27,
@@ -561,12 +571,14 @@
         "w": 24,
         "h": 1
       },
+      "id": 9,
       "panels": []
     },
     {
       "type": "logs",
       "title": "광고 서빙 경고와 오류 로그",
       "description": "지표가 오른 순간의 원인을 본다. 광고 서빙의 로그(event=ADSERVING_...) 가운데 WARN 과 ERROR 를 앱과 배치 서버에서 모두 고른다. 한 줄에 하나씩 보이게 message 만 보인다. 스택 트레이스는 Explore 에서 같은 쿼리의 line_format 을 빼고 본다.",
+      "id": 10,
       "gridPos": {
         "x": 0,
         "y": 36,

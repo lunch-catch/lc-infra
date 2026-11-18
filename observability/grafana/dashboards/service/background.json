@@ -65,9 +65,11 @@
         "y": 0,
         "w": 24,
         "h": 1
-      }
+      },
+      "id": 1
     },
     {
+      "id": 113,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: 릴레이마다 발행 지연 p99",
       "description": "기준을 넘은 동안의 발행 지연 p99 를 릴레이마다 그린다. 발행 지연은 건이 생긴 뒤 발행하기까지의 시간이다. 기준은 기본 5초이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 릴레이 작업의 실행 트레이스 목록이 열린다",
@@ -145,6 +147,7 @@
       }
     },
     {
+      "id": 8,
       "type": "timeseries",
       "title": "릴레이마다 지금 발행할 수 있는 건의 가장 오래 기다린 시간",
       "description": "지금 발행할 수 있는 미발행 가운데 가장 오래 기다린 건의 대기 시간을 그린다. 재시도를 기다리는 건과 포기한 건은 넣지 않는다. 릴레이가 멈추거나 못 따라가면 계속 자란다",
@@ -203,6 +206,7 @@
       }
     },
     {
+      "id": 9,
       "type": "timeseries",
       "title": "릴레이마다 미발행 건수",
       "description": "릴레이마다 미발행 건수를 그린다. 빨간 점선은 적체 기준(100건)이고 RelayBacklogHigh 경보의 기준이다",
@@ -300,6 +304,7 @@
       }
     },
     {
+      "id": 114,
       "type": "timeseries",
       "title": "릴레이마다 포기한 건수",
       "description": "상한만큼 실패해 발행을 포기한 건수를 그린다. 0 이 정상이고, 0 보다 크면 RelayAbandoned 경보가 울린다",
@@ -396,7 +401,8 @@
         "y": 17,
         "w": 12,
         "h": 8
-      }
+      },
+      "id": 2
     },
     {
       "type": "row",
@@ -408,9 +414,11 @@
         "y": 25,
         "w": 24,
         "h": 1
-      }
+      },
+      "id": 3
     },
     {
+      "id": 10,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: 워커마다 가장 오래 기다린 작업의 대기 시간",
       "description": "기준을 넘은 동안의 가장 오래 기다린 작업의 대기 시간을 워커마다 그린다. 기준은 기본 5초이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 워커 스레드의 SQL 트레이스 목록이 열린다",
@@ -488,6 +496,7 @@
       }
     },
     {
+      "id": 11,
       "type": "timeseries",
       "title": "워커마다 대기열 길이",
       "description": "워커마다 대기열 길이를 그린다. 대기 시간이 올랐을 때 밀린 양도 함께 늘었는지 본다",
@@ -508,8 +517,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max by (worker) (async_worker_queue_size)",
-          "legendFormat": "{{worker}}"
+          "expr": "max by (worker, instance, instance_id) (async_worker_queue_size)",
+          "legendFormat": "{{worker}} {{instance}} {{instance_id}}"
         }
       ],
       "fieldConfig": {
@@ -555,9 +564,11 @@
         "y": 34,
         "w": 24,
         "h": 1
-      }
+      },
+      "id": 4
     },
     {
+      "id": 134,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: cron 작업마다 시작 뒤 지난 시간",
       "description": "마감을 넘겨 도는 동안의 시작 뒤 지난 시간을 cron 작업마다 그린다. 끝나지 않고 멈춘 작업을 끝나기 전에 잡는다. 마감은 기본 10분이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 작업의 실행 트레이스 목록이 열린다",
@@ -635,6 +646,7 @@
       }
     },
     {
+      "id": 135,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: cron 작업마다 실행 한 번에 걸린 시간",
       "description": "마감보다 오래 걸린 cron 실행의 걸린 시간을 그린다. 실행이 끝난 뒤 2분 남짓 남았다가 사라진다. 마감은 기본 10분이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 작업의 실행 트레이스 목록이 열린다",
@@ -704,7 +716,7 @@
     {
       "type": "timeseries",
       "title": "마지막 성공 이후 경과",
-      "description": "BatchNotRun 임계 1800초를 선으로 그렸다. 배치는 실패가 아니라 조용히 멈추는 것이 문제라 이 값으로 본다.",
+      "description": "작업마다 마지막으로 성공한 뒤 지난 시간이다. 배치는 실패가 아니라 조용히 멈추는 것이 문제라 이 값으로 본다. 빨간 선 1800초는 생존 신호(sendHeartbeat)와 이어받기(takeOverStale) 같은 작업의 BatchNotRun 기준이다. 작업마다 기준이 달라(재조회와 발행은 300초, 00:00 묶음은 90000초) 모든 선에 맞는 기준은 아니다. 작업마다의 기준은 rules.yml 의 BatchNotRun 에 있다",
       "gridPos": {
         "x": 0,
         "y": 44,
@@ -763,7 +775,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 5
     },
     {
       "type": "timeseries",
@@ -791,7 +804,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (scheduler) (increase(batch_job_duration_seconds_count{job=\"batch\", outcome=\"failure\"}[1h])) > 0",
+          "expr": "sum by (scheduler) (increase(batch_job_duration_seconds_count{job=\"batch\", outcome=\"failure\"}[1h]))",
           "legendFormat": "{{scheduler}}",
           "datasource": {
             "type": "prometheus",
@@ -804,7 +817,8 @@
         "y": 44,
         "w": 12,
         "h": 8
-      }
+      },
+      "id": 6
     }
   ]
 }

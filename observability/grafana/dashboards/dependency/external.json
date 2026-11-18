@@ -47,7 +47,8 @@
         "y": 0,
         "w": 24,
         "h": 1
-      }
+      },
+      "id": 1
     },
     {
       "type": "timeseries",
@@ -88,7 +89,8 @@
         "y": 1,
         "w": 12,
         "h": 8
-      }
+      },
+      "id": 2
     },
     {
       "type": "timeseries",
@@ -131,12 +133,14 @@
         "y": 1,
         "w": 12,
         "h": 8
-      }
+      },
+      "id": 3
     },
     {
+      "id": 141,
       "type": "timeseries",
       "title": "외부 HTTP 호출: 상대와 경로마다 p99",
-      "description": "WebClient 로 부르는 외부 HTTP 호출의 p99 를 상대와 경로마다 그린다. 기준은 아직 정하지 않았다. 선의 점을 누르면 그 상대를 부른 트레이스 목록이 열린다",
+      "description": "WebClient 로 부르는 외부 HTTP 호출의 p99 를 상대와 경로마다 그린다. 기준은 아직 정하지 않았다. 선의 점을 누르면 그 상대를 부른 트레이스 목록이 열린다. 트레이스 목록은 트레이싱을 켠 환경에서만 채워진다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -209,7 +213,8 @@
         "y": 18,
         "w": 24,
         "h": 1
-      }
+      },
+      "id": 4
     },
     {
       "type": "timeseries",
@@ -250,7 +255,8 @@
         "y": 19,
         "w": 12,
         "h": 8
-      }
+      },
+      "id": 5
     },
     {
       "type": "timeseries",
@@ -293,12 +299,14 @@
         "y": 19,
         "w": 12,
         "h": 8
-      }
+      },
+      "id": 6
     },
     {
+      "id": 142,
       "type": "timeseries",
       "title": "AWS SDK 호출: 서비스와 작업과 모델마다 p99",
-      "description": "AWS SDK 호출(Bedrock, S3, Rekognition)의 p99 를 서비스, 작업, 모델마다 그린다. 기준은 아직 정하지 않았다. 선의 점을 누르면 그 서비스와 작업을 부른 트레이스 목록이 열린다",
+      "description": "AWS SDK 호출(Bedrock, S3, Rekognition)의 p99 를 서비스, 작업, 모델마다 그린다. 기준은 아직 정하지 않았다. 선의 점을 누르면 그 서비스와 작업을 부른 트레이스 목록이 열린다. 트레이스 목록은 트레이싱을 켠 환경에서만 채워진다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

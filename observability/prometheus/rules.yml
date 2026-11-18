@@ -344,7 +344,7 @@ groups:
 
       # adserving_impression_campaign_mismatch_total 은 알람을 두지 않는다.
       # 클라이언트 버그나 조작된 요청이고 판정은 serve 기록으로 하므로 서비스는 맞게 돈다.
-      # 대시보드 06 의 패널로 본다.
+      # 광고 서빙 대시보드의 노출 캠페인 불일치 패널로 본다.
 
   # 정산 경보의 1차다 (lc-infra #43). 평소 0 이어야 하는 지표만 건다.
   #
@@ -446,7 +446,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          description: "릴레이 {{ $labels.relay }} 의 미발행이 {{ $value }} 건이다. 기준은 100건이다. 06 의 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라"
+          description: "릴레이 {{ $labels.relay }} 의 미발행이 {{ $value }} 건이다. 기준은 100건이다. 백그라운드 작업 대시보드의 아웃박스 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라"
 
       # 상한만큼 실패해 넘기기를 포기한 건이 있다. 데드레터처럼 사람이 원인을 고쳐야 줄어드니 기다리지 않고 곧바로 울린다
       - alert: RelayAbandoned

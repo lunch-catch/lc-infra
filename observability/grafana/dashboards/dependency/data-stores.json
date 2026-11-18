@@ -47,7 +47,8 @@
         "w": 24,
         "h": 1
       },
-      "panels": []
+      "panels": [],
+      "id": 1
     },
     {
       "type": "stat",
@@ -114,7 +115,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 2
     },
     {
       "type": "stat",
@@ -181,7 +183,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 3
     },
     {
       "type": "stat",
@@ -241,7 +244,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 4
     },
     {
       "type": "stat",
@@ -301,7 +305,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 5
     },
     {
       "type": "row",
@@ -313,12 +318,13 @@
         "w": 24,
         "h": 1
       },
-      "panels": []
+      "panels": [],
+      "id": 6
     },
     {
       "type": "timeseries",
       "title": "MySQL 연결 수",
-      "description": "MySQL 에 연결된 수와 지금 쿼리를 도는 수(mysqld_exporter), 그리고 RDS 가 잰 연결 수의 평균과 최대(CloudWatch)를 함께 그린다. 같은 값을 두 출처로 본다",
+      "description": "MySQL 연결 수를 두 출처로 함께 그린다. mysqld_exporter 는 수집한 그 순간의 연결 수와 쿼리를 도는 스레드 수다. CloudWatch 는 RDS 가 1분마다 집계한 연결 수의 평균과 최대이고, 몇 분 늦게 들어와 같은 시각의 exporter 값과 바로 맞지 않을 수 있다",
       "gridPos": {
         "x": 0,
         "y": 6,
@@ -397,7 +403,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 7
     },
     {
       "type": "timeseries",
@@ -445,7 +452,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 8
     },
     {
       "type": "timeseries",
@@ -497,7 +505,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 9
     },
     {
       "type": "timeseries",
@@ -584,7 +593,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 10
     },
     {
       "type": "row",
@@ -596,7 +606,8 @@
         "w": 24,
         "h": 1
       },
-      "panels": []
+      "panels": [],
+      "id": 11
     },
     {
       "type": "timeseries",
@@ -644,7 +655,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 12
     },
     {
       "type": "row",
@@ -656,7 +668,8 @@
         "w": 24,
         "h": 1
       },
-      "panels": []
+      "panels": [],
+      "id": 13
     },
     {
       "type": "timeseries",
@@ -713,7 +726,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 14
     },
     {
       "type": "timeseries",
@@ -763,7 +777,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 15
     },
     {
       "type": "timeseries",
@@ -811,7 +826,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 16
     },
     {
       "type": "timeseries",
@@ -859,7 +875,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 17
     },
     {
       "type": "timeseries",
@@ -922,7 +939,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 18
     },
     {
       "type": "timeseries",
@@ -970,7 +988,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 19
     }
   ]
 }

@@ -65,7 +65,8 @@
         "h": 1
       },
       "collapsed": false,
-      "panels": []
+      "panels": [],
+      "id": 1
     },
     {
       "type": "timeseries",
@@ -134,7 +135,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 2
     },
     {
       "type": "timeseries",
@@ -216,7 +218,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 3
     },
     {
       "type": "timeseries",
@@ -294,7 +297,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 4
     },
     {
       "type": "timeseries",
@@ -358,7 +362,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 5
     },
     {
       "type": "row",
@@ -370,7 +375,8 @@
         "h": 1
       },
       "collapsed": false,
-      "panels": []
+      "panels": [],
+      "id": 6
     },
     {
       "type": "timeseries",
@@ -434,7 +440,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 7
     },
     {
       "type": "timeseries",
@@ -520,7 +527,8 @@
             "uid": "prometheus"
           }
         }
-      ]
+      ],
+      "id": 8
     }
   ]
 }
