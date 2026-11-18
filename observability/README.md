@@ -222,7 +222,7 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 | `infra/monitoring.json` | 6. 인프라 | 2. 모니터링 상태 | 앱과 배치의 지표 수집 시간과 수집이 빠진 칸, 모니터링 구성 요소(Prometheus, Alertmanager, Loki, Tempo, Pyroscope, Alloy, 익스포터)가 살아 있는지, 규칙 평가 실패 |
 | `test/loadtest.json` | 7. 테스트 | 부하 시험 | k6 가 보낸 것과 목표 부하를 다 보냈는지 |
 
-**모든 대시보드에 배포 주석을 건다.** 앱과 배치 프로세스가 뜬 시각에 세로 선을 긋고, 앱 지표의 `version` 꼬리표(배포가 넘기는 `APP_VERSION`)를 적는다. 배포 직후 지표가 바뀌었는지 그 선과 견준다.
+**모든 대시보드에 배포 주석을 건다.** 앱과 배치 프로세스가 뜬 시각에 세로 선을 긋고, 앱 지표의 `version` 꼬리표(배포가 넘기는 `APP_VERSION`)를 적는다. 배포 직후 지표가 바뀌었는지 그 선과 견준다. `version` 꼬리표는 lc-backend 가 지표에 다는 것이라(`management.metrics.tags.version`), 그 설정이 든 이미지부터 버전이 찍힌다. 그 전 이미지는 기동 시각만 찍히고 버전이 빈다.
 
 **임계값이 있는 패널에는 선을 그어 두었다.** `rules.yml` 의 값과 같은 값이다.
 CPU 크레딧 173 과 58(알람이 아니라 시험 전 참고선이다. 알람은 초과분을 본다), 디스크 80%, Hikari 대기 9, 컨테이너 재기동 3회,

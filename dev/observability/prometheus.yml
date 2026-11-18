@@ -4,6 +4,12 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+# 대시보드의 기준선, 배치의 기준, SLI 를 운영과 같게 그리려고 값을 만드는 규칙만 읽는다(lc-infra #171).
+# 경보 규칙(rules.yml)은 읽지 않는다. 개발은 Alertmanager 가 없고, API 와 배치를 한 프로세스(job="app")로 돌려 BatchAllDown 같은 경보가 늘 잘못 울린다
+rule_files:
+  - /etc/prometheus/thresholds.yml
+  - /etc/prometheus/sli.yml
+
 scrape_configs:
   - job_name: prometheus
     static_configs:

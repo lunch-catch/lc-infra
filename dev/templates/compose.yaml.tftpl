@@ -161,6 +161,9 @@ services:
       - --storage.tsdb.retention.time=30d
     volumes:
       - ./infra/dev/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # 운영과 같은 기준값과 SLI 기록 규칙이다. 경보 규칙(rules.yml)은 읽지 않는다(dev/observability/prometheus.yml 의 rule_files)
+      - ./infra/observability/prometheus/thresholds.yml:/etc/prometheus/thresholds.yml:ro
+      - ./infra/observability/prometheus/sli.yml:/etc/prometheus/sli.yml:ro
       - prometheus-data:/prometheus
     mem_limit: 384m
 
