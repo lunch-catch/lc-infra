@@ -1971,8 +1971,10 @@
           "custom": {
             "lineWidth": 1,
             "fillOpacity": 6,
-            "showPoints": "never"
-          }
+            "showPoints": "never",
+            "axisSoftMax": 0.01
+          },
+          "min": 0
         },
         "overrides": [
           {

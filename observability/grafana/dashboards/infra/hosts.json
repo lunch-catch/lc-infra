@@ -411,7 +411,7 @@
     {
       "type": "timeseries",
       "title": "디스크 사용률",
-      "description": "DiskUsageHigh 임계 80% 를 선으로 그렸다.",
+      "description": "DiskUsageHigh 임계 80% 를 선으로 그렸다. 읽기 전용 디스크는 늘 100% 라 경보 DiskUsageHigh 처럼 뺀다",
       "gridPos": {
         "x": 0,
         "y": 18,
@@ -465,7 +465,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 - (node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\"} * 100)",
+          "expr": "(100 - (node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\"} * 100)) and node_filesystem_readonly == 0",
           "legendFormat": "{{instance}} {{instance_id}} {{mountpoint}}",
           "datasource": {
             "type": "prometheus",
