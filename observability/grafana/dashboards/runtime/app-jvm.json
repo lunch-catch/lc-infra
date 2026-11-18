@@ -30,7 +30,7 @@
           "refId": "job"
         },
         "definition": "label_values(jvm_threads_live_threads{job=~\"app|batch\"}, job)",
-        "refresh": 1,
+        "refresh": 2,
         "multi": true,
         "includeAll": true,
         "current": {
@@ -460,7 +460,7 @@
     {
       "type": "timeseries",
       "title": "트랜잭션 시간 (커넥션을 쥔 시간의 p99)",
-      "description": "커넥션을 빌려 돌려줄 때까지의 시간의 p99 다. 트랜잭션 시간에 가깝고, 트랜잭션 밖에서 빌린 커넥션도 섞인다. 붉은 점선 1초는 품질 문서 데이터 무결성의 트랜잭션 기본 상한이다. 모든 트랜잭션의 기준은 아니다. 배치는 별도 기준이고, 트랜잭션마다 @Transactional(timeout) 으로 다른 시간 제한을 둔 곳이 있다. 이 패널의 p99 는 커넥션 풀 전체의 값이라 트랜잭션마다 나누지 못한다. 선 위면 요청의 1% 넘게 커넥션을 1초 넘게 쥐었다는 뜻이고, 5분 넘게 이어지면 경보 TransactionSlow 가 울린다. 오래 쥔 코드는 앱의 누수 감지 경고 로그(5초 넘게 쥔 커넥션의 스택)로 찾는다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다",
+      "description": "커넥션을 빌려 돌려줄 때까지의 시간의 p99 다. 트랜잭션 시간에 가깝고, 트랜잭션 밖에서 빌린 커넥션도 섞인다. 붉은 점선 1초는 품질 문서 데이터 무결성의 트랜잭션 기본 상한이다. 모든 트랜잭션의 기준은 아니다. 배치는 별도 기준이고, 트랜잭션마다 @Transactional(timeout) 으로 다른 시간 제한을 둔 곳이 있다. 이 패널의 p99 는 커넥션 풀 전체의 값이라 트랜잭션마다 나누지 못한다. 경보 TransactionSlow 는 이 그래프와 따로 최근 5분 창에서 센다. 5분에 커넥션을 100번 넘게 쓴 서버에서 1초 넘게 쥔 사용이 1% 를 넘은 상태가 5분 이어지면 울린다. 비율의 분모는 HTTP 요청이 아니라 커넥션 사용이다. 오래 쥔 코드는 앱의 누수 감지 경고 로그(5초 넘게 쥔 커넥션의 스택)로 찾는다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다",
       "gridPos": {
         "x": 12,
         "y": 18,

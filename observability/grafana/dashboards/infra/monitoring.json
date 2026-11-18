@@ -364,7 +364,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (rule_group) (increase(prometheus_rule_evaluation_failures_total[5m])) or vector(0)",
+          "expr": "sum by (rule_group) (increase(prometheus_rule_evaluation_failures_total[5m])) or (max(up{job=\"prometheus\"}) * 0)",
           "legendFormat": "{{rule_group}}"
         }
       ],

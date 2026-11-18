@@ -141,7 +141,7 @@ groups:
           severity: warning
         annotations:
           runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#transactionslow"
-          description: "{{ $labels.instance }} 에서 커넥션을 1초 넘게 쥔 사용이 1% 를 넘었다. 03 의 트랜잭션 시간과 누수 감지 경고 로그로 오래 쥔 코드를 확인하라"
+          description: "{{ $labels.instance }} 에서 커넥션을 1초 넘게 쥔 사용이 1% 를 넘었다. 4. 런타임의 애플리케이션 서버 자원에 있는 트랜잭션 시간 (커넥션을 쥔 시간의 p99) 패널과 누수 감지 경고 로그로 오래 쥔 코드를 확인하라"
 
       # GC 만 하고 일을 못 하는 상태다. 메모리가 모자라기 시작한 가장 이른 신호다(#108).
       # 10% 는 실무에서 흔한 범위(10~20%)의 아래쪽이다. 로컬의 부하 시험 환경 흉내 구성에서 평소의 1분 최대는 1.1% 였다.
