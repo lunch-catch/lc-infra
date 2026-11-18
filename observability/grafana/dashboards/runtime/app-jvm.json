@@ -1,7 +1,7 @@
 {
   "uid": "lc-app-jvm",
   "title": "애플리케이션 서버 자원",
-  "description": "API 서버와 배치 서버에서 도는 자바 프로세스가 쓰는 자원(스레드, DB 커넥션 풀, JVM 의 CPU 와 GC 와 Heap)이다. 스레드 줄은 HTTP 요청을 받는 톰캣 스레드를 맨 위에 두고 그 아래에 톰캣, Lettuce, 스케줄러, 워커를 포함한 모든 스레드를 둔다. 컨테이너가 쓰는 메모리는 위쪽 링크의 호스트에서 본다. 위쪽의 서버에서 API 서버(app)와 배치 서버(batch)를 고른다. 기계의 자원은 호스트가 본다. 앱이 느려질 때 원인을 여기서 좁힌다",
+  "description": "API 서버와 배치 서버에서 도는 자바 프로세스가 쓰는 자원(스레드, DB 커넥션 풀, JVM 의 CPU 와 메모리와 GC)이다. 스레드 줄은 HTTP 요청을 받는 톰캣 스레드를 맨 위에 두고 그 아래에 톰캣, Lettuce, 스케줄러, 워커를 포함한 모든 스레드를 둔다. 컨테이너가 쓰는 메모리는 위쪽 링크의 호스트에서 본다. 위쪽의 서버에서 API 서버(app)와 배치 서버(batch)를 고른다. 기계의 자원은 호스트가 본다. 앱이 느려질 때 원인을 여기서 좁힌다",
   "tags": [
     "lunchcatch",
     "런타임"
@@ -701,7 +701,7 @@
     },
     {
       "type": "row",
-      "title": "JVM (CPU, GC, Heap)",
+      "title": "JVM (CPU, Memory, GC)",
       "collapsed": false,
       "panels": [],
       "gridPos": {
@@ -823,10 +823,61 @@
     },
     {
       "type": "timeseries",
+      "title": "힙 밖 메모리",
+      "description": "JVM 이 힙 밖에 쓰는 메모리다. 클래스와 JIT 코드(non-heap)와 다이렉트 버퍼다. 트레이싱 에이전트를 붙이면 non-heap 이 는다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, instance_id) (jvm_memory_used_bytes{job=~\"$job\", area=\"nonheap\"})",
+          "legendFormat": "non-heap {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (instance, instance_id) (jvm_buffer_memory_used_bytes{job=~\"$job\"})",
+          "legendFormat": "버퍼 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 45,
+        "w": 12,
+        "h": 8
+      },
+      "id": 14
+    },
+    {
+      "type": "timeseries",
       "title": "GC 로 멈춘 시간 비율과 최대 멈춤",
       "description": "왼쪽은 GC 로 멈춘 시간의 비율이다. 10% 면 시간의 10% 를 GC 에 썼다. 오른쪽은 GC 한 번이 가장 길게 멈춘 시간이다. 비율이 낮아도 한 번의 긴 멈춤은 p99 를 튀게 한다. 주황 점선은 비율의 경보 문턱 10% 다. 5분 넘게 넘으면 경보 GcOverheadHigh 가 울린다. 붉은 점선은 최대 멈춤의 기준(품질 문서의 GC 일시정지 p99 200ms)이다. 패널은 최대 멈춤이라 최대가 선 아래면 기준 안이다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다.",
       "gridPos": {
-        "x": 0,
+        "x": 12,
         "y": 45,
         "w": 12,
         "h": 8
@@ -970,15 +1021,15 @@
           }
         }
       ],
-      "id": 14
+      "id": 15
     },
     {
       "type": "timeseries",
       "title": "GC 뒤에 남은 힙",
       "description": "GC 직후에도 살아 남은 데이터가 힙 최대 크기에서 차지하는 비율이다. GC 를 해도 줄지 않고 오르면 메모리가 새거나 힙이 작은 것이고, 그대로 가면 OutOfMemoryError 로 죽는다. 붉은 점선은 품질 문서 성능 효율성의 기준(GC 직후 70% 이하)이다. 이 선을 10분 넘게 넘으면 경보 HeapAfterGcHigh 가 울린다. 앱이 막 떠 아직 GC 를 하지 않은 동안은 비어 있다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다.",
       "gridPos": {
-        "x": 12,
-        "y": 45,
+        "x": 0,
+        "y": 53,
         "w": 12,
         "h": 8
       },
@@ -1060,7 +1111,7 @@
           }
         }
       ],
-      "id": 15
+      "id": 16
     },
     {
       "type": "timeseries",
@@ -1099,12 +1150,12 @@
         }
       ],
       "gridPos": {
-        "x": 0,
+        "x": 12,
         "y": 53,
         "w": 12,
         "h": 8
       },
-      "id": 16
+      "id": 17
     }
   ]
 }

@@ -215,7 +215,7 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 | `domain/adserving.json` | 3. 도메인 | 1. 광고 서빙 | 노출 유실, 정산 청크, 캐시 장애로 건너뛴 규칙, 서빙 로그, 경고 로그 |
 | `domain/billing.json` | 3. 도메인 | 2. 정산 | 결제 승인, 재조회, 웹훅, PG 대사, 노출 차감 |
 | `domain/analytics.json` | 3. 도메인 | 3. 분석 | 일 집계, 정합성, 퍼널 이벤트 |
-| `runtime/app-jvm.json` | 4. 런타임 | 애플리케이션 서버 자원 | 스레드(톰캣 스레드와 모든 스레드), HikariCP, JVM(CPU 사용률, Heap, GC, 열린 파일). 서버 종류(`job`)를 고른다 |
+| `runtime/app-jvm.json` | 4. 런타임 | 애플리케이션 서버 자원 | 스레드(톰캣 스레드와 모든 스레드), HikariCP, JVM(CPU 사용률, Heap, 힙 밖 메모리, GC, 열린 파일). 서버 종류(`job`)를 고른다 |
 | `dependency/rdb.json` | 5. 의존 시스템 | 1. RDB | MySQL(RDS)의 연결 수, 쿼리, 느린 쿼리, 행 잠금 대기, 여유 메모리 |
 | `dependency/in-memory-db.json` | 5. 의존 시스템 | 2. 인메모리 DB | Valkey(ElastiCache)의 메모리, 적중률, 연결 수, 명령 수와 지연 |
 | `dependency/external.json` | 5. 의존 시스템 | 3. 외부 연동 | 외부 HTTP 호출과 AWS SDK 호출의 호출 수, 실패율, p99 |
