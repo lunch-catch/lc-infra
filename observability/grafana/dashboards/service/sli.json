@@ -208,8 +208,8 @@
     {
       "id": 4,
       "type": "table",
-      "title": "API 마다의 SLI",
-      "description": "보고 있는 범위의 API 마다 요청 수, 성공 비율, 목표 안 비율이다. 목표 안 비율이 낮은 API 는 API 대시보드의 기준을 넘은 API 에서 트레이스로 넘어가 원인을 본다",
+      "title": "API별 SLI",
+      "description": "보고 있는 범위의 API별 요청 수, 성공 비율, 목표 안 비율이다. 목표 안 비율이 낮은 API 는 API 대시보드의 기준을 넘은 API 에서 트레이스로 넘어가 원인을 본다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -378,8 +378,8 @@
     {
       "id": 5,
       "type": "timeseries",
-      "title": "API 마다의 성공 비율(5분)",
-      "description": "API 마다 5분 동안 5xx 가 아닌 요청의 비율이다. 요청이 없던 5분은 비운다",
+      "title": "API별 성공 비율(5분)",
+      "description": "API별로 5분 동안 5xx 가 아닌 요청의 비율이다. 요청이 없던 5분은 비운다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -443,8 +443,8 @@
     {
       "id": 6,
       "type": "timeseries",
-      "title": "API 마다의 목표 안 비율(5분)",
-      "description": "API 마다 5분 동안 5xx 가 아닌 요청 가운데 그 API 의 목표 안에 끝난 비율이다. 요청이 없던 5분은 비운다",
+      "title": "API별 목표 안 비율(5분)",
+      "description": "API별로 5분 동안 5xx 가 아닌 요청 가운데 그 API 의 목표 안에 끝난 비율이다. 요청이 없던 5분은 비운다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

@@ -1,7 +1,7 @@
 {
   "uid": "lc-api",
   "title": "2. API",
-  "description": "API 의 요청률, 오류, 처리 시간(RED)을 API 마다 본다. 기준을 넘은 API 의 그래프에서 튄 곳을 드래그해 좁히고 선의 점을 눌러 그 구간의 트레이스를 연다. 트레이스에서 오래 걸린 단계를 찾은 뒤 위쪽의 Profiling 링크에서 그 코드가 시간을 쓴 곳을 본다. Wall Time 에서 크고 CPU Time 에서도 크면 연산이, 작으면 대기가 오래 걸린 것이다. 맨 위는 앱 앞의 로드밸런서(ALB)가 잰 오류와 응답 시간이다. 사용자 -> ALB -> 앱으로 요청이 지나는 순서대로 위에서 아래로 둔다",
+  "description": "API 의 요청률, 오류, 처리 시간(RED)을 API별로 본다. 기준을 넘은 API 의 그래프에서 튄 곳을 드래그해 좁히고 선의 점을 눌러 그 구간의 트레이스를 연다. 트레이스에서 오래 걸린 단계를 찾은 뒤 위쪽의 Profiling 링크에서 그 코드가 시간을 쓴 곳을 본다. Wall Time 에서 크고 CPU Time 에서도 크면 연산이, 작으면 대기가 오래 걸린 것이다. 맨 위는 앱 앞의 로드밸런서(ALB)가 잰 오류와 응답 시간이다. 사용자 -> ALB -> 앱으로 요청이 지나는 순서대로 위에서 아래로 둔다",
   "tags": [
     "lunchcatch"
   ],
@@ -71,7 +71,7 @@
     {
       "type": "timeseries",
       "title": "ALB 가 직접 낸 5xx (분당)",
-      "description": "앱이 아니라 ALB 가 만든 5xx(HTTPCode_ELB_5XX)의 분당 건수다. 앱이 낸 500 은 들어가지 않는다. 앱의 5xx 는 시스템 개요의 5xx 비율과 API 대시보드의 API 마다 5xx 비율에서 본다.",
+      "description": "앱이 아니라 ALB 가 만든 5xx(HTTPCode_ELB_5XX)의 분당 건수다. 앱이 낸 500 은 들어가지 않는다. 앱의 5xx 는 시스템 개요의 5xx 비율과 API 대시보드의 API별 5xx 비율에서 본다.",
       "gridPos": {
         "x": 0,
         "y": 1,
@@ -129,7 +129,7 @@
     {
       "type": "timeseries",
       "title": "앱 응답시간 (ALB 측정)",
-      "description": "ALB 가 요청을 앱에 넘긴 뒤 응답이 오기까지의 시간(TargetResponseTime)이다. ALB 자신의 처리 시간이 아니다. 앱이 잰 응답시간(아래 API 마다 p99)과 다르면 앱 앞(톰캣 대기 줄, 연결)에서 기다렸을 수 있지만, 요청 집합과 집계 구간이 달라도 차이가 난다. 차이가 크면 트레이스로 어디서 기다렸는지 확인한다",
+      "description": "ALB 가 요청을 앱에 넘긴 뒤 응답이 오기까지의 시간(TargetResponseTime)이다. ALB 자신의 처리 시간이 아니다. 앱이 잰 응답시간(아래 API별 p99)과 다르면 앱 앞(톰캣 대기 줄, 연결)에서 기다렸을 수 있지만, 요청 집합과 집계 구간이 달라도 차이가 난다. 차이가 크면 트레이스로 어디서 기다렸는지 확인한다",
       "gridPos": {
         "x": 12,
         "y": 1,
@@ -266,7 +266,7 @@
     {
       "type": "timeseries",
       "title": "느린 엔드포인트 상위 10개 (p99)",
-      "description": "API 마다 p99 를 계산해 가장 느린 열을 그린다. 지표는 API 종류 200 개까지 받는다(lc-backend#1093).",
+      "description": "API별로 p99 를 계산해 가장 느린 열을 그린다. 지표는 API 종류 200 개까지 받는다(lc-backend#1093).",
       "gridPos": {
         "x": 12,
         "y": 10,
@@ -314,7 +314,7 @@
     },
     {
       "type": "row",
-      "title": "API 마다",
+      "title": "API별",
       "collapsed": false,
       "panels": [],
       "gridPos": {
@@ -327,8 +327,8 @@
     },
     {
       "type": "timeseries",
-      "title": "API 마다 요청률",
-      "description": "API 마다 초당 요청 수다",
+      "title": "API별 요청률",
+      "description": "API별 초당 요청 수다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -369,8 +369,8 @@
     },
     {
       "type": "timeseries",
-      "title": "API 마다 5xx 비율",
-      "description": "API 마다 요청 가운데 5xx 로 끝난 비율이다. 요청이 없는 구간은 비운다",
+      "title": "API별 5xx 비율",
+      "description": "API별 요청 가운데 5xx 로 끝난 비율이다. 요청이 없는 구간은 비운다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -413,8 +413,8 @@
     },
     {
       "type": "timeseries",
-      "title": "API 마다 p99",
-      "description": "API 마다 처리 시간의 p99 다",
+      "title": "API별 p99",
+      "description": "API별 처리 시간의 p99 다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

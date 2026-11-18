@@ -208,8 +208,8 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 | 파일 | 폴더 | 화면 | 무엇을 보나 |
 |---|---|---|---|
 | `overview/overview.json` | 1. 개요 | 시스템 개요 | 지금 울리는 경보와 고른 범위에 울린 경보, 영역별 핵심 지표(누르면 그 영역의 대시보드로 넘어간다), 요청률, 5xx 비율, 응답시간 분위수. Grafana 의 홈 대시보드다 |
-| `service/sli.json` | 2. 서비스 | 1. SLI | API 마다 5xx 가 아닌 요청의 비율과 그 API 의 목표 안에 끝난 비율. 기록 규칙은 `prometheus/sli.yml` 이다 |
-| `service/api.json` | 2. 서비스 | 2. API | 로드밸런서(ALB)가 잰 5xx 와 응답 시간, 기준을 넘은 API, API 마다 요청률, 5xx 비율, p99, 성공과 실패의 처리 시간 |
+| `service/sli.json` | 2. 서비스 | 1. SLI | API별 5xx 가 아닌 요청의 비율과 그 API 의 목표 안에 끝난 비율. 기록 규칙은 `prometheus/sli.yml` 이다 |
+| `service/api.json` | 2. 서비스 | 2. API | 로드밸런서(ALB)가 잰 5xx 와 응답 시간, 기준을 넘은 API, API별 요청률, 5xx 비율, p99, 성공과 실패의 처리 시간 |
 | `service/background.json` | 2. 서비스 | 3. 백그라운드 작업 | 아웃박스 릴레이, 비동기 워커, cron 배치의 기준 초과와 밀린 양, 배치 마지막 성공과 그 기준 대비 |
 | `domain/adserving.json` | 3. 도메인 | 1. 광고 서빙 | 노출 유실, 정산 청크, 캐시 장애로 건너뛴 규칙, 서빙 로그, 경고 로그 |
 | `domain/billing.json` | 3. 도메인 | 2. 정산 | 결제 승인, 재조회, 웹훅, PG 대사, 노출 차감 |
