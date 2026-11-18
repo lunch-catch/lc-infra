@@ -24,7 +24,7 @@ providers:
       path: /etc/grafana/dashboards/common/service
   - name: lunchcatch-dependency
     type: file
-    folder: "3. 의존 시스템"
+    folder: "4. 의존 시스템"
     folderUid: lc-folder-dependency
     disableDeletion: false
     allowUiUpdates: false
@@ -33,7 +33,7 @@ providers:
       path: /etc/grafana/dashboards/common/dependency
   - name: lunchcatch-runtime
     type: file
-    folder: "4. 런타임"
+    folder: "5. 런타임"
     folderUid: lc-folder-runtime
     disableDeletion: false
     allowUiUpdates: false
@@ -42,7 +42,7 @@ providers:
       path: /etc/grafana/dashboards/common/runtime
   - name: lunchcatch-infra
     type: file
-    folder: "5. 인프라"
+    folder: "6. 인프라"
     folderUid: lc-folder-infra
     disableDeletion: false
     allowUiUpdates: false
@@ -51,7 +51,7 @@ providers:
       path: /etc/grafana/dashboards/common/infra
   - name: lunchcatch-domain
     type: file
-    folder: "6. 도메인"
+    folder: "3. 도메인"
     folderUid: lc-folder-domain
     disableDeletion: false
     allowUiUpdates: false

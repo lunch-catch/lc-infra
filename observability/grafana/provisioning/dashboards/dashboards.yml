@@ -5,7 +5,7 @@
 # 고칠 일이 생기면 JSON 을 커밋하고 컨테이너를 재시작한다.
 #
 # 대시보드는 계층마다 Grafana 폴더 하나에 묶는다(lc-infra #169). 디렉터리는 영어로 두어 스크립트에서 다루기 쉽게 하고,
-# 화면에 보이는 폴더 이름은 provider 마다 folder 로 붙인다. 폴더와 폴더 안의 대시보드는 계층 순서로 둔다. Grafana 는 이름순으로만 놓아, 폴더 이름과 대시보드 제목 앞에 "1." 꼴의 순번을 붙인다(대시보드가 하나뿐인 폴더는 붙이지 않는다). 파일 이름과 uid 에는 붙이지 않는다. 폴더 이름을 바꿔도 같은 폴더로 이어지게 folderUid 를 둔다. Grafana 를 열면 먼저 뜨게 홈 대시보드로도 둔다(compose 의 GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH).
+# 화면에 보이는 폴더 이름은 provider 마다 folder 로 붙인다. 폴더와 폴더 안의 대시보드는 계층 순서로 둔다. Grafana 는 이름순으로만 놓아, 폴더 이름과 대시보드 제목 앞에 "1." 꼴의 순번을 붙인다(대시보드가 하나뿐인 폴더는 붙이지 않는다). 파일 이름과 uid 에는 붙이지 않는다. 폴더 이름을 바꿔도 같은 폴더로 이어지게 folderUid 를 둔다. Grafana 는 폴더를 처음 만들 때만 folder 이름을 쓰고 이미 있는 폴더의 이름은 고치지 않으므로, 이름을 바꾸면 띄워 둔 Grafana 에서 폴더 API(PUT /api/folders/{uid})로 이름을 바꾼다. Grafana 를 열면 먼저 뜨게 홈 대시보드로도 둔다(compose 의 GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH).
 apiVersion: 1
 
 providers:
@@ -29,7 +29,7 @@ providers:
       path: /etc/grafana/dashboards/service
   - name: lunchcatch-dependency
     type: file
-    folder: "3. 의존 시스템"
+    folder: "4. 의존 시스템"
     folderUid: lc-folder-dependency
     disableDeletion: false
     allowUiUpdates: false
@@ -38,7 +38,7 @@ providers:
       path: /etc/grafana/dashboards/dependency
   - name: lunchcatch-runtime
     type: file
-    folder: "4. 런타임"
+    folder: "5. 런타임"
     folderUid: lc-folder-runtime
     disableDeletion: false
     allowUiUpdates: false
@@ -47,7 +47,7 @@ providers:
       path: /etc/grafana/dashboards/runtime
   - name: lunchcatch-infra
     type: file
-    folder: "5. 인프라"
+    folder: "6. 인프라"
     folderUid: lc-folder-infra
     disableDeletion: false
     allowUiUpdates: false
@@ -56,7 +56,7 @@ providers:
       path: /etc/grafana/dashboards/infra
   - name: lunchcatch-domain
     type: file
-    folder: "6. 도메인"
+    folder: "3. 도메인"
     folderUid: lc-folder-domain
     disableDeletion: false
     allowUiUpdates: false

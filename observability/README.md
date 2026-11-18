@@ -211,15 +211,15 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 | `service/sli.json` | 2. 서비스 | 1. SLI | API 마다 5xx 가 아닌 요청의 비율과 그 API 의 목표 안에 끝난 비율. 기록 규칙은 `prometheus/sli.yml` 이다 |
 | `service/api.json` | 2. 서비스 | 2. API | 로드밸런서(ALB)가 잰 5xx 와 응답 시간, 기준을 넘은 API, API 마다 요청률, 5xx 비율, p99, 성공과 실패의 처리 시간 |
 | `service/background.json` | 2. 서비스 | 3. 백그라운드 작업 | 아웃박스 릴레이, 비동기 워커, cron 배치의 기준 초과와 밀린 양, 배치 마지막 성공과 그 기준 대비 |
-| `dependency/rdb.json` | 3. 의존 시스템 | 1. RDB | MySQL(RDS)의 연결 수, 쿼리, 느린 쿼리, 행 잠금 대기, 여유 메모리 |
-| `dependency/in-memory-db.json` | 3. 의존 시스템 | 2. 인메모리 DB | Valkey(ElastiCache)의 메모리, 적중률, 연결 수, 명령 수와 지연 |
-| `dependency/external.json` | 3. 의존 시스템 | 3. 외부 연동 | 외부 HTTP 호출과 AWS SDK 호출의 호출 수, 실패율, p99 |
-| `runtime/app-jvm.json` | 4. 런타임 | 애플리케이션 서버 자원 | 톰캣 스레드, HikariCP, JVM(CPU 사용률, Heap, GC, 힙 밖, 모든 스레드, 열린 파일). 서버 종류(`job`)를 고른다 |
-| `infra/hosts.json` | 5. 인프라 | 1. 호스트 | CPU 크레딧, 기계 전체의 CPU, 메모리, 디스크, 컨테이너마다의 CPU 와 메모리, 컨테이너 재기동 |
-| `infra/monitoring.json` | 5. 인프라 | 2. 모니터링 상태 | 앱과 배치의 지표 수집 시간과 수집이 빠진 칸 |
-| `domain/adserving.json` | 6. 도메인 | 1. 광고 서빙 | 노출 유실, 정산 청크, 캐시 장애로 건너뛴 규칙, 서빙 로그, 경고 로그 |
-| `domain/billing.json` | 6. 도메인 | 2. 정산 | 결제 승인, 재조회, 웹훅, PG 대사, 노출 차감 |
-| `domain/analytics.json` | 6. 도메인 | 3. 분석 | 일 집계, 정합성, 퍼널 이벤트 |
+| `domain/adserving.json` | 3. 도메인 | 1. 광고 서빙 | 노출 유실, 정산 청크, 캐시 장애로 건너뛴 규칙, 서빙 로그, 경고 로그 |
+| `domain/billing.json` | 3. 도메인 | 2. 정산 | 결제 승인, 재조회, 웹훅, PG 대사, 노출 차감 |
+| `domain/analytics.json` | 3. 도메인 | 3. 분석 | 일 집계, 정합성, 퍼널 이벤트 |
+| `dependency/rdb.json` | 4. 의존 시스템 | 1. RDB | MySQL(RDS)의 연결 수, 쿼리, 느린 쿼리, 행 잠금 대기, 여유 메모리 |
+| `dependency/in-memory-db.json` | 4. 의존 시스템 | 2. 인메모리 DB | Valkey(ElastiCache)의 메모리, 적중률, 연결 수, 명령 수와 지연 |
+| `dependency/external.json` | 4. 의존 시스템 | 3. 외부 연동 | 외부 HTTP 호출과 AWS SDK 호출의 호출 수, 실패율, p99 |
+| `runtime/app-jvm.json` | 5. 런타임 | 애플리케이션 서버 자원 | 톰캣 스레드, HikariCP, JVM(CPU 사용률, Heap, GC, 힙 밖, 모든 스레드, 열린 파일). 서버 종류(`job`)를 고른다 |
+| `infra/hosts.json` | 6. 인프라 | 1. 호스트 | CPU 크레딧, 기계 전체의 CPU, 메모리, 디스크, 컨테이너마다의 CPU 와 메모리, 컨테이너 재기동 |
+| `infra/monitoring.json` | 6. 인프라 | 2. 모니터링 상태 | 앱과 배치의 지표 수집 시간과 수집이 빠진 칸 |
 | `test/loadtest.json` | 7. 테스트 | 부하 시험 | k6 가 보낸 것과 목표 부하를 다 보냈는지 |
 
 **임계값이 있는 패널에는 선을 그어 두었다.** `rules.yml` 의 값과 같은 값이다.
