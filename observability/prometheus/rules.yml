@@ -181,6 +181,46 @@ groups:
         annotations:
           description: "컨테이너가 10분 내 3회 재기동했다. OOM 여부를 확인하라"
 
+      # 기계의 메모리가 거의 다 찼다(lc-infra #171). 더 차면 커널이 프로세스를 죽인다.
+      # 값은 node_exporter 가 내는 경보 묶음(node-mixin)의 NodeMemoryHighUtilization 기본값 90%, 15분이다
+      - alert: NodeMemoryHigh
+        expr: 100 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100) > 90
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          description: "{{ $labels.instance }} 의 메모리 사용률이 15분 넘게 90% 를 넘었다. 컨테이너 메모리와 OOM 로그를 확인하라"
+
+      # RDS 의 남은 저장 공간이 적다(lc-infra #171). 자동 확장을 켜지 않아 다 차면 쓰기가 멈춘다.
+      # 값은 AWS 권장 경보의 FreeStorageSpace 기준인 할당량의 10% 다. 할당량 20GiB(modules/data/rds.tf 의 allocated_storage)의 10% 인 2GiB 이고, 할당량을 고치면 여기도 같이 고친다
+      - alert: RdsStorageLow
+        expr: aws_rds_free_storage_space_average < 2147483648
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          description: "RDS 의 남은 저장 공간이 2GiB 아래다. 오래된 데이터를 정리하거나 allocated_storage 를 올려라"
+
+      # RDS 의 여유 메모리가 적다(lc-infra #171). 연결이 몰렸거나 버퍼 풀이 메모리를 밀어내고 있다.
+      # 값은 AWS 권장 경보의 FreeableMemory 기준인 전체 메모리의 25%, 15분이다. db.t4g.micro(modules/data/variables.tf)의 1GiB 의 25% 인 256MiB 이고, 클래스를 바꾸면 여기도 같이 고친다
+      - alert: RdsFreeableMemoryLow
+        expr: aws_rds_freeable_memory_average < 268435456
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          description: "RDS 의 여유 메모리가 15분 넘게 256MiB 아래다. 연결 수와 느린 쿼리를 확인하라"
+
+      # MySQL 의 연결이 상한에 가깝다(lc-infra #171). 다 차면 새 연결이 거절돼 커넥션 풀이 마른다.
+      # 값은 AWS 권장 경보의 DatabaseConnections 기준인 상한의 90~95% 가운데 먼저 알리는 90% 다. 상한은 mysqld_exporter 가 max_connections 로 읽는다
+      - alert: MysqlConnectionsHigh
+        expr: mysql_global_status_threads_connected / mysql_global_variables_max_connections > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          description: "MySQL 연결이 상한의 90% 를 넘었다. 커넥션 풀 크기와 오래 쥔 연결을 확인하라"
+
       - alert: DiskUsageHigh
         expr: |
           100 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}
@@ -513,7 +553,6 @@ groups:
   # 임계값이 정해지지 않은 알람들. 부하 시험 후 채운다.
   #
   # - alert: FiveZeroTwo            502 발생. (미정) 초과
-  # - alert: RdsFreeableMemoryLow   RDS 여유 메모리. (미정) 미만
   # - alert: TomcatThreadsHigh      톰캣 스레드 사용률. (미정)% 초과
   # - alert: ConsumedLcuHigh        ConsumedLCUs. (미정) 초과
   # - alert: IntegrityCheckFailed   정합성 검증 실패. 검증 쿼리 결과를 내보내는 경로가 없다

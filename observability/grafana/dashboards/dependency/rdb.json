@@ -287,7 +287,7 @@
     {
       "type": "timeseries",
       "title": "MySQL 연결 수",
-      "description": "MySQL 연결 수를 두 출처로 함께 그린다. mysqld_exporter 는 수집한 그 순간의 연결 수와 쿼리를 도는 스레드 수다. CloudWatch 는 RDS 가 1분마다 집계한 연결 수의 평균과 최대이고, 몇 분 늦게 들어와 같은 시각의 exporter 값과 바로 맞지 않을 수 있다",
+      "description": "MySQL 연결 수를 두 출처로 함께 그린다. mysqld_exporter 는 수집한 그 순간의 연결 수와 쿼리를 도는 스레드 수다. CloudWatch 는 RDS 가 1분마다 집계한 연결 수의 평균과 최대이고, 몇 분 늦게 들어와 같은 시각의 exporter 값과 바로 맞지 않을 수 있다. 붉은 점선은 상한의 90% 다. exporter 가 잰 연결 수가 5분 넘게 이 선을 넘으면 경보 MysqlConnectionsHigh 가 울린다",
       "gridPos": {
         "x": 0,
         "y": 6,
@@ -307,7 +307,37 @@
             "showPoints": "never"
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "경보 문턱 (상한의 90%)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -365,6 +395,15 @@
             "type": "prometheus",
             "uid": "prometheus"
           }
+        },
+        {
+          "refId": "F",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "경보 문턱 (상한의 90%)",
+          "expr": "max(mysql_global_variables_max_connections) * 0.9"
         }
       ],
       "id": 5
@@ -575,7 +614,7 @@
     {
       "type": "timeseries",
       "title": "여유 메모리",
-      "description": "RdsFreeableMemoryLow 알람이 (미정) 이다. 정상 구간을 여기서 읽어 채운다.",
+      "description": "RdsFreeableMemoryLow 알람이 (미정) 이다. 정상 구간을 여기서 읽어 채운다. 붉은 선 256MiB(db.t4g.micro 1GiB 의 25%) 아래로 15분 넘게 머물면 경보 RdsFreeableMemoryLow 가 울린다",
       "gridPos": {
         "x": 0,
         "y": 23,
@@ -592,7 +631,23 @@
           "custom": {
             "lineWidth": 1,
             "fillOpacity": 6,
-            "showPoints": "never"
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 268435456
+              }
+            ]
           }
         },
         "overrides": []
@@ -620,6 +675,70 @@
         }
       ],
       "id": 10
+    },
+    {
+      "type": "timeseries",
+      "title": "남은 저장 공간",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "RDS 의 남은 저장 공간이다(CloudWatch FreeStorageSpace). 자동 확장을 켜지 않아 다 차면 쓰기가 멈춘다. 붉은 선 2GiB(할당량 20GiB 의 10%) 아래로 5분 넘게 머물면 경보 RdsStorageLow 가 울린다",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 2147483648
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "aws_rds_free_storage_space_average",
+          "legendFormat": "남은 저장 공간"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 23,
+        "w": 12,
+        "h": 8
+      },
+      "id": 11
     }
   ]
 }

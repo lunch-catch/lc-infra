@@ -40,6 +40,12 @@ metrics:
     aws_dimensions: [DBInstanceIdentifier]
     aws_statistics: [Average]
 
+  # 저장 공간 자동 확장을 켜지 않아(modules/data/rds.tf) 차기 전에 알아야 한다. 경보 RdsStorageLow 가 본다(lc-infra #171)
+  - aws_namespace: AWS/RDS
+    aws_metric_name: FreeStorageSpace
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+
   - aws_namespace: AWS/RDS
     aws_metric_name: DatabaseConnections
     aws_dimensions: [DBInstanceIdentifier]

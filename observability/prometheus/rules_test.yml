@@ -692,3 +692,53 @@ tests:
         exp_alerts:
           - exp_labels: {severity: warning, integration: slack}
             exp_annotations: {description: "Alertmanager 가 slack 로 알림을 보내지 못했다. 웹훅과 Alertmanager 로그를 확인하라"}
+
+  # 용량 경보(lc-infra #171). 모두 10분에 기준을 넘는다.
+  #   메모리는 15분, 저장 공간과 MySQL 연결은 5분, RDS 여유 메모리는 15분을 기다린다
+  - interval: 1m
+    input_series:
+      - series: 'node_memory_MemAvailable_bytes{instance="h1"}'
+        values: '500x10 50x30'
+      - series: 'node_memory_MemTotal_bytes{instance="h1"}'
+        values: '1000x40'
+      - series: 'aws_rds_free_storage_space_average{dimension_DBInstanceIdentifier="lunchcatch"}'
+        values: '5000000000x10 1000000000x30'
+      - series: 'aws_rds_freeable_memory_average{dimension_DBInstanceIdentifier="lunchcatch"}'
+        values: '500000000x10 100000000x30'
+      - series: 'mysql_global_status_threads_connected{instance="m1"}'
+        values: '10x10 80x30'
+      - series: 'mysql_global_variables_max_connections{instance="m1"}'
+        values: '85x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: NodeMemoryHigh
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: NodeMemoryHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: h1}
+            exp_annotations: {description: "h1 의 메모리 사용률이 15분 넘게 90% 를 넘었다. 컨테이너 메모리와 OOM 로그를 확인하라"}
+      - eval_time: 12m
+        alertname: RdsStorageLow
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: RdsStorageLow
+        exp_alerts:
+          - exp_labels: {severity: warning, dimension_DBInstanceIdentifier: lunchcatch}
+            exp_annotations: {description: "RDS 의 남은 저장 공간이 2GiB 아래다. 오래된 데이터를 정리하거나 allocated_storage 를 올려라"}
+      - eval_time: 20m
+        alertname: RdsFreeableMemoryLow
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: RdsFreeableMemoryLow
+        exp_alerts:
+          - exp_labels: {severity: warning, dimension_DBInstanceIdentifier: lunchcatch}
+            exp_annotations: {description: "RDS 의 여유 메모리가 15분 넘게 256MiB 아래다. 연결 수와 느린 쿼리를 확인하라"}
+      - eval_time: 12m
+        alertname: MysqlConnectionsHigh
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: MysqlConnectionsHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: m1}
+            exp_annotations: {description: "MySQL 연결이 상한의 90% 를 넘었다. 커넥션 풀 크기와 오래 쥔 연결을 확인하라"}

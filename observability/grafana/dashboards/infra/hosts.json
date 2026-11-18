@@ -329,7 +329,7 @@
     {
       "type": "timeseries",
       "title": "메모리 사용률",
-      "description": "",
+      "description": ". 붉은 선 90% 를 15분 넘게 넘으면 경보 NodeMemoryHigh 가 울린다",
       "gridPos": {
         "x": 12,
         "y": 10,
@@ -346,10 +346,26 @@
           "custom": {
             "lineWidth": 1,
             "fillOpacity": 6,
-            "showPoints": "never"
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
           },
           "max": 100,
-          "min": 0
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
         },
         "overrides": []
       },
