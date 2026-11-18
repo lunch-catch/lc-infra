@@ -29,7 +29,7 @@ providers:
       path: /etc/grafana/dashboards/service
   - name: lunchcatch-dependency
     type: file
-    folder: "4. 의존 시스템"
+    folder: "5. 의존 시스템"
     folderUid: lc-folder-dependency
     disableDeletion: false
     allowUiUpdates: false
@@ -38,7 +38,7 @@ providers:
       path: /etc/grafana/dashboards/dependency
   - name: lunchcatch-runtime
     type: file
-    folder: "5. 런타임"
+    folder: "4. 런타임"
     folderUid: lc-folder-runtime
     disableDeletion: false
     allowUiUpdates: false
