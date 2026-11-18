@@ -105,7 +105,7 @@
     },
     {
       "type": "stat",
-      "title": "MySQL",
+      "title": "RDB",
       "description": "",
       "gridPos": {
         "x": 6,
@@ -173,7 +173,7 @@
     },
     {
       "type": "stat",
-      "title": "캐시",
+      "title": "인메모리 DB",
       "description": "Degradable 등급이다. 0 이어도 서비스는 강등 경로로 돈다.",
       "gridPos": {
         "x": 12,
@@ -1292,7 +1292,7 @@
     },
     {
       "type": "stat",
-      "title": "Valkey",
+      "title": "인메모리 DB",
       "description": "Valkey 명령의 평균 지연과 가장 긴 지연이다",
       "gridPos": {
         "x": 0,
@@ -1306,8 +1306,8 @@
       },
       "links": [
         {
-          "title": "데이터 저장소",
-          "url": "/d/lc-data-stores?${__url_time_range}"
+          "title": "인메모리 DB",
+          "url": "/d/lc-in-memory-db?${__url_time_range}"
         }
       ],
       "fieldConfig": {
@@ -1612,8 +1612,8 @@
           "url": "/d/lc-app-jvm?${__url_time_range}"
         },
         {
-          "title": "데이터 저장소",
-          "url": "/d/lc-data-stores?${__url_time_range}"
+          "title": "RDB",
+          "url": "/d/lc-rdb?${__url_time_range}"
         }
       ],
       "fieldConfig": {

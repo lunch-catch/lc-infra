@@ -129,7 +129,7 @@ services:
       TEMPO_ENDPOINT: tempo
     command: [run, --server.http.listen-addr=0.0.0.0:12345, /etc/alloy]
 
-  # 호스트와 로드밸런서, 데이터 저장소의 패널을 채운다. 운영은 각 서버와 모니터링 서버에서 돈다
+  # 호스트와 로드밸런서, RDB, 인메모리 DB 의 패널을 채운다. 운영은 각 서버와 모니터링 서버에서 돈다
   node-exporter:
     image: prom/node-exporter:v1.9.1
     pid: host

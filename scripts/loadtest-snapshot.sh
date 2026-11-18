@@ -126,11 +126,11 @@ fi
 [ ${#FIXED[@]} -eq 0 ] || { [ -n "$BASELINE" ] && [ ${#EXPANDS[@]} -gt 0 ]; } || die "--fixed 는 --baseline 과 --expand 와 함께 준다"
 
 # 진단 회차는 기준을 넘은 것을 그리는 API 와 백그라운드 작업만 찍는다(lc-infra #94, #169).
-# 기본은 측정 회차에서 보는 아홉 장 전부다. 회차마다 무엇이 문제였는지 미리 알 수 없다.
+# 기본은 측정 회차에서 보는 열 장 전부다. 회차마다 무엇이 문제였는지 미리 알 수 없다.
 if [ -n "$DIAG" ]; then
   DASH=(lc-api lc-background)
 elif [ ${#DASH[@]} -eq 0 ]; then
-  DASH=(lc-overview lc-api lc-background lc-app-jvm lc-data-stores lc-hosts lc-monitoring lc-loadtest lc-adserving)
+  DASH=(lc-overview lc-api lc-background lc-app-jvm lc-rdb lc-in-memory-db lc-hosts lc-monitoring lc-loadtest lc-adserving)
 fi
 
 # 접두사로 고른다. 같은 계정에 운영과 부하 시험 환경이 함께 있으면 Role 만으로는 어느 쪽인지 모른다

@@ -211,7 +211,8 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 | `service/api.json` | 서비스 | API | 기준을 넘은 API, API 마다 요청률, 5xx 비율, p99, 성공과 실패의 처리 시간 |
 | `service/sli.json` | 서비스 | SLI | API 마다 5xx 가 아닌 요청의 비율과 그 API 의 목표 안에 끝난 비율. 기록 규칙은 `prometheus/sli.yml` 이다 |
 | `service/background.json` | 서비스 | 백그라운드 작업 | 아웃박스 릴레이, 비동기 워커, cron 배치의 기준 초과와 밀린 양, 배치 마지막 성공 |
-| `dependency/data-stores.json` | 의존 시스템 | 데이터 저장소 | MySQL 연결 수와 쿼리, RDS 메모리, 캐시 적중률 |
+| `dependency/rdb.json` | 의존 시스템 | RDB | MySQL(RDS)의 연결 수, 쿼리, 느린 쿼리, 행 잠금 대기, 여유 메모리 |
+| `dependency/in-memory-db.json` | 의존 시스템 | 인메모리 DB | Valkey(ElastiCache)의 메모리, 적중률, 연결 수, 명령 수와 지연 |
 | `dependency/external.json` | 의존 시스템 | 외부 연동 | 외부 HTTP 호출과 AWS SDK 호출의 호출 수, 실패율, p99 |
 | `runtime/app-jvm.json` | 런타임 | 애플리케이션 서버 자원 | 톰캣 스레드, HikariCP, JVM(CPU 사용률, Heap, GC, 힙 밖, 모든 스레드, 열린 파일). 서버 종류(`job`)를 고른다 |
 | `infra/hosts.json` | 인프라 | 호스트와 로드밸런서 | ALB 지표, CPU 크레딧, 기계 전체의 CPU, 메모리, 디스크, 컨테이너마다의 CPU 와 메모리, 컨테이너 재기동 |
@@ -248,7 +249,7 @@ ALB 와 RDS 쪽 이름은 첫 기동 때 한 번 맞춰 보는 것이 빠르다.
 curl -s localhost:9106/metrics | grep -o '^aws_[a-z_0-9]*' | sort -u
 ```
 
-다르면 `infra/hosts.json` 과 `dependency/data-stores.json` 의 해당 패널 `expr` 을 고친다.
+다르면 `infra/hosts.json` 과 `dependency/rdb.json`, `dependency/in-memory-db.json` 의 해당 패널 `expr` 을 고친다.
 
 ## 아직 채우지 못한 임계값
 
