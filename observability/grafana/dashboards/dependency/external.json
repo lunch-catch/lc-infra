@@ -1,6 +1,6 @@
 {
   "uid": "lc-external",
-  "title": "외부 연동",
+  "title": "3. 외부 연동",
   "description": "외부 HTTP 호출(카카오, 토스)과 AWS SDK 호출(Bedrock, S3, Rekognition)의 요청률, 실패율, 처리 시간을 본다. 기준은 아직 정하지 않았다",
   "tags": [
     "lunchcatch"

@@ -203,24 +203,24 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 
 `grafana/dashboards/{계층}/*.json` 이 Git 에 있고 프로비저닝으로 올라간다.
 화면에서 고친 것은 저장되지 않는다 (`allowUiUpdates: false`). 데이터소스를 코드로 넣은 것과 같은 이유다 (`OPS-2-18`).
-대시보드는 계층마다 폴더 하나에 묶는다(lc-infra #169). 디렉터리는 영어이고, 화면의 폴더 이름은 `grafana/provisioning/dashboards/dashboards.yml` 이 디렉터리마다 붙인다. 대시보드 이름과 파일 이름에 순번을 붙이지 않는다.
+대시보드는 계층마다 폴더 하나에 묶는다(lc-infra #169). 디렉터리는 영어이고, 화면의 폴더 이름은 `grafana/provisioning/dashboards/dashboards.yml` 이 디렉터리마다 붙인다. 폴더와 폴더 안의 대시보드는 계층 순서로 둔다. Grafana 는 이름순으로만 놓아, 폴더 이름과 대시보드 제목 앞에 "1." 꼴의 순번을 붙인다. 대시보드가 하나뿐인 폴더는 붙이지 않고, 파일 이름과 uid 에는 붙이지 않는다.
 
 | 파일 | 폴더 | 화면 | 무엇을 보나 |
 |---|---|---|---|
-| `overview/overview.json` | 개요 | 시스템 개요 | 지금 울리는 경보와 고른 범위에 울린 경보, 영역별 핵심 지표(누르면 그 영역의 대시보드로 넘어간다), 요청률, 5xx 비율, 응답시간 분위수 |
-| `service/api.json` | 서비스 | API | 기준을 넘은 API, API 마다 요청률, 5xx 비율, p99, 성공과 실패의 처리 시간 |
-| `service/sli.json` | 서비스 | SLI | API 마다 5xx 가 아닌 요청의 비율과 그 API 의 목표 안에 끝난 비율. 기록 규칙은 `prometheus/sli.yml` 이다 |
-| `service/background.json` | 서비스 | 백그라운드 작업 | 아웃박스 릴레이, 비동기 워커, cron 배치의 기준 초과와 밀린 양, 배치 마지막 성공 |
-| `dependency/rdb.json` | 의존 시스템 | RDB | MySQL(RDS)의 연결 수, 쿼리, 느린 쿼리, 행 잠금 대기, 여유 메모리 |
-| `dependency/in-memory-db.json` | 의존 시스템 | 인메모리 DB | Valkey(ElastiCache)의 메모리, 적중률, 연결 수, 명령 수와 지연 |
-| `dependency/external.json` | 의존 시스템 | 외부 연동 | 외부 HTTP 호출과 AWS SDK 호출의 호출 수, 실패율, p99 |
-| `runtime/app-jvm.json` | 런타임 | 애플리케이션 서버 자원 | 톰캣 스레드, HikariCP, JVM(CPU 사용률, Heap, GC, 힙 밖, 모든 스레드, 열린 파일). 서버 종류(`job`)를 고른다 |
-| `infra/hosts.json` | 인프라 | 호스트와 로드밸런서 | ALB 지표, CPU 크레딧, 기계 전체의 CPU, 메모리, 디스크, 컨테이너마다의 CPU 와 메모리, 컨테이너 재기동 |
-| `infra/monitoring.json` | 인프라 | 모니터링 상태 | 앱과 배치의 지표 수집 시간과 수집이 빠진 칸 |
-| `domain/adserving.json` | 도메인 | 광고 서빙 | 노출 유실, 정산 청크, 캐시 장애로 건너뛴 규칙, 서빙 로그, 경고 로그 |
-| `domain/billing.json` | 도메인 | 정산 | 결제 승인, 재조회, 웹훅, PG 대사, 노출 차감 |
-| `domain/analytics.json` | 도메인 | 분석 | 일 집계, 정합성, 퍼널 이벤트 |
-| `test/loadtest.json` | 테스트 | 부하 시험 | k6 가 보낸 것과 목표 부하를 다 보냈는지 |
+| `overview/overview.json` | 1. 개요 | 시스템 개요 | 지금 울리는 경보와 고른 범위에 울린 경보, 영역별 핵심 지표(누르면 그 영역의 대시보드로 넘어간다), 요청률, 5xx 비율, 응답시간 분위수. Grafana 의 홈 대시보드다 |
+| `service/sli.json` | 2. 서비스 | 1. SLI | API 마다 5xx 가 아닌 요청의 비율과 그 API 의 목표 안에 끝난 비율. 기록 규칙은 `prometheus/sli.yml` 이다 |
+| `service/api.json` | 2. 서비스 | 2. API | 로드밸런서(ALB)가 잰 5xx 와 응답 시간, 기준을 넘은 API, API 마다 요청률, 5xx 비율, p99, 성공과 실패의 처리 시간 |
+| `service/background.json` | 2. 서비스 | 3. 백그라운드 작업 | 아웃박스 릴레이, 비동기 워커, cron 배치의 기준 초과와 밀린 양, 배치 마지막 성공과 그 기준 대비 |
+| `dependency/rdb.json` | 3. 의존 시스템 | 1. RDB | MySQL(RDS)의 연결 수, 쿼리, 느린 쿼리, 행 잠금 대기, 여유 메모리 |
+| `dependency/in-memory-db.json` | 3. 의존 시스템 | 2. 인메모리 DB | Valkey(ElastiCache)의 메모리, 적중률, 연결 수, 명령 수와 지연 |
+| `dependency/external.json` | 3. 의존 시스템 | 3. 외부 연동 | 외부 HTTP 호출과 AWS SDK 호출의 호출 수, 실패율, p99 |
+| `runtime/app-jvm.json` | 4. 런타임 | 애플리케이션 서버 자원 | 톰캣 스레드, HikariCP, JVM(CPU 사용률, Heap, GC, 힙 밖, 모든 스레드, 열린 파일). 서버 종류(`job`)를 고른다 |
+| `infra/hosts.json` | 5. 인프라 | 1. 호스트 | CPU 크레딧, 기계 전체의 CPU, 메모리, 디스크, 컨테이너마다의 CPU 와 메모리, 컨테이너 재기동 |
+| `infra/monitoring.json` | 5. 인프라 | 2. 모니터링 상태 | 앱과 배치의 지표 수집 시간과 수집이 빠진 칸 |
+| `domain/adserving.json` | 6. 도메인 | 1. 광고 서빙 | 노출 유실, 정산 청크, 캐시 장애로 건너뛴 규칙, 서빙 로그, 경고 로그 |
+| `domain/billing.json` | 6. 도메인 | 2. 정산 | 결제 승인, 재조회, 웹훅, PG 대사, 노출 차감 |
+| `domain/analytics.json` | 6. 도메인 | 3. 분석 | 일 집계, 정합성, 퍼널 이벤트 |
+| `test/loadtest.json` | 7. 테스트 | 부하 시험 | k6 가 보낸 것과 목표 부하를 다 보냈는지 |
 
 **임계값이 있는 패널에는 선을 그어 두었다.** `rules.yml` 의 값과 같은 값이다.
 CPU 크레딧 173 과 58(알람이 아니라 시험 전 참고선이다. 알람은 초과분을 본다), 디스크 80%, Hikari 대기 9, 컨테이너 재기동 3회다.

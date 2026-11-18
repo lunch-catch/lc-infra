@@ -1,7 +1,7 @@
 {
   "uid": "lc-api",
-  "title": "API",
-  "description": "API 의 요청률, 오류, 처리 시간(RED)을 API 마다 본다. 기준을 넘은 API 의 그래프에서 튄 곳을 드래그해 좁히고 선의 점을 눌러 그 구간의 트레이스를 연다. 트레이스에서 오래 걸린 단계를 찾은 뒤 위쪽의 Profiling 링크에서 그 코드가 시간을 쓴 곳을 본다. Wall Time 에서 크고 CPU Time 에서도 크면 연산이, 작으면 대기가 오래 걸린 것이다",
+  "title": "2. API",
+  "description": "API 의 요청률, 오류, 처리 시간(RED)을 API 마다 본다. 기준을 넘은 API 의 그래프에서 튄 곳을 드래그해 좁히고 선의 점을 눌러 그 구간의 트레이스를 연다. 트레이스에서 오래 걸린 단계를 찾은 뒤 위쪽의 Profiling 링크에서 그 코드가 시간을 쓴 곳을 본다. Wall Time 에서 크고 CPU Time 에서도 크면 연산이, 작으면 대기가 오래 걸린 것이다. 맨 위는 앱 앞의 로드밸런서(ALB)가 잰 오류와 응답 시간이다. 사용자 -> ALB -> 앱으로 요청이 지나는 순서대로 위에서 아래로 둔다",
   "tags": [
     "lunchcatch"
   ],
@@ -57,12 +57,141 @@
   "panels": [
     {
       "type": "row",
-      "title": "기준 초과",
+      "title": "로드밸런서 (ALB, CloudWatch)",
       "collapsed": false,
       "panels": [],
       "gridPos": {
         "x": 0,
         "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "id": 11
+    },
+    {
+      "type": "timeseries",
+      "title": "ALB 가 직접 낸 5xx (분당)",
+      "description": "앱이 아니라 ALB 가 만든 5xx(HTTPCode_ELB_5XX)의 분당 건수다. 앱이 낸 500 은 들어가지 않는다. 앱의 5xx 는 시스템 개요의 5xx 비율과 API 대시보드의 API 마다 5xx 비율에서 본다.",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_applicationelb_httpcode_elb_5_xx_count_sum",
+          "legendFormat": "5xx 전체",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "aws_applicationelb_httpcode_elb_502_count_sum",
+          "legendFormat": "502",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 12
+    },
+    {
+      "type": "timeseries",
+      "title": "앱 응답시간 (ALB 측정)",
+      "description": "ALB 가 요청을 앱에 넘긴 뒤 응답이 오기까지의 시간(TargetResponseTime)이다. ALB 자신의 처리 시간이 아니다. 앱이 잰 응답시간(아래 API 마다 p99)과 다르면 앱 앞(톰캣 대기 줄, 연결)에서 기다렸을 수 있지만, 요청 집합과 집계 구간이 달라도 차이가 난다. 차이가 크면 트레이스로 어디서 기다렸는지 확인한다",
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_applicationelb_target_response_time_p99",
+          "legendFormat": "p99",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "aws_applicationelb_target_response_time_average",
+          "legendFormat": "평균",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 13
+    },
+    {
+      "type": "row",
+      "title": "기준 초과",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 9,
         "w": 24,
         "h": 1
       },
@@ -79,7 +208,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 1,
+        "y": 10,
         "w": 12,
         "h": 12
       },
@@ -140,7 +269,7 @@
       "description": "API 마다 p99 를 계산해 가장 느린 열을 그린다. 지표는 API 종류 200 개까지 받는다(lc-backend#1093).",
       "gridPos": {
         "x": 12,
-        "y": 1,
+        "y": 10,
         "w": 12,
         "h": 12
       },
@@ -190,7 +319,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 13,
+        "y": 22,
         "w": 24,
         "h": 1
       },
@@ -232,7 +361,7 @@
       ],
       "gridPos": {
         "x": 0,
-        "y": 14,
+        "y": 23,
         "w": 12,
         "h": 8
       },
@@ -276,7 +405,7 @@
       ],
       "gridPos": {
         "x": 12,
-        "y": 14,
+        "y": 23,
         "w": 12,
         "h": 8
       },
@@ -318,7 +447,7 @@
       ],
       "gridPos": {
         "x": 0,
-        "y": 22,
+        "y": 31,
         "w": 12,
         "h": 8
       },
@@ -331,7 +460,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 30,
+        "y": 39,
         "w": 24,
         "h": 1
       },
@@ -373,7 +502,7 @@
       ],
       "gridPos": {
         "x": 0,
-        "y": 31,
+        "y": 40,
         "w": 12,
         "h": 8
       },
@@ -415,7 +544,7 @@
       ],
       "gridPos": {
         "x": 12,
-        "y": 31,
+        "y": 40,
         "w": 12,
         "h": 8
       },

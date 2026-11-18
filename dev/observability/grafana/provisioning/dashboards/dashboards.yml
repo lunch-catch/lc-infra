@@ -6,7 +6,8 @@ apiVersion: 1
 providers:
   - name: lunchcatch-overview
     type: file
-    folder: "개요"
+    folder: "1. 개요"
+    folderUid: lc-folder-overview
     disableDeletion: false
     allowUiUpdates: false
     updateIntervalSeconds: 30
@@ -14,7 +15,8 @@ providers:
       path: /etc/grafana/dashboards/common/overview
   - name: lunchcatch-service
     type: file
-    folder: "서비스"
+    folder: "2. 서비스"
+    folderUid: lc-folder-service
     disableDeletion: false
     allowUiUpdates: false
     updateIntervalSeconds: 30
@@ -22,7 +24,8 @@ providers:
       path: /etc/grafana/dashboards/common/service
   - name: lunchcatch-dependency
     type: file
-    folder: "의존 시스템"
+    folder: "3. 의존 시스템"
+    folderUid: lc-folder-dependency
     disableDeletion: false
     allowUiUpdates: false
     updateIntervalSeconds: 30
@@ -30,7 +33,8 @@ providers:
       path: /etc/grafana/dashboards/common/dependency
   - name: lunchcatch-runtime
     type: file
-    folder: "런타임"
+    folder: "4. 런타임"
+    folderUid: lc-folder-runtime
     disableDeletion: false
     allowUiUpdates: false
     updateIntervalSeconds: 30
@@ -38,7 +42,8 @@ providers:
       path: /etc/grafana/dashboards/common/runtime
   - name: lunchcatch-infra
     type: file
-    folder: "인프라"
+    folder: "5. 인프라"
+    folderUid: lc-folder-infra
     disableDeletion: false
     allowUiUpdates: false
     updateIntervalSeconds: 30
@@ -46,7 +51,8 @@ providers:
       path: /etc/grafana/dashboards/common/infra
   - name: lunchcatch-domain
     type: file
-    folder: "도메인"
+    folder: "6. 도메인"
+    folderUid: lc-folder-domain
     disableDeletion: false
     allowUiUpdates: false
     updateIntervalSeconds: 30
@@ -54,7 +60,8 @@ providers:
       path: /etc/grafana/dashboards/common/domain
   - name: lunchcatch-test
     type: file
-    folder: "테스트"
+    folder: "7. 테스트"
+    folderUid: lc-folder-test
     disableDeletion: false
     allowUiUpdates: false
     updateIntervalSeconds: 30

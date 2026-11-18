@@ -1,6 +1,6 @@
 {
   "uid": "lc-billing",
-  "title": "정산",
+  "title": "2. 정산",
   "description": "정산(결제 승인, 재조회, 웹훅, PG 대사, 노출 차감)의 결과를 라벨별로 그린다. 경보 규칙은 rules.yml 의 billing 그룹이다",
   "tags": [
     "lunchcatch"

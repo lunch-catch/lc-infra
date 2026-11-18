@@ -1,6 +1,6 @@
 {
   "uid": "lc-in-memory-db",
-  "title": "인메모리 DB",
+  "title": "2. 인메모리 DB",
   "description": "인메모리 DB(ElastiCache 의 Valkey)다. 캐시만이 아니라 노출 상한 카운터, 릴레이의 점유, 선착순 수량, 대기열에 쓴다. 익스포터(redis_exporter)와 앱(Lettuce)이 보는 것과 CloudWatch 가 보는 것이다",
   "tags": [
     "lunchcatch"

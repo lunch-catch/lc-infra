@@ -1,6 +1,6 @@
 {
   "uid": "lc-analytics",
-  "title": "분석",
+  "title": "3. 분석",
   "description": "분석(일 집계, 정합성, 퍼널 이벤트)의 결과를 라벨별로 그린다. 경보 규칙은 rules.yml 의 analytics 그룹이다",
   "tags": [
     "lunchcatch"

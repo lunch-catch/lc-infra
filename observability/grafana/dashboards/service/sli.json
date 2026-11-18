@@ -1,6 +1,6 @@
 {
   "uid": "lc-sli",
-  "title": "SLI",
+  "title": "1. SLI",
   "description": "API 의 성공 비율과 목표 안 비율을 본다 (lc-infra #165). 위의 숫자와 표는 보고 있는 범위의 원본 카운터로 정확히 세고, 아래 그래프는 Prometheus 가 기록한 5분 비율을 그린다. 목표(SLO)는 아직 정하지 않아 색과 선이 없고, 정하면 lc-backend #1250 에서 더한다",
   "tags": [
     "lunchcatch"

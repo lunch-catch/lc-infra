@@ -1,6 +1,6 @@
 {
   "uid": "lc-monitoring",
-  "title": "모니터링 상태",
+  "title": "2. 모니터링 상태",
   "description": "Prometheus 가 앱과 배치의 지표를 제대로 모으는지 본다. 부하 시험만이 아니라 운영에서도 모니터링이 돌고 있는지 확인한다. 수집이 빠진 칸이 있으면 그 구간의 다른 대시보드를 덜 믿는다",
   "tags": [
     "lunchcatch"
