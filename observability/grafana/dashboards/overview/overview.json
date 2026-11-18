@@ -334,7 +334,7 @@
     {
       "type": "stat",
       "title": "배치 서버 수",
-      "description": "",
+      "description": "2대보다 적으면 빨강이다. 경보 BatchDegraded 가 2대 미만이 5분 이어지면 울린다",
       "gridPos": {
         "x": 18,
         "y": 1,
@@ -352,8 +352,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "text",
+                "color": "red",
                 "value": null
+              },
+              {
+                "color": "green",
+                "value": 2
               }
             ]
           }
@@ -1207,7 +1211,7 @@
     {
       "type": "stat",
       "title": "DB 커넥션",
-      "description": "앱의 DB 커넥션 풀이 가장 많이 찬 비율과 기다리는 요청 수, 고른 범위에 커넥션을 얻지 못하고 시간 제한에 걸린 횟수다",
+      "description": "앱의 DB 커넥션 풀이 가장 많이 찬 비율과 기다리는 요청 수, 고른 범위에 커넥션을 얻지 못하고 시간 제한에 걸린 횟수다. 기다리는 요청은 9 를 넘으면 빨강이다(경보 HikariPendingHigh 와 같은 값)",
       "gridPos": {
         "x": 0,
         "y": 17,
@@ -1292,8 +1296,12 @@
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "transparent",
+                      "color": "green",
                       "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 10
                     }
                   ]
                 }
@@ -2025,7 +2033,7 @@
     {
       "type": "timeseries",
       "title": "5xx 비율",
-      "description": "rules.yml 의 HighFiveXXRate 는 이 값을 한 시간 전과 비교한다.",
+      "description": "rules.yml 의 HighFiveXXRate 는 이 값을 한 시간 전과 비교한다. 붉은 점선은 1시간 전 5xx 비율의 2배다. 경보 HighFiveXXRate 는 3분 동안 이 선을 넘으면 울린다",
       "gridPos": {
         "x": 12,
         "y": 26,
@@ -2045,7 +2053,37 @@
             "showPoints": "never"
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "경보 문턱 (1시간 전의 2배)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -2067,6 +2105,15 @@
             "type": "prometheus",
             "uid": "prometheus"
           }
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "2 * (sum(rate(http_server_requests_seconds_count{job=\"app\",status=~\"5..\"}[$__rate_interval] offset 1h)) or sum(rate(http_server_requests_seconds_count{job=\"app\"}[$__rate_interval] offset 1h)) * 0) / (sum(rate(http_server_requests_seconds_count{job=\"app\"}[$__rate_interval] offset 1h)) > 0)",
+          "legendFormat": "경보 문턱 (1시간 전의 2배)"
         }
       ],
       "id": 20
@@ -2074,7 +2121,7 @@
     {
       "type": "timeseries",
       "title": "전체 API 응답시간 분위수",
-      "description": "모든 API 를 합친 요청 시간의 분위수다. 노출처럼 요청이 많은 API 에 끌려가므로 API 별로는 영역별 핵심 지표의 API 패널 링크에서 API 대시보드로 넘어가 본다. 앱이 요청을 받은 때부터 재므로 톰캣 대기 줄에서 기다린 시간은 빠진다. P99Slow 알람이 아직 (미정) 인 이유가 여기 있다. 기준선을 이 패널에서 읽어 채운다.",
+      "description": "모든 API 를 합친 요청 시간의 분위수다. 노출처럼 요청이 많은 API 에 끌려가므로 API 별로는 영역별 핵심 지표의 API 패널 링크에서 API 대시보드로 넘어가 본다. 앱이 요청을 받은 때부터 재므로 톰캣 대기 줄에서 기다린 시간은 빠진다. P99Slow 알람이 아직 (미정) 인 이유가 여기 있다. 기준선을 이 패널에서 읽어 채운다. 붉은 점선은 목표를 정하지 않은 API 의 기본 상한(0.5초)이다. 모든 API 의 기준은 아니다. API마다의 목표는 기준을 넘은 API 패널이 견준다",
       "gridPos": {
         "x": 0,
         "y": 34,
@@ -2094,7 +2141,37 @@
             "showPoints": "never"
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "기본 상한 0.5초"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -2134,6 +2211,15 @@
             "type": "prometheus",
             "uid": "prometheus"
           }
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})",
+          "legendFormat": "기본 상한 0.5초"
         }
       ],
       "id": 21

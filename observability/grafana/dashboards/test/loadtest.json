@@ -254,19 +254,6 @@
             "thresholdsStyle": {
               "mode": "off"
             }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 0.4
-              }
-            ]
           }
         },
         "overrides": [

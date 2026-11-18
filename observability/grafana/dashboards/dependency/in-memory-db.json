@@ -287,7 +287,7 @@
     {
       "type": "timeseries",
       "title": "메모리 사용량",
-      "description": "",
+      "description": ". 붉은 점선은 상한의 70% 다. 경보 CacheMemoryHigh 가 5분 동안 이 선을 넘으면 울린다",
       "gridPos": {
         "x": 0,
         "y": 6,
@@ -307,7 +307,37 @@
             "showPoints": "never"
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "경보 문턱 (상한의 70%)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -338,17 +368,68 @@
             "type": "prometheus",
             "uid": "prometheus"
           }
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(redis_memory_max_bytes > 0) * 0.7",
+          "legendFormat": "경보 문턱 (상한의 70%)"
         }
       ],
       "id": 5
     },
     {
       "type": "timeseries",
-      "title": "적중률",
-      "description": "캐시가 Degradable 로 남아도 되는지 판단할 근거다. 낮으면 캐시가 일을 안 하고 있다.",
+      "title": "메모리가 차서 거절한 쓰기 (5분)",
+      "description": "Valkey 가 메모리 상한에 닿아 쓰기를 OOM 오류로 거절한 수를 5분 단위로 센다. 0 이 정상이고, 하나라도 있으면 경보 CacheOomRejected(critical)가 울린다. 로그인 상태, 쿠폰 순번, 과금 쓰기가 실패하고 있다는 뜻이다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(redis_errors_total{err=\"OOM\"}[5m])) or vector(0)",
+          "legendFormat": "OOM 거절",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
       "gridPos": {
         "x": 12,
         "y": 6,
+        "w": 12,
+        "h": 8
+      },
+      "id": 11
+    },
+    {
+      "type": "timeseries",
+      "title": "적중률",
+      "description": "캐시가 Degradable 로 남아도 되는지 판단할 근거다. 낮으면 캐시가 일을 안 하고 있다.",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
         "w": 12,
         "h": 8
       },
@@ -398,7 +479,7 @@
       "title": "연결 수",
       "description": "Valkey 에 지금 붙어 있는 연결 수다. 열고 바로 닫는 연결은 이 값에 보이지 않아 아래 새 연결 수로 본다.",
       "gridPos": {
-        "x": 0,
+        "x": 12,
         "y": 14,
         "w": 12,
         "h": 8
@@ -447,8 +528,8 @@
       "title": "초당 명령",
       "description": "",
       "gridPos": {
-        "x": 12,
-        "y": 14,
+        "x": 0,
+        "y": 22,
         "w": 12,
         "h": 8
       },
@@ -496,7 +577,7 @@
       "title": "Valkey 명령 지연",
       "description": "앱이 Valkey 명령 한 번을 보내고 완료되기까지 기다린 시간이다(앱의 lettuce_command_completion_seconds, Lettuce 자체의 지연 기록기, lc-backend#1180). 위의 초당 명령은 Valkey 가 처리한 명령 수뿐이다. 이 시간이 Redis 서버의 처리 시간보다 크게 길면 대기는 서버가 아니라 앱 쪽(연결의 줄, 응답을 처리하는 스레드)에 있다",
       "gridPos": {
-        "x": 0,
+        "x": 12,
         "y": 22,
         "w": 12,
         "h": 10
@@ -560,8 +641,8 @@
       "title": "Valkey 새 연결 수 (분당)",
       "description": "Valkey 가 받아들인 새 연결 수다. 앱이 연결을 다시 쓰면 0 에 가깝다. 파이프라인마다 연결을 새로 열면 요청 수에 맞춰 오른다(lc-backend#1065).",
       "gridPos": {
-        "x": 12,
-        "y": 22,
+        "x": 0,
+        "y": 32,
         "w": 12,
         "h": 8
       },

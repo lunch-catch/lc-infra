@@ -358,7 +358,7 @@
     {
       "type": "timeseries",
       "title": "느린 엔드포인트 상위 10개 (p99)",
-      "description": "API별로 p99 를 계산해 가장 느린 열을 그린다. 지표는 API 종류 200 개까지 받는다(lc-backend#1093).",
+      "description": "API별로 p99 를 계산해 가장 느린 열을 그린다. 지표는 API 종류 200 개까지 받는다(lc-backend#1093). 붉은 점선은 목표를 정하지 않은 API 의 기본 상한(0.5초)이다. 모든 API 의 기준은 아니다. API마다의 목표는 기준을 넘은 API 패널이 견준다",
       "gridPos": {
         "x": 12,
         "y": 10,
@@ -378,7 +378,37 @@
             "showPoints": "never"
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "기본 상한 0.5초"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -400,6 +430,15 @@
             "type": "prometheus",
             "uid": "prometheus"
           }
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})",
+          "legendFormat": "기본 상한 0.5초"
         }
       ],
       "id": 3
@@ -506,7 +545,7 @@
     {
       "type": "timeseries",
       "title": "API별 p99",
-      "description": "API별 처리 시간의 p99 다",
+      "description": "API별 처리 시간의 p99 다. 붉은 점선은 목표를 정하지 않은 API 의 기본 상한(0.5초)이다. 모든 API 의 기준은 아니다. API마다의 목표는 기준을 넘은 API 패널이 견준다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -515,7 +554,37 @@
         "defaults": {
           "unit": "s"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "기본 상한 0.5초"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -535,6 +604,15 @@
             "type": "prometheus",
             "uid": "prometheus"
           }
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})",
+          "legendFormat": "기본 상한 0.5초"
         }
       ],
       "gridPos": {

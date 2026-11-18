@@ -315,7 +315,7 @@ tests:
         alertname: HeapAfterGcHigh
         exp_alerts:
           - exp_labels: {severity: warning, job: app, instance: a1}
-            exp_annotations: {description: "a1 의 GC 뒤에 남은 힙이 10분 넘게 85% 를 넘었다. 메모리 누수와 힙 크기를 확인하라"}
+            exp_annotations: {description: "a1 의 GC 뒤에 남은 힙이 10분 넘게 70% 를 넘었다. 메모리 누수와 힙 크기를 확인하라"}
       - eval_time: 35m
         alertname: TransactionSlow
         exp_alerts:

@@ -806,7 +806,7 @@
     {
       "type": "timeseries",
       "title": "GC 뒤에 남은 힙",
-      "description": "GC 직후에도 살아 남은 데이터가 힙 최대 크기에서 차지하는 비율이다. GC 를 해도 줄지 않고 오르면 메모리가 새거나 힙이 작은 것이고, 그대로 가면 OutOfMemoryError 로 죽는다. 붉은 점선은 품질 문서 성능 효율성의 기준(GC 직후 70% 이하)이다. 85% 를 10분 넘게 넘으면 경보 HeapAfterGcHigh 가 울린다. 앱이 막 떠 아직 GC 를 하지 않은 동안은 비어 있다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다.",
+      "description": "GC 직후에도 살아 남은 데이터가 힙 최대 크기에서 차지하는 비율이다. GC 를 해도 줄지 않고 오르면 메모리가 새거나 힙이 작은 것이고, 그대로 가면 OutOfMemoryError 로 죽는다. 붉은 점선은 품질 문서 성능 효율성의 기준(GC 직후 70% 이하)이다. 이 선을 10분 넘게 넘으면 경보 HeapAfterGcHigh 가 울린다. 앱이 막 떠 아직 GC 를 하지 않은 동안은 비어 있다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다.",
       "gridPos": {
         "x": 12,
         "y": 35,
