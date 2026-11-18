@@ -1,6 +1,6 @@
 {
   "uid": "lc-data-stores",
-  "title": "04 데이터 저장소",
+  "title": "데이터 저장소",
   "description": "RDS 와 ElastiCache 다. 익스포터가 보는 것과 CloudWatch 가 보는 것을 나눠 둔다.",
   "tags": [
     "lunchcatch"
@@ -20,6 +20,22 @@
   "annotations": {
     "list": []
   },
+  "links": [
+    {
+      "title": "대시보드",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    }
+  ],
   "panels": [
     {
       "type": "row",
@@ -301,8 +317,8 @@
     },
     {
       "type": "timeseries",
-      "title": "커넥션",
-      "description": "앱 2대로 늘리기 전에 확인해야 하는 값이 max 다. 앱과 배치와 익스포터가 같이 쓴다.",
+      "title": "MySQL 연결 수",
+      "description": "MySQL 에 연결된 수와 지금 쿼리를 도는 수(mysqld_exporter), 그리고 RDS 가 잰 연결 수의 평균과 최대(CloudWatch)를 함께 그린다. 같은 값을 두 출처로 본다",
       "gridPos": {
         "x": 0,
         "y": 6,
@@ -358,6 +374,24 @@
           "refId": "C",
           "expr": "mysql_global_variables_max_connections",
           "legendFormat": "상한",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "D",
+          "expr": "aws_rds_database_connections_average",
+          "legendFormat": "평균",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "E",
+          "expr": "aws_rds_database_connections_maximum",
+          "legendFormat": "최대",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -613,63 +647,6 @@
       ]
     },
     {
-      "type": "timeseries",
-      "title": "DB 커넥션",
-      "description": "",
-      "gridPos": {
-        "x": 12,
-        "y": 23,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "aws_rds_database_connections_average",
-          "legendFormat": "평균",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "aws_rds_database_connections_maximum",
-          "legendFormat": "최대",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
       "type": "row",
       "title": "캐시 (redis_exporter)",
       "collapsed": false,
@@ -891,7 +868,7 @@
       "gridPos": {
         "x": 0,
         "y": 48,
-        "w": 24,
+        "w": 12,
         "h": 10
       },
       "datasource": {
@@ -952,9 +929,9 @@
       "title": "Valkey 새 연결 수 (분당)",
       "description": "Valkey 가 받아들인 새 연결 수다. 앱이 연결을 다시 쓰면 0 에 가깝다. 파이프라인마다 연결을 새로 열면 요청 수에 맞춰 오른다(lc-backend#1065).",
       "gridPos": {
-        "x": 0,
-        "y": 58,
-        "w": 24,
+        "x": 12,
+        "y": 48,
+        "w": 12,
         "h": 8
       },
       "datasource": {

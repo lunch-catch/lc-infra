@@ -1,7 +1,7 @@
 {
   "uid": "lc-overview",
-  "title": "01 서비스 개요",
-  "description": "요청, 지연, 에러와 영역마다의 핵심 지표를 한 화면에서 본다. 장애 판단의 첫 화면이다. 영역의 패널을 누르면 그 영역의 대시보드로 넘어가고, 도메인 대시보드는 위쪽의 대시보드 목록에서 연다",
+  "title": "서비스 개요",
+  "description": "요청, 지연, 에러와 계층마다의 핵심 지표를 한 화면에서 본다. 장애 판단의 첫 화면이다. 영역의 패널을 누르면 그 영역의 대시보드로 넘어가고, 다른 대시보드는 위쪽의 대시보드 목록에서 연다",
   "tags": [
     "lunchcatch"
   ],
@@ -20,6 +20,22 @@
   "annotations": {
     "list": []
   },
+  "links": [
+    {
+      "title": "대시보드",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    }
+  ],
   "panels": [
     {
       "type": "row",
@@ -514,8 +530,8 @@
       },
       "links": [
         {
-          "title": "06 기준 초과",
-          "url": "/d/lc-overrun?${__url_time_range}"
+          "title": "API",
+          "url": "/d/lc-api?${__url_time_range}"
         }
       ],
       "fieldConfig": {
@@ -611,8 +627,8 @@
       },
       "links": [
         {
-          "title": "06 기준 초과",
-          "url": "/d/lc-overrun?${__url_time_range}"
+          "title": "백그라운드 작업",
+          "url": "/d/lc-background?${__url_time_range}"
         }
       ],
       "fieldConfig": {
@@ -788,8 +804,8 @@
       },
       "links": [
         {
-          "title": "06 기준 초과",
-          "url": "/d/lc-overrun?${__url_time_range}"
+          "title": "백그라운드 작업",
+          "url": "/d/lc-background?${__url_time_range}"
         }
       ],
       "fieldConfig": {
@@ -923,12 +939,8 @@
       },
       "links": [
         {
-          "title": "06 기준 초과",
-          "url": "/d/lc-overrun?${__url_time_range}"
-        },
-        {
-          "title": "03 앱 JVM",
-          "url": "/d/lc-app-jvm?${__url_time_range}"
+          "title": "백그라운드 작업",
+          "url": "/d/lc-background?${__url_time_range}"
         }
       ],
       "fieldConfig": {
@@ -1104,11 +1116,11 @@
       },
       "links": [
         {
-          "title": "03 앱 JVM",
+          "title": "애플리케이션 서버와 JVM",
           "url": "/d/lc-app-jvm?${__url_time_range}"
         },
         {
-          "title": "04 데이터 저장소",
+          "title": "데이터 저장소",
           "url": "/d/lc-data-stores?${__url_time_range}"
         }
       ],
@@ -1281,7 +1293,7 @@
       },
       "links": [
         {
-          "title": "04 데이터 저장소",
+          "title": "데이터 저장소",
           "url": "/d/lc-data-stores?${__url_time_range}"
         }
       ],
@@ -1412,7 +1424,7 @@
       },
       "links": [
         {
-          "title": "03 앱 JVM",
+          "title": "애플리케이션 서버와 JVM",
           "url": "/d/lc-app-jvm?${__url_time_range}"
         }
       ],
@@ -1589,8 +1601,8 @@
       },
       "links": [
         {
-          "title": "06 기준 초과",
-          "url": "/d/lc-overrun?${__url_time_range}"
+          "title": "외부 연동",
+          "url": "/d/lc-external?${__url_time_range}"
         }
       ],
       "fieldConfig": {
@@ -1758,8 +1770,8 @@
       },
       "links": [
         {
-          "title": "05 부하 시험",
-          "url": "/d/lc-loadtest?${__url_time_range}"
+          "title": "모니터링 상태",
+          "url": "/d/lc-monitoring?${__url_time_range}"
         }
       ],
       "fieldConfig": {
@@ -2012,196 +2024,6 @@
           }
         }
       ]
-    },
-    {
-      "type": "timeseries",
-      "title": "느린 엔드포인트 상위 5개 (p99)",
-      "description": "API 마다 p99 를 계산해 가장 느린 다섯을 그린다. 지표는 API 종류 200 개까지 받는다(lc-backend#1093).",
-      "gridPos": {
-        "x": 12,
-        "y": 34,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "topk(5, histogram_quantile(0.99, sum by (le, uri) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))))",
-          "legendFormat": "{{uri}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "row",
-      "title": "로드밸런서 (CloudWatch)",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 42,
-        "w": 24,
-        "h": 1
-      },
-      "panels": []
-    },
-    {
-      "type": "timeseries",
-      "title": "ALB 가 직접 낸 5xx (분당)",
-      "description": "앱이 아니라 ALB 가 만든 5xx(HTTPCode_ELB_5XX)의 분당 건수다. 앱이 낸 500 은 들어가지 않는다. 앱의 5xx 는 위의 5xx 비율에서 본다.",
-      "gridPos": {
-        "x": 0,
-        "y": 43,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "aws_applicationelb_httpcode_elb_5_xx_count_sum",
-          "legendFormat": "5xx 전체",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "aws_applicationelb_httpcode_elb_502_count_sum",
-          "legendFormat": "502",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "앱 응답시간 (ALB 측정)",
-      "description": "ALB 가 요청을 앱에 넘긴 뒤 응답이 오기까지의 시간(TargetResponseTime)이다. ALB 자신의 처리 시간이 아니다. 앱이 잰 응답시간보다 크면 그 차이는 앱 앞(톰캣 대기 줄, 연결)에서 기다린 시간이다.",
-      "gridPos": {
-        "x": 12,
-        "y": 43,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "aws_applicationelb_target_response_time_p99",
-          "legendFormat": "p99",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "aws_applicationelb_target_response_time_average",
-          "legendFormat": "평균",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    }
-  ],
-  "links": [
-    {
-      "title": "대시보드",
-      "type": "dashboards",
-      "tags": [
-        "lunchcatch"
-      ],
-      "asDropdown": true,
-      "keepTime": true,
-      "includeVars": false,
-      "targetBlank": false,
-      "icon": "external link",
-      "tooltip": "",
-      "url": ""
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
-  "uid": "lc-overrun",
-  "title": "06 처리 시간 목표 초과",
-  "description": "기준을 넘은 API 와 백그라운드 작업을 고르고 트레이싱과 프로파일로 넘어가는 입구다 (lc-infra #94). 판정은 하지 않는다. 트레이싱과 프로파일링을 켠 회차에서 채워진다.",
+  "uid": "lc-background",
+  "title": "백그라운드 작업",
+  "description": "아웃박스 릴레이, 비동기 워커, cron 배치가 밀리지 않고 제때 도는지 본다. 모든 도메인이 쓰는 공통 지표만 그리고, 도메인만의 값은 그 도메인 대시보드에 있다. 기준을 넘은 그래프의 점을 누르면 그 구간의 트레이스가 열리고, 위쪽의 Profiling 링크에서 그 작업의 코드를 본다",
   "tags": [
     "lunchcatch"
   ],
@@ -9,137 +9,65 @@
   "editable": false,
   "schemaVersion": 39,
   "version": 1,
+  "refresh": "30s",
   "time": {
-    "from": "now-1h",
+    "from": "now-3h",
     "to": "now"
   },
-  "refresh": "",
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "대시보드",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "Profiling Wall Time (실행 경과 시간)",
+      "type": "link",
+      "targetBlank": false,
+      "keepTime": true,
+      "icon": "external link",
+      "tooltip": "",
+      "url": "/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=wall:wall:nanoseconds:cpu:nanoseconds"
+    },
+    {
+      "title": "Profiling CPU Time (CPU 연산 시간)",
+      "type": "link",
+      "targetBlank": false,
+      "keepTime": true,
+      "icon": "external link",
+      "tooltip": "",
+      "url": "/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=process_cpu:cpu:nanoseconds:cpu:nanoseconds"
+    }
+  ],
   "panels": [
     {
-      "id": 99,
-      "type": "text",
-      "title": "",
-      "gridPos": {
-        "h": 6,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "options": {
-        "mode": "markdown",
-        "content": "## 처리 시간 목표 초과의 원인을 찾는 순서\n\n작업 종류마다 왼쪽에서 오른쪽으로 본다.\n\n1. 그래프에서 기준을 넘은 것을 한눈에 확인할 수 있다.\n2. 그래프에서 튄 곳을 드래그해 좁히고 선의 점을 눌러 그 구간의 트레이스 목록을 연다. 그 가운데 하나를 열어 오래 걸린 호출 단계(DB 쿼리, 외부 호출)를 찾는다.\n3. Profiling Wall Time 에서 그 단계의 어느 코드가 시간을 썼는지 본다.\n4. Profiling CPU Time 에서도 그 코드가 시간이 크면 CPU 연산이 오래 걸린 것이고 작으면 대기한 것이다."
-      }
-    },
-    {
-      "id": 100,
-      "type": "row",
-      "title": "API",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 6
-      },
-      "panels": []
-    },
-    {
-      "id": 1,
-      "type": "timeseries",
-      "title": "기준을 넘은 API",
-      "description": "목표를 넘은 순간의 API p99 를 그린다. 목표는 기본 500ms 이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 API 에서 300ms 를 넘은 요청의 트레이스 목록이 보고 있는 구간으로 열린다",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 12,
-        "w": 20,
-        "x": 0,
-        "y": 7
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "(histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})))",
-          "legendFormat": "{{uri}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "min": 0,
-          "custom": {
-            "drawStyle": "lines",
-            "lineWidth": 1,
-            "fillOpacity": 0,
-            "spanNulls": false,
-            "showPoints": "auto"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              }
-            ]
-          },
-          "links": [
-            {
-              "title": "이 API 의 300ms 넘은 요청 트레이스 (보고 있는 구간)",
-              "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%20%7B%22datasource%22%3A%20%22tempo%22%2C%20%22queries%22%3A%20%5B%7B%22refId%22%3A%20%22A%22%2C%20%22datasource%22%3A%20%7B%22type%22%3A%20%22tempo%22%2C%20%22uid%22%3A%20%22tempo%22%7D%2C%20%22queryType%22%3A%20%22traceql%22%2C%20%22query%22%3A%20%22%7B%20nestedSetParent%20%3D%20-1%20%26%26%20span.http.route%20%3D%20%5C%22${__field.labels.uri:percentencode}%5C%22%20%26%26%20duration%20%3E%20300ms%20%7D%22%2C%20%22limit%22%3A%20100%2C%20%22tableType%22%3A%20%22traces%22%7D%5D%2C%20%22range%22%3A%20%7B%22from%22%3A%20%22${__from}%22%2C%20%22to%22%3A%20%22${__to}%22%7D%7D%7D",
-              "targetBlank": true
-            }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      }
-    },
-    {
-      "id": 101,
-      "type": "text",
-      "title": "프로파일링",
-      "gridPos": {
-        "h": 12,
-        "w": 4,
-        "x": 20,
-        "y": 7
-      },
-      "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다",
-      "options": {
-        "mode": "markdown",
-        "content": "- [Profiling Wall Time (실행 경과 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=wall:wall:nanoseconds:cpu:nanoseconds&${__url_time_range})\n- [Profiling CPU Time (CPU 연산 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=process_cpu:cpu:nanoseconds:cpu:nanoseconds&${__url_time_range})\n\nCall Tree 에서 **컨트롤러(예: `FeedController.getFeed`)** 을 찾는다. 링크로 검색어를 넘길 수 없어 화면에서 찾는다"
-      }
-    },
-    {
-      "id": 110,
       "type": "row",
       "title": "아웃박스 릴레이",
       "collapsed": false,
+      "panels": [],
       "gridPos": {
-        "h": 1,
-        "w": 24,
         "x": 0,
-        "y": 19
-      },
-      "panels": []
+        "y": 0,
+        "w": 24,
+        "h": 1
+      }
     },
     {
-      "id": 113,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: 릴레이마다 발행 지연 p99",
       "description": "기준을 넘은 동안의 발행 지연 p99 를 릴레이마다 그린다. 발행 지연은 건이 생긴 뒤 발행하기까지의 시간이다. 기준은 기본 5초이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 릴레이 작업의 실행 트레이스 목록이 열린다",
@@ -148,10 +76,10 @@
         "uid": "prometheus"
       },
       "gridPos": {
-        "h": 8,
-        "w": 10,
         "x": 0,
-        "y": 20
+        "y": 1,
+        "w": 12,
+        "h": 8
       },
       "targets": [
         {
@@ -217,19 +145,18 @@
       }
     },
     {
-      "id": 8,
       "type": "timeseries",
-      "title": "릴레이마다 지금 넘길 수 있는 건의 가장 오래 기다린 시간",
+      "title": "릴레이마다 지금 발행할 수 있는 건의 가장 오래 기다린 시간",
       "description": "지금 발행할 수 있는 미발행 가운데 가장 오래 기다린 건의 대기 시간을 그린다. 재시도를 기다리는 건과 포기한 건은 넣지 않는다. 릴레이가 멈추거나 못 따라가면 계속 자란다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
       "gridPos": {
-        "h": 8,
-        "w": 10,
-        "x": 10,
-        "y": 20
+        "x": 12,
+        "y": 1,
+        "w": 12,
+        "h": 8
       },
       "targets": [
         {
@@ -276,7 +203,6 @@
       }
     },
     {
-      "id": 9,
       "type": "timeseries",
       "title": "릴레이마다 미발행 건수",
       "description": "릴레이마다 미발행 건수를 그린다. 빨간 점선은 적체 기준(100건)이고 RelayBacklogHigh 경보의 기준이다",
@@ -285,10 +211,10 @@
         "uid": "prometheus"
       },
       "gridPos": {
-        "h": 8,
-        "w": 10,
         "x": 0,
-        "y": 28
+        "y": 9,
+        "w": 12,
+        "h": 8
       },
       "targets": [
         {
@@ -297,7 +223,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max by (relay) (outbox_relay_backlog) or label_replace(max(adserving_impression_dispatch_backlog), \"relay\", \"adserving.impression\", \"\", \"\")",
+          "expr": "max by (relay) (outbox_relay_backlog)",
           "legendFormat": "{{relay}}"
         },
         {
@@ -374,7 +300,6 @@
       }
     },
     {
-      "id": 114,
       "type": "timeseries",
       "title": "릴레이마다 포기한 건수",
       "description": "상한만큼 실패해 발행을 포기한 건수를 그린다. 0 이 정상이고, 0 보다 크면 RelayAbandoned 경보가 울린다",
@@ -383,10 +308,10 @@
         "uid": "prometheus"
       },
       "gridPos": {
-        "h": 8,
-        "w": 10,
-        "x": 10,
-        "y": 28
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 8
       },
       "targets": [
         {
@@ -433,36 +358,59 @@
       }
     },
     {
-      "id": 112,
-      "type": "text",
-      "title": "프로파일링",
-      "gridPos": {
-        "h": 16,
-        "w": 4,
-        "x": 20,
-        "y": 20
+      "type": "timeseries",
+      "title": "릴레이마다 초당 발행 수",
+      "description": "릴레이마다 초당 발행한 건수다. 미발행이 쌓일 때 발행이 멈췄는지 느려졌는지 가른다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
       },
-      "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
       "options": {
-        "mode": "markdown",
-        "content": "- [Profiling Wall Time (실행 경과 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=wall:wall:nanoseconds:cpu:nanoseconds&${__url_time_range})\n- [Profiling CPU Time (CPU 연산 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=process_cpu:cpu:nanoseconds:cpu:nanoseconds&${__url_time_range})\n\nCall Tree 에서 **`ImpressionDispatchJob` 의 `dispatchPending`** 을 찾는다. 링크로 검색어를 넘길 수 없어 화면에서 찾는다"
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (relay) (rate(outbox_relay_publish_delay_seconds_count[$__rate_interval]))",
+          "legendFormat": "{{relay}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 8
       }
     },
     {
-      "id": 120,
       "type": "row",
       "title": "비동기 워커",
       "collapsed": false,
+      "panels": [],
       "gridPos": {
-        "h": 1,
-        "w": 24,
         "x": 0,
-        "y": 36
-      },
-      "panels": []
+        "y": 25,
+        "w": 24,
+        "h": 1
+      }
     },
     {
-      "id": 10,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: 워커마다 가장 오래 기다린 작업의 대기 시간",
       "description": "기준을 넘은 동안의 가장 오래 기다린 작업의 대기 시간을 워커마다 그린다. 기준은 기본 5초이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 워커 스레드의 SQL 트레이스 목록이 열린다",
@@ -471,10 +419,10 @@
         "uid": "prometheus"
       },
       "gridPos": {
-        "h": 8,
-        "w": 10,
         "x": 0,
-        "y": 37
+        "y": 26,
+        "w": 12,
+        "h": 8
       },
       "targets": [
         {
@@ -540,7 +488,6 @@
       }
     },
     {
-      "id": 11,
       "type": "timeseries",
       "title": "워커마다 대기열 길이",
       "description": "워커마다 대기열 길이를 그린다. 대기 시간이 올랐을 때 밀린 양도 함께 늘었는지 본다",
@@ -549,10 +496,10 @@
         "uid": "prometheus"
       },
       "gridPos": {
-        "h": 8,
-        "w": 10,
-        "x": 10,
-        "y": 37
+        "x": 12,
+        "y": 26,
+        "w": 12,
+        "h": 8
       },
       "targets": [
         {
@@ -561,7 +508,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max by (worker) (async_worker_queue_size) or label_replace(max(adserving_impression_queue_size), \"worker\", \"adserving.impression-write\", \"\", \"\")",
+          "expr": "max by (worker) (async_worker_queue_size)",
           "legendFormat": "{{worker}}"
         }
       ],
@@ -599,122 +546,18 @@
       }
     },
     {
-      "id": 123,
-      "type": "timeseries",
-      "title": "워커마다 버린 작업(분당)",
-      "description": "워커가 버린 작업을 분당 건수로 그린다. 0 이 정상이고, 버린 노출은 과금되지 않는다",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 20,
-        "x": 0,
-        "y": 45
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum(rate(adserving_impression_dropped_total[$__rate_interval])) * 60",
-          "legendFormat": "adserving.impression-write 대기열이 차서 버림"
-        },
-        {
-          "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum(rate(adserving_impression_write_lost_total[$__rate_interval])) * 60",
-          "legendFormat": "adserving.impression-write 재시도 끝에 버림"
-        },
-        {
-          "refId": "C",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum(rate(adserving_serve_log_dropped_total[$__rate_interval])) * 60",
-          "legendFormat": "adserving.serve-log-write 대기열이 차서 버림"
-        },
-        {
-          "refId": "D",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum(rate(adserving_serve_log_failed_total[$__rate_interval])) * 60",
-          "legendFormat": "adserving.serve-log-write 쓰기에 실패해 버림"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "min": 0,
-          "custom": {
-            "drawStyle": "lines",
-            "pointSize": 4,
-            "lineWidth": 1,
-            "fillOpacity": 0,
-            "spanNulls": false
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      }
-    },
-    {
-      "id": 122,
-      "type": "text",
-      "title": "프로파일링",
-      "gridPos": {
-        "h": 16,
-        "w": 4,
-        "x": 20,
-        "y": 37
-      },
-      "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다",
-      "options": {
-        "mode": "markdown",
-        "content": "- [Profiling Wall Time (실행 경과 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=wall:wall:nanoseconds:cpu:nanoseconds&${__url_time_range})\n- [Profiling CPU Time (CPU 연산 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=process_cpu:cpu:nanoseconds:cpu:nanoseconds&${__url_time_range})\n\nCall Tree 에서 **워커의 처리 메서드(예: `ImpressionWriteBuffer`)** 을 찾는다. 링크로 검색어를 넘길 수 없어 화면에서 찾는다"
-      }
-    },
-    {
-      "id": 130,
       "type": "row",
       "title": "cron 배치",
       "collapsed": false,
+      "panels": [],
       "gridPos": {
-        "h": 1,
-        "w": 24,
         "x": 0,
-        "y": 53
-      },
-      "panels": []
+        "y": 34,
+        "w": 24,
+        "h": 1
+      }
     },
     {
-      "id": 134,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: cron 작업마다 시작 뒤 지난 시간",
       "description": "마감을 넘겨 도는 동안의 시작 뒤 지난 시간을 cron 작업마다 그린다. 끝나지 않고 멈춘 작업을 끝나기 전에 잡는다. 마감은 기본 10분이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 작업의 실행 트레이스 목록이 열린다",
@@ -723,10 +566,10 @@
         "uid": "prometheus"
       },
       "gridPos": {
-        "h": 9,
-        "w": 10,
         "x": 0,
-        "y": 54
+        "y": 35,
+        "w": 12,
+        "h": 9
       },
       "targets": [
         {
@@ -792,15 +635,14 @@
       }
     },
     {
-      "id": 135,
       "type": "timeseries",
       "title": "기준을 넘은 그래프: cron 작업마다 실행 한 번에 걸린 시간",
       "description": "마감보다 오래 걸린 cron 실행의 걸린 시간을 그린다. 실행이 끝난 뒤 2분 남짓 남았다가 사라진다. 마감은 기본 10분이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 작업의 실행 트레이스 목록이 열린다",
       "gridPos": {
-        "h": 9,
-        "w": 10,
-        "x": 10,
-        "y": 54
+        "x": 12,
+        "y": 35,
+        "w": 12,
+        "h": 9
       },
       "datasource": {
         "type": "prometheus",
@@ -860,275 +702,30 @@
       ]
     },
     {
-      "id": 133,
-      "type": "text",
-      "title": "프로파일링",
-      "gridPos": {
-        "h": 9,
-        "w": 4,
-        "x": 20,
-        "y": 54
-      },
-      "description": "링크는 지금 시간 범위를 넘긴다. 회차 하나로 보려면 Drilldown 의 Filters 에 run = <회차 이름> 을 준다",
-      "options": {
-        "mode": "markdown",
-        "content": "- [Profiling Wall Time (실행 경과 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=wall:wall:nanoseconds:cpu:nanoseconds&${__url_time_range})\n- [Profiling CPU Time (CPU 연산 시간)](/a/grafana-pyroscope-app/explore?explorationType=flame-graph&var-dataSource=pyroscope&var-serviceName=lunchcatch&var-profileMetricId=process_cpu:cpu:nanoseconds:cpu:nanoseconds&${__url_time_range})\n\nCall Tree 에서 **그 작업 메서드** 을 찾는다. 링크로 검색어를 넘길 수 없어 화면에서 찾는다"
-      }
-    },
-    {
-      "id": 140,
-      "type": "row",
-      "title": "외부 연동",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 63
-      },
-      "panels": []
-    },
-    {
-      "id": 141,
       "type": "timeseries",
-      "title": "외부 HTTP 호출: 상대와 경로마다 p99",
-      "description": "WebClient 로 부르는 외부 HTTP 호출의 p99 를 상대와 경로마다 그린다. 기준은 아직 정하지 않았다. 선의 점을 누르면 그 상대를 부른 트레이스 목록이 열린다",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
+      "title": "마지막 성공 이후 경과",
+      "description": "BatchNotRun 임계 1800초를 선으로 그렸다. 배치는 실패가 아니라 조용히 멈추는 것이 문제라 이 값으로 본다.",
       "gridPos": {
-        "h": 9,
+        "x": 0,
+        "y": 44,
         "w": 12,
-        "x": 0,
-        "y": 64
+        "h": 8
       },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "min": 0,
-          "custom": {
-            "drawStyle": "lines",
-            "pointSize": 4,
-            "lineWidth": 1,
-            "fillOpacity": 0,
-            "showPoints": "auto",
-            "spanNulls": false
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              }
-            ]
-          },
-          "links": [
-            {
-              "title": "이 상대의 호출 트레이스 (보고 있는 구간)",
-              "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%20%7B%22datasource%22%3A%20%22tempo%22%2C%20%22queries%22%3A%20%5B%7B%22refId%22%3A%20%22A%22%2C%20%22datasource%22%3A%20%7B%22type%22%3A%20%22tempo%22%2C%20%22uid%22%3A%20%22tempo%22%7D%2C%20%22queryType%22%3A%20%22traceql%22%2C%20%22query%22%3A%20%22%7B%20kind%20%3D%20client%20%26%26%20span.server.address%20%3D%20%5C%22${__field.labels.client_name:percentencode}%5C%22%20%7D%22%2C%20%22limit%22%3A%20100%2C%20%22tableType%22%3A%20%22traces%22%7D%5D%2C%20%22range%22%3A%20%7B%22from%22%3A%20%22${__from}%22%2C%20%22to%22%3A%20%22${__to}%22%7D%7D%7D",
-              "targetBlank": true
-            }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.99, sum by (client_name, uri, le) (rate(http_client_requests_histogram_seconds_bucket[$__rate_interval])))",
-          "legendFormat": "{{client_name}} {{uri}}"
-        }
-      ]
-    },
-    {
-      "id": 142,
-      "type": "timeseries",
-      "title": "AWS SDK 호출: 서비스와 작업과 모델마다 p99",
-      "description": "AWS SDK 호출(Bedrock, S3, Rekognition)의 p99 를 서비스, 작업, 모델마다 그린다. 기준은 아직 정하지 않았다. 선의 점을 누르면 그 서비스와 작업을 부른 트레이스 목록이 열린다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 64
-      },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "min": 0,
-          "custom": {
-            "drawStyle": "lines",
-            "pointSize": 4,
-            "lineWidth": 1,
-            "fillOpacity": 0,
-            "showPoints": "auto",
-            "spanNulls": false
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              }
-            ]
-          },
-          "links": [
-            {
-              "title": "이 작업의 호출 트레이스 (보고 있는 구간)",
-              "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%20%7B%22datasource%22%3A%20%22tempo%22%2C%20%22queries%22%3A%20%5B%7B%22refId%22%3A%20%22A%22%2C%20%22datasource%22%3A%20%7B%22type%22%3A%20%22tempo%22%2C%20%22uid%22%3A%20%22tempo%22%7D%2C%20%22queryType%22%3A%20%22traceql%22%2C%20%22query%22%3A%20%22%7B%20kind%20%3D%20client%20%26%26%20span.rpc.service%20%3D%20%5C%22${__field.labels.service:percentencode}%5C%22%20%26%26%20span.rpc.method%20%3D%20%5C%22${__field.labels.operation:percentencode}%5C%22%20%7D%22%2C%20%22limit%22%3A%20100%2C%20%22tableType%22%3A%20%22traces%22%7D%5D%2C%20%22range%22%3A%20%7B%22from%22%3A%20%22${__from}%22%2C%20%22to%22%3A%20%22${__to}%22%7D%7D%7D",
-              "targetBlank": true
-            }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.99, sum by (service, operation, model, le) (rate(aws_sdk_calls_seconds_bucket[$__rate_interval])))",
-          "legendFormat": "{{service}} {{operation}} {{model}}"
-        }
-      ]
-    },
-    {
-      "id": 150,
-      "type": "row",
-      "title": "지표 수집",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 73
-      },
-      "panels": []
-    },
-    {
-      "type": "timeseries",
-      "title": "앱과 배치의 지표 수집 시간",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Prometheus 가 앱과 배치의 지표를 받는 데 걸린 시간을 서버마다 그린다. 빨간 점선은 수집 제한 15초이고, 넘은 칸은 지표가 통째로 빈다. 부하로 CPU 가 바닥나면 이 값이 함께 오른다",
-      "gridPos": {
-        "h": 8,
-        "w": 16,
-        "x": 0,
-        "y": 74
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "max by (job, instance) (scrape_duration_seconds{job=~\"app|batch\"})",
-          "legendFormat": "{{job}} {{instance}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "min": 0,
           "custom": {
             "lineWidth": 1,
-            "fillOpacity": 0,
-            "spanNulls": false,
+            "fillOpacity": 6,
+            "showPoints": "never",
             "thresholdsStyle": {
-              "mode": "dashed"
+              "mode": "line"
             }
           },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 15
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "id": 151
-    },
-    {
-      "type": "stat",
-      "title": "앱과 배치의 지표 수집 실패(칸)",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "보고 있는 범위에서 수집이 빠진 칸(15초)의 수를 서버마다 센다. 0 이 아니면 그 칸의 그래프는 비어 있고, 비어 있는 것은 괜찮았다는 뜻이 아니다",
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 74
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum by (job, instance) (count_over_time((up{job=~\"app|batch\"} == 0)[$__range:15s])) or sum by (job, instance) (up{job=~\"app|batch\"}) * 0",
-          "legendFormat": "{{job}} {{instance}}",
-          "instant": true
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none",
-          "decimals": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1138,7 +735,7 @@
               },
               {
                 "color": "red",
-                "value": 1
+                "value": 1800
               }
             ]
           }
@@ -1146,25 +743,68 @@
         "overrides": []
       },
       "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "textMode": "value_and_name",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
         }
       },
-      "id": 152
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - batch_job_last_success_timestamp_seconds",
+          "legendFormat": "{{scheduler}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "cron 작업마다 실패한 실행 수 (1시간)",
+      "description": "cron 작업마다 최근 1시간에 실패로 끝난 실행 수다. 0 이 정상이다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (scheduler) (increase(batch_job_duration_seconds_count{job=\"batch\", outcome=\"failure\"}[1h])) > 0",
+          "legendFormat": "{{scheduler}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 44,
+        "w": 12,
+        "h": 8
+      }
     }
-  ],
-  "templating": {
-    "list": []
-  },
-  "annotations": {
-    "list": []
-  }
+  ]
 }

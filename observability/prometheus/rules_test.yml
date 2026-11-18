@@ -376,7 +376,7 @@ tests:
         alertname: RelayPublishDelayHigh
         exp_alerts:
           - exp_labels: {severity: warning, relay: adserving.impression}
-            exp_annotations: {description: "릴레이 adserving.impression 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 06 처리 시간 목표 초과의 릴레이 줄에서 실행 트레이스를 확인하라"}
+            exp_annotations: {description: "릴레이 adserving.impression 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 백그라운드 작업 대시보드의 릴레이 줄에서 실행 트레이스를 확인하라"}
       # 적체는 11분부터 100건을 넘고 10분 지속 뒤 울린다
       - eval_time: 15m
         alertname: RelayBacklogHigh
@@ -479,7 +479,7 @@ tests:
         alertname: RelayPublishDelayHigh
         exp_alerts:
           - exp_labels: {severity: warning, relay: adserving.impression}
-            exp_annotations: {description: "릴레이 adserving.impression 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 06 처리 시간 목표 초과의 릴레이 줄에서 실행 트레이스를 확인하라"}
+            exp_annotations: {description: "릴레이 adserving.impression 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 백그라운드 작업 대시보드의 릴레이 줄에서 실행 트레이스를 확인하라"}
       - eval_time: 35m
         alertname: RelayBacklogHigh
         exp_alerts:
@@ -550,7 +550,7 @@ tests:
         alertname: WorkerWaitHigh
         exp_alerts:
           - exp_labels: {severity: warning, worker: adserving.impression-write}
-            exp_annotations: {description: "워커 adserving.impression-write 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 06 처리 시간 목표 초과의 워커 줄을 확인하라"}
+            exp_annotations: {description: "워커 adserving.impression-write 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 백그라운드 작업 대시보드의 워커 줄을 확인하라"}
       - eval_time: 15m
         alertname: AdservingImpressionLossHigh
         exp_alerts: []
@@ -583,7 +583,7 @@ tests:
         alertname: WorkerWaitHigh
         exp_alerts:
           - exp_labels: {severity: warning, worker: adserving.impression-write}
-            exp_annotations: {description: "워커 adserving.impression-write 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 06 처리 시간 목표 초과의 워커 줄을 확인하라"}
+            exp_annotations: {description: "워커 adserving.impression-write 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 백그라운드 작업 대시보드의 워커 줄을 확인하라"}
       # 카운터가 25분에 0 으로 돌아가도 increase 가 재시작을 이어 붙여 계속 울린다. 0 으로 떨어진 한 칸의 증가분은 빠져 0.45% 로 센다
       - eval_time: 35m
         alertname: AdservingImpressionLossHigh

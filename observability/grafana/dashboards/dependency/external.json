@@ -1,0 +1,365 @@
+{
+  "uid": "lc-external",
+  "title": "외부 연동",
+  "description": "외부 HTTP 호출(카카오, 토스)과 AWS SDK 호출(Bedrock, S3, Rekognition)의 요청률, 실패율, 처리 시간을 본다. 기준은 아직 정하지 않았다",
+  "tags": [
+    "lunchcatch"
+  ],
+  "timezone": "browser",
+  "editable": false,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "대시보드",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    }
+  ],
+  "panels": [
+    {
+      "type": "row",
+      "title": "외부 HTTP 호출",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "외부 HTTP 호출: 상대마다 호출 수",
+      "description": "상대마다 초당 호출 수다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (client_name) (rate(http_client_requests_seconds_count[$__rate_interval]))",
+          "legendFormat": "{{client_name}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "외부 HTTP 호출: 상대마다 실패율",
+      "description": "상대마다 서버 오류와 응답 없음(UNKNOWN)으로 끝난 호출의 비율이다. 4xx 는 우리 요청의 잘못이라 넣지 않는다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum by (client_name) (rate(http_client_requests_seconds_count{outcome=~\"SERVER_ERROR|UNKNOWN\"}[$__rate_interval])) or sum by (client_name) (rate(http_client_requests_seconds_count[$__rate_interval])) * 0) / (sum by (client_name) (rate(http_client_requests_seconds_count[$__rate_interval])) > 0)",
+          "legendFormat": "{{client_name}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "외부 HTTP 호출: 상대와 경로마다 p99",
+      "description": "WebClient 로 부르는 외부 HTTP 호출의 p99 를 상대와 경로마다 그린다. 기준은 아직 정하지 않았다. 선의 점을 누르면 그 상대를 부른 트레이스 목록이 열린다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "lines",
+            "pointSize": 4,
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          },
+          "links": [
+            {
+              "title": "이 상대의 호출 트레이스 (보고 있는 구간)",
+              "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%20%7B%22datasource%22%3A%20%22tempo%22%2C%20%22queries%22%3A%20%5B%7B%22refId%22%3A%20%22A%22%2C%20%22datasource%22%3A%20%7B%22type%22%3A%20%22tempo%22%2C%20%22uid%22%3A%20%22tempo%22%7D%2C%20%22queryType%22%3A%20%22traceql%22%2C%20%22query%22%3A%20%22%7B%20kind%20%3D%20client%20%26%26%20span.server.address%20%3D%20%5C%22${__field.labels.client_name:percentencode}%5C%22%20%7D%22%2C%20%22limit%22%3A%20100%2C%20%22tableType%22%3A%20%22traces%22%7D%5D%2C%20%22range%22%3A%20%7B%22from%22%3A%20%22${__from}%22%2C%20%22to%22%3A%20%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (client_name, uri, le) (rate(http_client_requests_histogram_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "{{client_name}} {{uri}}"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "AWS SDK 호출",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "AWS SDK 호출: 서비스와 작업마다 호출 수",
+      "description": "서비스와 작업마다 초당 호출 수다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (service, operation) (rate(aws_sdk_calls_seconds_count[$__rate_interval]))",
+          "legendFormat": "{{service}} {{operation}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "AWS SDK 호출: 서비스와 작업마다 실패율",
+      "description": "서비스와 작업마다 성공이 아닌 결과로 끝난 호출의 비율이다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum by (service, operation) (rate(aws_sdk_calls_seconds_count{outcome!=\"success\"}[$__rate_interval])) or sum by (service, operation) (rate(aws_sdk_calls_seconds_count[$__rate_interval])) * 0) / (sum by (service, operation) (rate(aws_sdk_calls_seconds_count[$__rate_interval])) > 0)",
+          "legendFormat": "{{service}} {{operation}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "AWS SDK 호출: 서비스와 작업과 모델마다 p99",
+      "description": "AWS SDK 호출(Bedrock, S3, Rekognition)의 p99 를 서비스, 작업, 모델마다 그린다. 기준은 아직 정하지 않았다. 선의 점을 누르면 그 서비스와 작업을 부른 트레이스 목록이 열린다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "drawStyle": "lines",
+            "pointSize": 4,
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          },
+          "links": [
+            {
+              "title": "이 작업의 호출 트레이스 (보고 있는 구간)",
+              "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%20%7B%22datasource%22%3A%20%22tempo%22%2C%20%22queries%22%3A%20%5B%7B%22refId%22%3A%20%22A%22%2C%20%22datasource%22%3A%20%7B%22type%22%3A%20%22tempo%22%2C%20%22uid%22%3A%20%22tempo%22%7D%2C%20%22queryType%22%3A%20%22traceql%22%2C%20%22query%22%3A%20%22%7B%20kind%20%3D%20client%20%26%26%20span.rpc.service%20%3D%20%5C%22${__field.labels.service:percentencode}%5C%22%20%26%26%20span.rpc.method%20%3D%20%5C%22${__field.labels.operation:percentencode}%5C%22%20%7D%22%2C%20%22limit%22%3A%20100%2C%20%22tableType%22%3A%20%22traces%22%7D%5D%2C%20%22range%22%3A%20%7B%22from%22%3A%20%22${__from}%22%2C%20%22to%22%3A%20%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (service, operation, model, le) (rate(aws_sdk_calls_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "{{service}} {{operation}} {{model}}"
+        }
+      ]
+    }
+  ]
+}

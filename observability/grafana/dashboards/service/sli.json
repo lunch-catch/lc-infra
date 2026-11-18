@@ -1,6 +1,6 @@
 {
   "uid": "lc-sli",
-  "title": "09 SLI",
+  "title": "SLI",
   "description": "API 의 성공 비율과 목표 안 비율을 본다 (lc-infra #165). 위의 숫자와 표는 보고 있는 범위의 원본 카운터로 정확히 세고, 아래 그래프는 Prometheus 가 기록한 5분 비율을 그린다. 목표(SLO)는 아직 정하지 않아 색과 선이 없고, 정하면 lc-backend #1250 에서 더한다",
   "tags": [
     "lunchcatch"
@@ -209,7 +209,7 @@
       "id": 4,
       "type": "table",
       "title": "API 마다의 SLI",
-      "description": "보고 있는 범위의 API 마다 요청 수, 성공 비율, 목표 안 비율이다. 목표 안 비율이 낮은 API 는 06 처리 시간 목표 초과에서 트레이스로 넘어가 원인을 본다",
+      "description": "보고 있는 범위의 API 마다 요청 수, 성공 비율, 목표 안 비율이다. 목표 안 비율이 낮은 API 는 API 대시보드의 기준을 넘은 API 에서 트레이스로 넘어가 원인을 본다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -504,6 +504,22 @@
           "sort": "asc"
         }
       }
+    }
+  ],
+  "links": [
+    {
+      "title": "대시보드",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
     }
   ]
 }

@@ -1,4 +1,4 @@
-# API 의 SLI 다(lc-infra #165). 09 SLI 대시보드가 읽는다.
+# API 의 SLI 다(lc-infra #165). SLI 대시보드가 읽는다.
 #
 # SLI 는 둘이다. 성공 비율은 5xx 가 아닌 요청의 비율이고, 목표 안 비율은 5xx 가 아닌 요청 가운데 그 API 의 목표 안에 끝난 비율이다.
 # 목표 값은 앱 설정(lc-backend 의 lunchcatch.observability.targets.api)이 갖고, 앱이 요청마다 목표 안인지 세어 http_server_requests_target_total 로 낸다.

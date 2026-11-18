@@ -3,14 +3,65 @@
 # 화면에서 만든 대시보드는 grafana-data 볼륨에만 남아 인스턴스를 다시 만들면 사라진다.
 # allowUiUpdates 를 false 로 두어 화면에서 고친 것이 저장되지 않게 한다.
 # 고칠 일이 생기면 JSON 을 커밋하고 컨테이너를 재시작한다.
+#
+# 대시보드는 계층마다 Grafana 폴더 하나에 묶는다(lc-infra #169). 디렉터리는 영어로 두어 스크립트에서 다루기 쉽게 하고,
+# 화면에 보이는 폴더 이름은 provider 마다 folder 로 붙인다. 서비스 개요는 폴더 없이 맨 위에 둔다.
 apiVersion: 1
 
 providers:
-  - name: lunchcatch
+  - name: lunchcatch-overview
     type: file
+    folder: ""
     disableDeletion: false
     allowUiUpdates: false
     updateIntervalSeconds: 30
     options:
-      path: /etc/grafana/dashboards
-      foldersFromFilesStructure: false
+      path: /etc/grafana/dashboards/overview
+  - name: lunchcatch-service
+    type: file
+    folder: "서비스"
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards/service
+  - name: lunchcatch-dependency
+    type: file
+    folder: "의존 시스템"
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards/dependency
+  - name: lunchcatch-runtime
+    type: file
+    folder: "런타임"
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards/runtime
+  - name: lunchcatch-infra
+    type: file
+    folder: "인프라"
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards/infra
+  - name: lunchcatch-domain
+    type: file
+    folder: "도메인"
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards/domain
+  - name: lunchcatch-test
+    type: file
+    folder: "테스트"
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards/test

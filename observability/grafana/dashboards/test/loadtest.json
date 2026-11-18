@@ -1,11 +1,11 @@
 {
   "uid": "lc-loadtest",
-  "title": "05 부하 시험",
-  "description": "k6 가 experimental-prometheus-rw 로 밀어 넣는 값이다. 지표 이름은 k6 1.7.1 에서 실제로 확인했고, 트렌드는 초 단위다. k6 의 p95, p99, avg 는 회차 시작부터 쌓은 값이라 유지 구간만 떼어 낼 수 없다. API 별 p99 는 앱 서버의 히스토그램으로 따로 그린다. 유지 구간 한 값은 k6 요약과 run.sh metrics 에서 읽는다. 이 화면만 보지 말고 03 앱과 JVM, 04 데이터 저장소와 같은 시간대를 겹쳐 봐야 p99 가 튄 이유를 읽을 수 있다.",
+  "title": "부하 시험",
+  "description": "k6 가 experimental-prometheus-rw 로 밀어 넣는 값이다. 지표 이름은 k6 1.7.1 에서 실제로 확인했고, 트렌드는 초 단위다. k6 의 p95, p99, avg 는 회차 시작부터 쌓은 값이라 유지 구간만 떼어 낼 수 없다. API 별 p99 는 앱 서버의 히스토그램으로 API 대시보드가 그린다. 유지 구간 한 값은 k6 요약과 run.sh metrics 에서 읽는다. 이 화면만 보지 말고 API, 애플리케이션 서버와 JVM, 데이터 저장소의 같은 시간대를 겹쳐 봐야 p99 가 튄 이유를 읽을 수 있다.",
   "tags": [
-    "lunchcatch",
-    "loadtest"
+    "lunchcatch"
   ],
+  "timezone": "browser",
   "editable": false,
   "schemaVersion": 39,
   "version": 1,
@@ -14,13 +14,46 @@
     "from": "now-30m",
     "to": "now"
   },
-  "timezone": "",
-  "annotations": {
-    "list": []
-  },
   "templating": {
     "list": []
   },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "대시보드",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
+    },
+    {
+      "title": "API",
+      "type": "link",
+      "url": "/d/lc-api",
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": ""
+    },
+    {
+      "title": "모니터링 상태",
+      "type": "link",
+      "url": "/d/lc-monitoring",
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": ""
+    }
+  ],
   "panels": [
     {
       "type": "row",
@@ -41,7 +74,7 @@
       "gridPos": {
         "x": 0,
         "y": 1,
-        "w": 24,
+        "w": 12,
         "h": 8
       },
       "datasource": {
@@ -108,8 +141,8 @@
       "title": "응답 지연",
       "description": "부하 생성기가 본 응답 시간이다. k6 가 보낸 히스토그램으로 구간마다 계산해 램프업과 유지가 섞이지 않는다. 앱 서버의 스레드를 기다린 시간까지 들어가, 앱이 잰 API 별 p99 보다 크면 그 차이가 앱 앞의 대기다.",
       "gridPos": {
-        "x": 0,
-        "y": 9,
+        "x": 12,
+        "y": 1,
         "w": 12,
         "h": 8
       },
@@ -190,7 +223,7 @@
       "title": "응답 시간 단계별 p99",
       "description": "응답 시간을 단계로 나눈 p99 다. 서버 처리 대기가 서버가 생각한 시간이다. 연결이 튀면 앱이 아니라 생성기나 ALB 앞단을 봐야 한다. k6 의 히스토그램으로 구간마다 계산한다.",
       "gridPos": {
-        "x": 12,
+        "x": 0,
         "y": 9,
         "w": 12,
         "h": 8
@@ -268,8 +301,8 @@
       "title": "실패율",
       "description": "k6 가 기대한 응답이 아니라고 본 요청의 비율이다. 전에는 상태 코드마다 따로 그려 404 는 100%, 200 은 0% 로만 보였다.",
       "gridPos": {
-        "x": 0,
-        "y": 17,
+        "x": 12,
+        "y": 9,
         "w": 12,
         "h": 8
       },
@@ -328,62 +361,11 @@
       ]
     },
     {
-      "type": "timeseries",
-      "title": "API 별 p99 (앱)",
-      "description": "앱 서버가 잰 API 별 p99 다. 구간마다 새로 계산해 램프업이 섞이지 않는다. 앱이 요청을 받은 때부터 재므로 응답 지연(k6)의 p99 가 이보다 훨씬 크면 그 차이는 앱 밖(톰캣 대기 줄, ALB)에서 기다린 시간이다. 지표는 lc-backend#1093 이 내보낸다.",
-      "gridPos": {
-        "x": 12,
-        "y": 17,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never",
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "histogram_quantile(0.99, sum by (le, uri) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval])))",
-          "legendFormat": "{{uri}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
       "type": "row",
       "title": "목표 부하를 다 보냈는지",
       "gridPos": {
         "x": 0,
-        "y": 25,
+        "y": 17,
         "w": 24,
         "h": 1
       },
@@ -396,7 +378,7 @@
       "description": "0 이 아니면 k6 가 계획한 부하를 다 못 보냈다. 이 회차의 수치는 앱이 아니라 생성기의 한계를 잰 것이다. k6 가 드롭이 있을 때만 이 값을 보내 점이 드물다. 초당으로 바꾸면 구간 안에 점이 모자라 비므로 회차 시작부터 쌓인 수를 그린다. 이름은 k6 1.7.1 에서 확인했다.",
       "gridPos": {
         "x": 0,
-        "y": 26,
+        "y": 18,
         "w": 12,
         "h": 8
       },
@@ -460,7 +442,7 @@
       "description": "iteration_duration 이 계속 늘면 VU 가 쌓여 메모리가 는다. 2만 VU 회차에서 먼저 보는 값이다.",
       "gridPos": {
         "x": 12,
-        "y": 26,
+        "y": 18,
         "w": 12,
         "h": 8
       },
@@ -539,141 +521,6 @@
           }
         }
       ]
-    },
-    {
-      "type": "row",
-      "title": "서버 지표를 다 모았는지",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 34
-      },
-      "panels": []
-    },
-    {
-      "type": "timeseries",
-      "title": "앱과 배치의 지표 수집 시간",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Prometheus 가 앱과 배치의 지표를 받는 데 걸린 시간을 서버마다 그린다. 빨간 점선은 수집 제한 15초이고, 넘은 칸은 지표가 통째로 빈다. 부하로 CPU 가 바닥나면 이 값이 함께 오른다",
-      "gridPos": {
-        "h": 8,
-        "w": 16,
-        "x": 0,
-        "y": 35
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "max by (job, instance) (scrape_duration_seconds{job=~\"app|batch\"})",
-          "legendFormat": "{{job}} {{instance}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "min": 0,
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 0,
-            "spanNulls": false,
-            "thresholdsStyle": {
-              "mode": "dashed"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 15
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      }
-    },
-    {
-      "type": "stat",
-      "title": "앱과 배치의 지표 수집 실패(칸)",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "보고 있는 범위에서 수집이 빠진 칸(15초)의 수를 서버마다 센다. 0 이 아니면 그 칸의 그래프는 비어 있고, 비어 있는 것은 괜찮았다는 뜻이 아니다",
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 35
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum by (job, instance) (count_over_time((up{job=~\"app|batch\"} == 0)[$__range:15s])) or sum by (job, instance) (up{job=~\"app|batch\"}) * 0",
-          "legendFormat": "{{job}} {{instance}}",
-          "instant": true
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none",
-          "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "textMode": "value_and_name",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      }
     }
   ]
 }

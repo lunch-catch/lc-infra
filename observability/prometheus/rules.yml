@@ -436,7 +436,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          description: "릴레이 {{ $labels.relay }} 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 06 처리 시간 목표 초과의 릴레이 줄에서 실행 트레이스를 확인하라"
+          description: "릴레이 {{ $labels.relay }} 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 백그라운드 작업 대시보드의 릴레이 줄에서 실행 트레이스를 확인하라"
 
       # 품질 문서의 아웃박스 미발행 적체(100건 초과 시 경보)다. 포기한 건은 빠지고 다시 넘길 시각을 기다리는 건은 든다
       - alert: RelayBacklogHigh
@@ -475,7 +475,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          description: "워커 {{ $labels.worker }} 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 06 처리 시간 목표 초과의 워커 줄을 확인하라"
+          description: "워커 {{ $labels.worker }} 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 백그라운드 작업 대시보드의 워커 줄을 확인하라"
 
   # 임계값이 정해지지 않은 알람들. 부하 시험 후 채운다.
   #

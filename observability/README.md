@@ -201,16 +201,25 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 
 ## 대시보드
 
-`grafana/dashboards/*.json` 이 Git 에 있고 프로비저닝으로 올라간다.
+`grafana/dashboards/{계층}/*.json` 이 Git 에 있고 프로비저닝으로 올라간다.
 화면에서 고친 것은 저장되지 않는다 (`allowUiUpdates: false`). 데이터소스를 코드로 넣은 것과 같은 이유다 (`OPS-2-18`).
+대시보드는 계층마다 폴더 하나에 묶는다(lc-infra #169). 디렉터리는 영어이고, 화면의 폴더 이름은 `grafana/provisioning/dashboards/dashboards.yml` 이 디렉터리마다 붙인다. 대시보드 이름과 파일 이름에 순번을 붙이지 않는다.
 
-| 파일 | 화면 | 무엇을 보나 |
-|---|---|---|
-| `01-overview.json` | 01 서비스 개요 | 지금 울리는 경보와 고른 범위에 울린 경보, 영역별 핵심 지표(누르면 그 영역의 대시보드로 넘어간다), 요청률, 5xx 비율, 응답시간 분위수, ALB 지표 |
-| `02-hosts.json` | 02 호스트 | CPU 크레딧, CPU, 메모리, 디스크, 컨테이너 재기동 |
-| `03-app-jvm.json` | 03 앱과 JVM | 힙, GC, HikariCP, 톰캣 스레드, 배치 마지막 성공 |
-| `04-data-stores.json` | 04 데이터 저장소 | MySQL 커넥션과 쿼리, RDS 메모리, 캐시 적중률 |
-| `09-sli.json` | 09 SLI | API 마다 5xx 가 아닌 요청의 비율과 그 API 의 목표 안에 끝난 비율. 기록 규칙은 `prometheus/sli.yml` 이다 |
+| 파일 | 폴더 | 화면 | 무엇을 보나 |
+|---|---|---|---|
+| `overview/overview.json` | (맨 위) | 서비스 개요 | 지금 울리는 경보와 고른 범위에 울린 경보, 영역별 핵심 지표(누르면 그 영역의 대시보드로 넘어간다), 요청률, 5xx 비율, 응답시간 분위수 |
+| `service/api.json` | 서비스 | API | 기준을 넘은 API, API 마다 요청률, 5xx 비율, p99, 성공과 실패의 처리 시간 |
+| `service/sli.json` | 서비스 | SLI | API 마다 5xx 가 아닌 요청의 비율과 그 API 의 목표 안에 끝난 비율. 기록 규칙은 `prometheus/sli.yml` 이다 |
+| `service/background.json` | 서비스 | 백그라운드 작업 | 아웃박스 릴레이, 비동기 워커, cron 배치의 기준 초과와 밀린 양, 배치 마지막 성공 |
+| `dependency/data-stores.json` | 의존 시스템 | 데이터 저장소 | MySQL 연결 수와 쿼리, RDS 메모리, 캐시 적중률 |
+| `dependency/external.json` | 의존 시스템 | 외부 연동 | 외부 HTTP 호출과 AWS SDK 호출의 호출 수, 실패율, p99 |
+| `runtime/app-jvm.json` | 런타임 | 애플리케이션 서버와 JVM | 톰캣 스레드, HikariCP, 힙, GC, 스레드. 서버 종류(`job`)를 고른다 |
+| `infra/hosts.json` | 인프라 | 호스트와 로드밸런서 | CPU 크레딧, CPU, 메모리, 디스크, 컨테이너 재기동, ALB 지표 |
+| `infra/monitoring.json` | 인프라 | 모니터링 상태 | 앱과 배치의 지표 수집 시간과 수집이 빠진 칸 |
+| `domain/adserving.json` | 도메인 | 광고 서빙 | 노출 유실, 정산 청크, 캐시 장애로 건너뛴 규칙, 서빙 로그, 경고 로그 |
+| `domain/billing.json` | 도메인 | 정산 | 결제 승인, 재조회, 웹훅, PG 대사, 노출 차감 |
+| `domain/analytics.json` | 도메인 | 분석 | 일 집계, 정합성, 퍼널 이벤트 |
+| `test/loadtest.json` | 테스트 | 부하 시험 | k6 가 보낸 것과 목표 부하를 다 보냈는지 |
 
 **임계값이 있는 패널에는 선을 그어 두었다.** `rules.yml` 의 값과 같은 값이다.
 CPU 크레딧 173 과 58(알람이 아니라 시험 전 참고선이다. 알람은 초과분을 본다), 디스크 80%, Hikari 대기 9, 컨테이너 재기동 3회, 배치 1800초다.
@@ -237,7 +246,7 @@ ALB 와 RDS 쪽 이름은 첫 기동 때 한 번 맞춰 보는 것이 빠르다.
 curl -s localhost:9106/metrics | grep -o '^aws_[a-z_0-9]*' | sort -u
 ```
 
-다르면 `01-overview.json` 과 `04-data-stores.json` 의 해당 패널 `expr` 을 고친다.
+다르면 `infra/hosts.json` 과 `dependency/data-stores.json` 의 해당 패널 `expr` 을 고친다.
 
 ## 아직 채우지 못한 임계값
 
