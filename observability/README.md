@@ -215,15 +215,9 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 | `domain/adserving.json` | 3. 도메인 | 1. 광고 서빙 | 노출 유실, 정산 청크, 캐시 장애로 건너뛴 규칙, 서빙 로그, 경고 로그 |
 | `domain/billing.json` | 3. 도메인 | 2. 정산 | 결제 승인, 재조회, 웹훅, PG 대사, 노출 차감 |
 | `domain/analytics.json` | 3. 도메인 | 3. 분석 | 일 집계, 정합성, 퍼널 이벤트 |
-<<<<<<< HEAD
-| `runtime/app-jvm.json` | 4. 런타임 | 애플리케이션 서버 자원 | 톰캣 스레드, HikariCP, JVM(CPU 사용률, Heap, GC, 힙 밖, 모든 스레드, 열린 파일). 서버 종류(`job`)를 고른다 |
+| `runtime/app-jvm.json` | 4. 런타임 | 애플리케이션 서버 자원 | 스레드(톰캣 스레드와 모든 스레드), HikariCP, JVM(CPU 사용률, Heap, GC, 열린 파일). 서버 종류(`job`)를 고른다 |
 | `dependency/rdb.json` | 5. 의존 시스템 | 1. RDB | MySQL(RDS)의 연결 수, 쿼리, 느린 쿼리, 행 잠금 대기, 여유 메모리, 남은 저장 공간, RDS CPU 와 읽기, 쓰기 지연 |
 | `dependency/in-memory-db.json` | 5. 의존 시스템 | 2. 인메모리 DB | Valkey(ElastiCache)의 메모리, 메모리가 차서 거절한 쓰기, 엔진 CPU, 적중률, 연결 수, 명령 수와 지연 |
-=======
-| `runtime/app-jvm.json` | 4. 런타임 | 애플리케이션 서버 자원 | 스레드(톰캣 스레드와 모든 스레드), HikariCP, JVM(CPU 사용률, Heap, GC, 열린 파일). 서버 종류(`job`)를 고른다 |
-| `dependency/rdb.json` | 5. 의존 시스템 | 1. RDB | MySQL(RDS)의 연결 수, 쿼리, 느린 쿼리, 행 잠금 대기, 여유 메모리 |
-| `dependency/in-memory-db.json` | 5. 의존 시스템 | 2. 인메모리 DB | Valkey(ElastiCache)의 메모리, 적중률, 연결 수, 명령 수와 지연 |
->>>>>>> origin/feat/169-dashboard-hierarchy
 | `dependency/external.json` | 5. 의존 시스템 | 3. 외부 연동 | 외부 HTTP 호출과 AWS SDK 호출의 호출 수, 실패율, p99 |
 | `infra/hosts.json` | 6. 인프라 | 1. 호스트 | CPU 크레딧, 기계 전체의 CPU, 메모리, 디스크, 컨테이너마다의 CPU 와 메모리, 컨테이너 재기동 |
 | `infra/monitoring.json` | 6. 인프라 | 2. 모니터링 상태 | 앱과 배치의 지표 수집 시간과 수집이 빠진 칸, 모니터링 구성 요소(Prometheus, Alertmanager, Loki, Alloy, 익스포터)가 살아 있는지, 규칙 평가 실패 |
