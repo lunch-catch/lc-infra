@@ -1,7 +1,7 @@
 {
   "uid": "lc-overview",
   "title": "01 서비스 개요",
-  "description": "요청, 지연, 에러와 영역마다의 핵심 지표를 한 화면에서 본다. 장애 판단의 첫 화면이다. 영역의 패널을 누르면 그 영역의 대시보드로 넘어간다",
+  "description": "요청, 지연, 에러와 영역마다의 핵심 지표를 한 화면에서 본다. 장애 판단의 첫 화면이다. 영역의 패널을 누르면 그 영역의 대시보드로 넘어가고, 도메인 대시보드는 위쪽의 대시보드 목록에서 연다",
   "tags": [
     "lunchcatch"
   ],
@@ -597,7 +597,7 @@
     },
     {
       "type": "stat",
-      "title": "노출 릴레이",
+      "title": "아웃박스 릴레이",
       "description": "발행 지연 p99 가 기준을 넘은 릴레이 수와 미발행, 포기한 건수다. 미발행 건수는 정상으로 돌아도 쌓여 판정하지 않는다",
       "gridPos": {
         "x": 6,
@@ -752,7 +752,7 @@
         },
         {
           "refId": "B",
-          "expr": "max(outbox_relay_backlog or adserving_impression_dispatch_backlog)",
+          "expr": "max(outbox_relay_backlog)",
           "legendFormat": "미발행",
           "datasource": {
             "type": "prometheus",
@@ -775,7 +775,7 @@
     {
       "type": "stat",
       "title": "비동기 워커",
-      "description": "가장 오래 기다린 일의 대기 시간이 기준을 넘은 워커 수, 대기열이 가장 많이 찬 비율, 고른 범위에 버린 작업 수다",
+      "description": "가장 오래 기다린 일의 대기 시간이 기준을 넘은 워커 수와 대기열이 가장 많이 찬 비율이다",
       "gridPos": {
         "x": 12,
         "y": 12,
@@ -867,38 +867,6 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 1
-                    }
-                  ]
-                }
-              }
-            ]
           }
         ]
       },
@@ -931,16 +899,6 @@
           "refId": "B",
           "expr": "max(async_worker_queue_size / async_worker_queue_capacity)",
           "legendFormat": "대기열이 찬 비율",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        },
-        {
-          "refId": "C",
-          "expr": "(sum(increase(adserving_impression_dropped_total[$__range])) or vector(0)) + (sum(increase(adserving_impression_write_lost_total[$__range])) or vector(0))",
-          "legendFormat": "버린 작업",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -1310,7 +1268,7 @@
     {
       "type": "stat",
       "title": "Valkey",
-      "description": "Valkey 명령의 평균 지연과 가장 긴 지연, 고른 범위에 캐시 장애로 규칙을 건너뛴 횟수다",
+      "description": "Valkey 명령의 평균 지연과 가장 긴 지연이다",
       "gridPos": {
         "x": 6,
         "y": 17,
@@ -1325,10 +1283,6 @@
         {
           "title": "04 데이터 저장소",
           "url": "/d/lc-data-stores?${__url_time_range}"
-        },
-        {
-          "title": "07 광고 서빙",
-          "url": "/d/lc-adserving?${__url_time_range}"
         }
       ],
       "fieldConfig": {
@@ -1402,38 +1356,6 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 1
-                    }
-                  ]
-                }
-              }
-            ]
           }
         ]
       },
@@ -1466,16 +1388,6 @@
           "refId": "B",
           "expr": "max(lettuce_command_completion_seconds_max)",
           "legendFormat": "가장 긴 지연",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        },
-        {
-          "refId": "C",
-          "expr": "sum(increase(adserving_cache_bypass_total[$__range])) or vector(0)",
-          "legendFormat": "장애로 건너뜀",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -1832,228 +1744,13 @@
     },
     {
       "type": "stat",
-      "title": "광고 서빙과 정산",
-      "description": "초당 피드와 노출 요청, 초당 정산에 넘긴 노출, 고른 범위에 실패한 노출 차감 묶음이다. 과금된 비율과 미과금 사유는 앱 지표가 없어 두지 않는다",
-      "gridPos": {
-        "x": 0,
-        "y": 22,
-        "w": 18,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "links": [
-        {
-          "title": "07 광고 서빙",
-          "url": "/d/lc-adserving?${__url_time_range}"
-        },
-        {
-          "title": "08 정산과 분석",
-          "url": "/d/lc-billing-analytics?${__url_time_range}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 2,
-          "noValue": "지표 없음",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "reqps"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "transparent",
-                      "value": null
-                    }
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "reqps"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "transparent",
-                      "value": null
-                    }
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "transparent",
-                      "value": null
-                    }
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "D"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 1
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "background",
-        "graphMode": "none",
-        "textMode": "value_and_name",
-        "justifyMode": "auto",
-        "wideLayout": true
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"app\", uri=\"/v1/feed\"}[$__rate_interval]))",
-          "legendFormat": "초당 피드",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        },
-        {
-          "refId": "B",
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"app\", method=\"POST\", uri=\"/v1/impressions\"}[$__rate_interval]))",
-          "legendFormat": "초당 노출",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        },
-        {
-          "refId": "C",
-          "expr": "sum(rate(adserving_impression_dispatched_total[$__rate_interval]))",
-          "legendFormat": "초당 정산 넘김",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        },
-        {
-          "refId": "D",
-          "expr": "sum(increase(billing_deduct_batch_failed_total[$__range])) or vector(0)",
-          "legendFormat": "실패한 차감 묶음",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        }
-      ]
-    },
-    {
-      "type": "stat",
       "title": "지표 수집",
       "description": "고른 범위에 앱과 배치의 지표 수집이 실패한 칸(15초) 수다. 0 이 아니면 그 구간의 다른 패널을 덜 믿는다",
       "gridPos": {
-        "x": 18,
+        "x": 0,
         "y": 22,
-        "w": 6,
-        "h": 5
+        "w": 24,
+        "h": 3
       },
       "datasource": {
         "type": "prometheus",
@@ -2063,10 +1760,6 @@
         {
           "title": "05 부하 시험",
           "url": "/d/lc-loadtest?${__url_time_range}"
-        },
-        {
-          "title": "06 기준 초과",
-          "url": "/d/lc-overrun?${__url_time_range}"
         }
       ],
       "fieldConfig": {
@@ -2152,7 +1845,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 27,
+        "y": 25,
         "w": 24,
         "h": 1
       },
@@ -2164,7 +1857,7 @@
       "description": "",
       "gridPos": {
         "x": 0,
-        "y": 28,
+        "y": 26,
         "w": 12,
         "h": 8
       },
@@ -2212,7 +1905,7 @@
       "description": "rules.yml 의 HighFiveXXRate 는 이 값을 한 시간 전과 비교한다.",
       "gridPos": {
         "x": 12,
-        "y": 28,
+        "y": 26,
         "w": 12,
         "h": 8
       },
@@ -2260,7 +1953,7 @@
       "description": "모든 API 를 합친 요청 시간의 분위수다. 노출처럼 요청이 많은 API 에 끌려가므로 API 별로는 아래 느린 엔드포인트 상위 5개를 본다. 앱이 요청을 받은 때부터 재므로 톰캣 대기 줄에서 기다린 시간은 빠진다. P99Slow 알람이 아직 (미정) 인 이유가 여기 있다. 기준선을 이 패널에서 읽어 채운다.",
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 34,
         "w": 12,
         "h": 8
       },
@@ -2326,7 +2019,7 @@
       "description": "API 마다 p99 를 계산해 가장 느린 다섯을 그린다. 지표는 API 종류 200 개까지 받는다(lc-backend#1093).",
       "gridPos": {
         "x": 12,
-        "y": 36,
+        "y": 34,
         "w": 12,
         "h": 8
       },
@@ -2374,7 +2067,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 44,
+        "y": 42,
         "w": 24,
         "h": 1
       },
@@ -2386,7 +2079,7 @@
       "description": "앱이 아니라 ALB 가 만든 5xx(HTTPCode_ELB_5XX)의 분당 건수다. 앱이 낸 500 은 들어가지 않는다. 앱의 5xx 는 위의 5xx 비율에서 본다.",
       "gridPos": {
         "x": 0,
-        "y": 45,
+        "y": 43,
         "w": 12,
         "h": 8
       },
@@ -2443,7 +2136,7 @@
       "description": "ALB 가 요청을 앱에 넘긴 뒤 응답이 오기까지의 시간(TargetResponseTime)이다. ALB 자신의 처리 시간이 아니다. 앱이 잰 응답시간보다 크면 그 차이는 앱 앞(톰캣 대기 줄, 연결)에서 기다린 시간이다.",
       "gridPos": {
         "x": 12,
-        "y": 45,
+        "y": 43,
         "w": 12,
         "h": 8
       },
@@ -2493,6 +2186,22 @@
           }
         }
       ]
+    }
+  ],
+  "links": [
+    {
+      "title": "대시보드",
+      "type": "dashboards",
+      "tags": [
+        "lunchcatch"
+      ],
+      "asDropdown": true,
+      "keepTime": true,
+      "includeVars": false,
+      "targetBlank": false,
+      "icon": "external link",
+      "tooltip": "",
+      "url": ""
     }
   ]
 }
