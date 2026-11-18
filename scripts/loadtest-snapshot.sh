@@ -122,6 +122,12 @@ if [ -z "$FROM" ] || [ -z "$TO" ]; then
   TO=$(( $(date +%s) * 1000 ))
   FROM=$(( TO - MINUTES * 60 * 1000 ))
 fi
+# 끝을 지금보다 뒤로 주면 오지 않은 시간이 구간에 들어가, 지표 수집 칸이 그만큼 빠진 것으로 세진다(lc-infra #169)
+now_ms=$(( $(date +%s) * 1000 ))
+if [ "$TO" -gt "$now_ms" ]; then
+  log "끝($TO)이 지금보다 뒤라 지금($now_ms)으로 맞춘다"
+  TO=$now_ms
+fi
 
 [ $(( ${#TRACES[@]} + ${#EXPANDS[@]} )) -eq 0 ] || [ -n "$DIAG" ] || die "--trace 와 --expand 는 --diag 와 함께 준다"
 [ -z "$BASELINE" ] || { [ -n "$DIAG" ] && [ -n "$BASE_FROM" ] && [ -n "$BASE_TO" ]; } || die "--baseline 은 --diag, --baseline-from, --baseline-to 와 함께 준다"
