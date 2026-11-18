@@ -17,6 +17,7 @@
 #   --minutes <분>     지금부터 거꾸로 몇 분 (기본 5)
 #   --from / --to      유닉스 밀리초로 구간을 직접 준다
 #   --dash <uid>       그 대시보드만. 여러 번 줄 수 있다
+#   --domain <이름>    도메인 시험이다. 도메인 폴더에서는 그 도메인(lc-<이름>)만 찍고 나머지 계층은 모두 찍는다. 여러 번 줄 수 있다(lc-infra #169)
 #   --out <경로>       저장 위치 (기본 loadtest-runs/)
 #   --diag <회차>      진단 회차(트레이싱이나 프로파일링을 켠 회차)를 찍는다. 회차 이름은 프로파일의 run 라벨이다.
 #                      API 와 백그라운드 작업 대시보드를 렌더러로, Call Tree(wall, cpu)와 트레이스 화면을 브라우저 자동화(scripts/diag-capture)로 찍는다.
@@ -61,7 +62,7 @@ WIDTH="${WIDTH:-1600}"
 # 비워 두면 대시보드마다 패널 배치에서 높이를 잰다. 주면 모든 장을 그 높이로 자른다
 HEIGHT="${HEIGHT:-}"
 
-LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); LT=""; LOCAL=""; DIAG=""; TRACES=(); EXPANDS=(); BASELINE=""; BASE_FROM=""; BASE_TO=""; FIXED=()
+LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); DOMAINS=(); LT=""; LOCAL=""; DIAG=""; TRACES=(); EXPANDS=(); BASELINE=""; BASE_FROM=""; BASE_TO=""; FIXED=()
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -76,6 +77,7 @@ while [ $# -gt 0 ]; do
     --from)    FROM="${2:-}"; shift 2 ;;
     --to)      TO="${2:-}"; shift 2 ;;
     --dash)    DASH+=("${2:-}"); shift 2 ;;
+    --domain)  DOMAINS+=("${2:-}"); shift 2 ;;
     --out)     OUT_ROOT="${2:-}"; shift 2 ;;
     --diag)    DIAG="${2:-}"; shift 2 ;;
     --trace)   TRACES+=("${2:-}"); shift 2 ;;
@@ -126,11 +128,10 @@ fi
 [ ${#FIXED[@]} -eq 0 ] || { [ -n "$BASELINE" ] && [ ${#EXPANDS[@]} -gt 0 ]; } || die "--fixed 는 --baseline 과 --expand 와 함께 준다"
 
 # 진단 회차는 기준을 넘은 것을 그리는 API 와 백그라운드 작업만 찍는다(lc-infra #94, #169).
-# 기본은 측정 회차에서 보는 열 장 전부다. 회차마다 무엇이 문제였는지 미리 알 수 없다.
+# 기본 목록은 그라파나에 붙은 뒤 정한다(아래 "찍을 대시보드").
+[ ${#DOMAINS[@]} -eq 0 ] || [ ${#DASH[@]} -eq 0 ] || die "--domain 과 --dash 는 함께 주지 않는다"
 if [ -n "$DIAG" ]; then
   DASH=(lc-api lc-background)
-elif [ ${#DASH[@]} -eq 0 ]; then
-  DASH=(lc-overview lc-api lc-background lc-app-jvm lc-rdb lc-in-memory-db lc-hosts lc-monitoring lc-loadtest lc-adserving)
 fi
 
 # 접두사로 고른다. 같은 계정에 운영과 부하 시험 환경이 함께 있으면 Role 만으로는 어느 쪽인지 모른다
@@ -172,6 +173,31 @@ else
   [ -n "$PW" ] && [ "$PW" != "None" ] || PW=admin
 fi
 
+#
+# 찍을 대시보드를 정한다(lc-infra #169).
+#
+# 모든 지표를 보므로 기본은 대시보드 전부를 계층 순서로 찍는다. 회차마다 무엇이 문제였는지 미리 알 수 없다.
+# 순서는 그라파나의 폴더와 제목에 붙은 순번(1. 개요 ~ 7. 테스트)을 따른다. 목록을 여기 적지 않아 대시보드를 더해도 고치지 않는다.
+# 도메인 시험(--domain)이면 도메인 폴더에서는 그 도메인만 찍는다. 원인은 다른 계층에서 찾으므로 나머지는 그대로 찍는다.
+#
+if [ ${#DASH[@]} -eq 0 ]; then
+  list=$(curl -sf -u "admin:$PW" "http://localhost:$LOCAL_PORT/api/search?tag=lunchcatch&type=dash-db" \
+    | python3 -c '
+import json, sys
+want = set(sys.argv[1:])
+rows = json.load(sys.stdin)
+domains = {r["uid"][3:] for r in rows if "도메인" in r.get("tags", [])}
+bad = want - domains
+if bad:
+    sys.exit("없는 도메인: " + ", ".join(sorted(bad)) + ". 있는 도메인: " + ", ".join(sorted(domains)))
+rows = [r for r in rows if not want or "도메인" not in r.get("tags", []) or r["uid"][3:] in want]
+for r in sorted(rows, key=lambda r: (r.get("folderTitle", ""), r["title"])):
+    print(r["uid"])
+' ${DOMAINS[@]+"${DOMAINS[@]}"}) || die "찍을 대시보드 목록을 읽지 못했다"
+  read -r -a DASH <<< "$(echo $list)"
+  [ ${#DASH[@]} -gt 0 ] || die "lunchcatch 태그가 붙은 대시보드가 없다"
+fi
+
 stamp=$(date -u +%Y-%m-%dT%H-%M-%SZ)
 if [ -n "$DIAG" ]; then
   dir="$OUT_ROOT"
@@ -201,10 +227,12 @@ dash_height() {
     | python3 -c 'import json,sys; p=json.load(sys.stdin)["dashboard"]["panels"]; print(max(x["gridPos"]["y"] + x["gridPos"]["h"] for x in p) * 38 + 64)'
 }
 
-log "2. 렌더 $FROM ~ $TO"
-ok=0; fail=0
+log "2. 렌더 $FROM ~ $TO (${#DASH[@]} 장)"
+ok=0; fail=0; n=0
 for uid in "${DASH[@]}"; do
-  out="$dir/${prefix}$uid.png"
+  # 파일 이름 앞에 찍는 순서를 붙여 폴더에서도 계층 순서로 보이게 한다
+  n=$((n+1))
+  out="$dir/${prefix}$(printf '%02d' "$n")-$uid.png"
   [ -n "$DIAG" ] && out="$dir/${prefix}${uid#lc-}.png"
   h="${HEIGHT:-$(dash_height "$uid" || echo 900)}"
   code=$(curl -s -o "$out" -w '%{http_code}' --max-time 180 -u "admin:$PW" \
