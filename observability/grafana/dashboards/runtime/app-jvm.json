@@ -504,11 +504,69 @@
     },
     {
       "type": "timeseries",
-      "title": "GC 로 멈춘 시간 비율과 최대 멈춤",
-      "description": "왼쪽은 GC 로 멈춘 시간의 비율이다. 10% 면 시간의 10% 를 GC 에 썼다. 오른쪽은 GC 한 번이 가장 길게 멈춘 시간이다. 비율이 낮아도 한 번의 긴 멈춤은 p99 를 튀게 한다. 주황 점선은 비율의 경보 문턱 10% 다. 5분 넘게 넘으면 경보 GcOverheadHigh 가 울린다. 붉은 점선은 최대 멈춤의 기준(품질 문서의 GC 일시정지 p99 200ms)이다. 패널은 최대 멈춤이라 최대가 선 아래면 기준 안이다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다.",
+      "title": "Heap 사용량",
+      "description": "서버마다 자바 힙의 메모리 풀들(Eden, Survivor, Old)을 더한 사용량과 최대값이다. GC 뒤에 남은 힙 패널은 GC 가 끝난 뒤 오래 사는 객체가 차지한 몫의 비율이라, 이 패널과 집계가 다르다",
       "gridPos": {
         "x": 12,
         "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, instance_id) (jvm_memory_used_bytes{job=~\"$job\", area=\"heap\"})",
+          "legendFormat": "사용 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (instance, instance_id) (jvm_memory_max_bytes{job=~\"$job\", area=\"heap\"})",
+          "legendFormat": "상한 {{instance}} {{instance_id}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 10
+    },
+    {
+      "type": "timeseries",
+      "title": "GC 로 멈춘 시간 비율과 최대 멈춤",
+      "description": "왼쪽은 GC 로 멈춘 시간의 비율이다. 10% 면 시간의 10% 를 GC 에 썼다. 오른쪽은 GC 한 번이 가장 길게 멈춘 시간이다. 비율이 낮아도 한 번의 긴 멈춤은 p99 를 튀게 한다. 주황 점선은 비율의 경보 문턱 10% 다. 5분 넘게 넘으면 경보 GcOverheadHigh 가 울린다. 붉은 점선은 최대 멈춤의 기준(품질 문서의 GC 일시정지 p99 200ms)이다. 패널은 최대 멈춤이라 최대가 선 아래면 기준 안이다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다.",
+      "gridPos": {
+        "x": 0,
+        "y": 35,
         "w": 12,
         "h": 8
       },
@@ -651,14 +709,14 @@
           }
         }
       ],
-      "id": 10
+      "id": 11
     },
     {
       "type": "timeseries",
       "title": "GC 뒤에 남은 힙",
       "description": "GC 직후에도 살아 남은 데이터가 힙 최대 크기에서 차지하는 비율이다. GC 를 해도 줄지 않고 오르면 메모리가 새거나 힙이 작은 것이고, 그대로 가면 OutOfMemoryError 로 죽는다. 붉은 점선은 품질 문서 성능 효율성의 기준(GC 직후 70% 이하)이다. 85% 를 10분 넘게 넘으면 경보 HeapAfterGcHigh 가 울린다. 앱이 막 떠 아직 GC 를 하지 않은 동안은 비어 있다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다.",
       "gridPos": {
-        "x": 0,
+        "x": 12,
         "y": 35,
         "w": 12,
         "h": 8
@@ -735,64 +793,6 @@
           "refId": "B",
           "expr": "max(overrun_threshold_ratio{kind=\"global\", name=\"heap-after-gc\"})",
           "legendFormat": "기준(70%)",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "id": 11
-    },
-    {
-      "type": "timeseries",
-      "title": "자바 힙 사용량",
-      "description": "서버마다 자바 힙의 메모리 풀들(Eden, Survivor, Old)을 더한 사용량과 최대값이다. GC 뒤에 남은 힙 패널은 GC 가 끝난 뒤 오래 사는 객체가 차지한 몫의 비율이라, 이 패널과 집계가 다르다",
-      "gridPos": {
-        "x": 12,
-        "y": 35,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 6,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (instance, instance_id) (jvm_memory_used_bytes{job=~\"$job\", area=\"heap\"})",
-          "legendFormat": "사용 {{instance}} {{instance_id}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "sum by (instance, instance_id) (jvm_memory_max_bytes{job=~\"$job\", area=\"heap\"})",
-          "legendFormat": "상한 {{instance}} {{instance_id}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
