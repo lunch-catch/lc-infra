@@ -1128,7 +1128,7 @@
       },
       "links": [
         {
-          "title": "애플리케이션 서버와 JVM",
+          "title": "애플리케이션 서버 자원",
           "url": "/d/lc-app-jvm?${__url_time_range}"
         },
         {
@@ -1438,7 +1438,7 @@
       },
       "links": [
         {
-          "title": "애플리케이션 서버와 JVM",
+          "title": "애플리케이션 서버 자원",
           "url": "/d/lc-app-jvm?${__url_time_range}"
         }
       ],

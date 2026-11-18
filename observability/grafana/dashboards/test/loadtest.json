@@ -1,7 +1,7 @@
 {
   "uid": "lc-loadtest",
   "title": "부하 시험",
-  "description": "k6 가 experimental-prometheus-rw 로 밀어 넣는 값이다. 지표 이름은 k6 1.7.1 에서 실제로 확인했고, 트렌드는 초 단위다. k6 의 p95, p99, avg 는 회차 시작부터 쌓은 값이라 유지 구간만 떼어 낼 수 없다. API 별 p99 는 앱 서버의 히스토그램으로 API 대시보드가 그린다. 유지 구간 한 값은 k6 요약과 run.sh metrics 에서 읽는다. 이 화면만 보지 말고 API, 애플리케이션 서버와 JVM, 데이터 저장소의 같은 시간대를 겹쳐 봐야 p99 가 튄 이유를 읽을 수 있다.",
+  "description": "k6 가 experimental-prometheus-rw 로 밀어 넣는 값이다. 지표 이름은 k6 1.7.1 에서 실제로 확인했고, 트렌드는 초 단위다. k6 의 p95, p99, avg 는 회차 시작부터 쌓은 값이라 유지 구간만 떼어 낼 수 없다. API 별 p99 는 앱 서버의 히스토그램으로 API 대시보드가 그린다. 유지 구간 한 값은 k6 요약과 run.sh metrics 에서 읽는다. 이 화면만 보지 말고 API, 애플리케이션 서버 자원, 데이터 저장소의 같은 시간대를 겹쳐 봐야 p99 가 튄 이유를 읽을 수 있다.",
   "tags": [
     "lunchcatch"
   ],
