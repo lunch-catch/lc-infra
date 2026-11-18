@@ -199,7 +199,7 @@
     {
       "type": "stat",
       "title": "RDB",
-      "description": "",
+      "description": "지금 시각의 mysql_up 이다. 1 이면 UP, 0 이면 DOWN 이다. mysqld_exporter 를 수집하지 못하면 지표 없음이다",
       "gridPos": {
         "x": 6,
         "y": 1,
@@ -1037,7 +1037,7 @@
     {
       "type": "stat",
       "title": "cron 배치",
-      "description": "시작 뒤 지난 시간이나 실행 한 번의 시간이 기준을 넘은 작업 수, 고른 범위에 실패한 실행 수, 오늘 00:00 묶음이 끝났는지다",
+      "description": "시작 뒤 지난 시간이나 실행 한 번의 시간이 기준을 넘은 작업 수, 고른 범위에 실패한 실행 수, 오늘 00:00 묶음이 끝났는지다. 실패한 실행은 fixedDelay 로 도는 작업까지 모든 예약 작업을 센다",
       "gridPos": {
         "x": 18,
         "y": 12,
@@ -1191,7 +1191,7 @@
         },
         {
           "refId": "B",
-          "expr": "sum(increase(batch_job_duration_seconds_count{job=\"batch\", outcome=\"failure\", scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}[$__range])) or vector(0)",
+          "expr": "sum(increase(batch_job_duration_seconds_count{job=\"batch\", outcome=\"failure\"}[$__range])) or vector(0)",
           "legendFormat": "실패한 실행",
           "datasource": {
             "type": "prometheus",
@@ -1215,7 +1215,7 @@
     {
       "type": "stat",
       "title": "JVM",
-      "description": "GC 로 멈춘 비율이나 가장 긴 멈춤, GC 뒤 남은 힙이 기준을 넘은 서버 수와 톰캣 작업 스레드가 가장 많이 찬 비율이다",
+      "description": "GC 로 멈춘 비율이나 가장 긴 멈춤, GC 뒤 남은 힙이 기준을 넘은 서버 수와 톰캣 작업 스레드가 가장 많이 찬 비율이다. JVM 지표나 기준을 읽지 못하면 0 이 아니라 지표 없음이다",
       "gridPos": {
         "x": 0,
         "y": 17,
@@ -1359,7 +1359,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "count((sum by (instance, instance_id) (rate(jvm_gc_pause_seconds_sum[$__rate_interval])) > scalar(max(overrun_threshold_ratio{kind=\"global\", name=\"gc-overhead\"}))) or (max by (instance, instance_id) (jvm_gc_pause_seconds_max) > scalar(max(overrun_threshold_seconds{kind=\"global\", name=\"gc-pause\"})))) or vector(0)",
+          "expr": "count((sum by (instance, instance_id) (rate(jvm_gc_pause_seconds_sum[$__rate_interval])) > scalar(max(overrun_threshold_ratio{kind=\"global\", name=\"gc-overhead\"}))) or (max by (instance, instance_id) (jvm_gc_pause_seconds_max) > scalar(max(overrun_threshold_seconds{kind=\"global\", name=\"gc-pause\"})))) or on() ((count(jvm_gc_pause_seconds_sum) * 0) and on() max(overrun_threshold_ratio{kind=\"global\", name=\"gc-overhead\"}))",
           "legendFormat": "GC 초과 서버",
           "datasource": {
             "type": "prometheus",
@@ -1369,7 +1369,7 @@
         },
         {
           "refId": "B",
-          "expr": "count(max by (instance, instance_id) (jvm_gc_live_data_size_bytes / (jvm_gc_max_data_size_bytes > 0)) > scalar(max(overrun_threshold_ratio{kind=\"global\", name=\"heap-after-gc\"}))) or vector(0)",
+          "expr": "count(max by (instance, instance_id) (jvm_gc_live_data_size_bytes / (jvm_gc_max_data_size_bytes > 0)) > scalar(max(overrun_threshold_ratio{kind=\"global\", name=\"heap-after-gc\"}))) or on() ((count(jvm_gc_live_data_size_bytes) * 0) and on() max(overrun_threshold_ratio{kind=\"global\", name=\"heap-after-gc\"}))",
           "legendFormat": "힙 초과 서버",
           "datasource": {
             "type": "prometheus",
@@ -1393,7 +1393,7 @@
     {
       "type": "stat",
       "title": "DB 커넥션",
-      "description": "앱의 DB 커넥션 풀이 가장 많이 찬 비율과 기다리는 요청 수, 고른 범위에 커넥션을 얻지 못하고 시간 제한에 걸린 횟수다. 기다리는 요청은 9 를 넘으면 빨강이다(경보 HikariPendingHigh 와 같은 값)",
+      "description": "API 서버(job=\"app\")의 DB 커넥션 풀이 가장 많이 찬 비율과 기다리는 요청 수, 고른 범위에 커넥션을 얻지 못하고 시간 제한에 걸린 횟수다. 기다리는 요청은 9 를 넘으면 빨강이다(경보 HikariPendingHigh 와 같은 값). 배치 서버의 풀은 애플리케이션 서버 자원에서 본다",
       "gridPos": {
         "x": 6,
         "y": 17,
@@ -1541,7 +1541,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max(hikaricp_connections_active / hikaricp_connections_max)",
+          "expr": "max(hikaricp_connections_active{job=\"app\"} / hikaricp_connections_max{job=\"app\"})",
           "legendFormat": "풀 사용률",
           "datasource": {
             "type": "prometheus",
@@ -1551,7 +1551,7 @@
         },
         {
           "refId": "B",
-          "expr": "max(hikaricp_connections_pending)",
+          "expr": "max(hikaricp_connections_pending{job=\"app\"})",
           "legendFormat": "기다리는 요청",
           "datasource": {
             "type": "prometheus",
@@ -1561,7 +1561,7 @@
         },
         {
           "refId": "C",
-          "expr": "sum(increase(hikaricp_connections_timeout_total[$__range])) or vector(0)",
+          "expr": "sum(increase(hikaricp_connections_timeout_total{job=\"app\"}[$__range])) or vector(0)",
           "legendFormat": "시간 제한",
           "datasource": {
             "type": "prometheus",
@@ -1939,7 +1939,7 @@
     {
       "type": "timeseries",
       "title": "5xx 비율",
-      "description": "rules.yml 의 HighFiveXXRate 는 이 값을 한 시간 전과 비교한다. 붉은 점선은 1시간 전 5xx 비율의 2배다. 경보 HighFiveXXRate 는 3분 동안 이 선을 넘으면 울린다. 경보와 같게 3분 창으로 센다. 1시간 전에 5xx 가 없었으면 경보가 견줄 값이 없어 점선도 비운다",
+      "description": "rules.yml 의 HighFiveXXRate 는 이 값을 한 시간 전과 비교한다. 붉은 점선은 1시간 전 5xx 비율의 2배다. 경보 HighFiveXXRate 는 3분 동안 이 선을 넘으면 울린다. 경보와 같게 3분 창으로 센다. 1시간 전 5xx 시계열이 없었으면 경보가 견줄 값이 없어 점선도 비운다. 시계열은 있고 늘지 않았으면 점선은 0% 에 그려지고 경보도 0 과 견준다",
       "gridPos": {
         "x": 12,
         "y": 23,

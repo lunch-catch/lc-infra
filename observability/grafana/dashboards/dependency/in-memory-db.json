@@ -408,7 +408,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(increase(redis_errors_total{err=\"OOM\"}[5m])) or (max(redis_up) * 0)",
+          "expr": "(sum(increase(redis_errors_total{err=\"OOM\"}[5m])) or vector(0)) and on() (max(redis_up) == 1)",
           "legendFormat": "OOM 거절",
           "datasource": {
             "type": "prometheus",

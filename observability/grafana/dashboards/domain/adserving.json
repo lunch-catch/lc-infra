@@ -384,7 +384,7 @@
             "uid": "prometheus"
           },
           "legendFormat": "실행 실패/초",
-          "expr": "sum(rate(adserving_impression_dispatch_error_total[$__rate_interval])) or (sum(up{job=\"batch\"}) * 0)"
+          "expr": "(sum(rate(adserving_impression_dispatch_error_total[$__rate_interval])) or vector(0)) and on() (sum(up{job=\"batch\"}) > 0)"
         }
       ],
       "id": 12
