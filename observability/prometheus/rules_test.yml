@@ -613,10 +613,11 @@ tests:
         exp_alerts: []
 
   # API 지연(lc-infra #171). /v1/feed 는 20분부터 모든 요청이 0.5~1초라 p99 가 목표 0.3초를 넘는다.
-  # /v1/other 는 목표가 없어 기본 0.5초와 견주고, 모든 요청이 0.1초 안이라 울리지 않는다.
+  # /v1/other 는 목표가 없어 기본 0.5초와 견준다. 20~40분만 0.5~1초로 느리고 그 뒤 0.1초 안으로 돌아온다.
   #   15분  둘 다 빠르다: 울리지 않는다
   #   25분  넘은 지 5분 남짓: for 10분이 안 차 울리지 않는다
-  #   40분  넘은 지 20분: /v1/feed 만 울린다
+  #   38분  넘은 지 18분: 둘 다 울린다. /v1/other 는 기본 목표 분기로 울린다
+  #   58분  /v1/other 는 40분에 돌아와 해소되고 /v1/feed 만 남는다
   - interval: 1m
     input_series:
       - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/feed", le="0.1"}'
@@ -628,9 +629,9 @@ tests:
       - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/feed", le="+Inf"}'
         values: '0+60x60'
       - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/other", le="0.1"}'
-        values: '0+60x60'
+        values: '0+60x20 1200x20 1200+60x20'
       - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/other", le="0.5"}'
-        values: '0+60x60'
+        values: '0+60x20 1200x20 1200+60x20'
       - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/other", le="1.0"}'
         values: '0+60x60'
       - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/other", le="+Inf"}'
@@ -646,20 +647,27 @@ tests:
       - eval_time: 25m
         alertname: ApiLatencyHigh
         exp_alerts: []
-      - eval_time: 40m
+      - eval_time: 38m
+        alertname: ApiLatencyHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, uri: /v1/feed}
+            exp_annotations: {description: "/v1/feed 의 p99 가 10분 넘게 목표를 넘었다. API 대시보드의 기준을 넘은 API 에서 트레이스를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#apilatencyhigh"}
+          - exp_labels: {severity: warning, uri: /v1/other}
+            exp_annotations: {description: "/v1/other 의 p99 가 10분 넘게 목표를 넘었다. API 대시보드의 기준을 넘은 API 에서 트레이스를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#apilatencyhigh"}
+      - eval_time: 58m
         alertname: ApiLatencyHigh
         exp_alerts:
           - exp_labels: {severity: warning, uri: /v1/feed}
             exp_annotations: {description: "/v1/feed 의 p99 가 10분 넘게 목표를 넘었다. API 대시보드의 기준을 넘은 API 에서 트레이스를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#apilatencyhigh"}
 
   # MySQL 연결 끊김과 수집 대상이 내려감(lc-infra #171). 둘 다 5분에 내려간다.
-  #   MySQL 은 1분을 기다려 7분부터, 수집 대상은 5분을 기다려 10분부터 울린다
+  #   MySQL 은 1분을 기다려 7분부터, 수집 대상은 5분을 기다려 10분부터 울린다. 15분에 둘 다 돌아와 해소된다
   - interval: 1m
     input_series:
       - series: 'mysql_up{job="mysqld", instance="m1"}'
-        values: '1x5 0x10'
+        values: '1x5 0x10 1x10'
       - series: 'up{job="node", instance="n1"}'
-        values: '1x5 0x10'
+        values: '1x5 0x10 1x10'
     alert_rule_test:
       - eval_time: 3m
         alertname: MysqlConnectionFailed
@@ -676,7 +684,14 @@ tests:
         alertname: TargetDown
         exp_alerts:
           - exp_labels: {severity: warning, job: node, instance: n1}
-            exp_annotations: {description: "수집 대상 node n1 가 5분 넘게 응답하지 않는다. 그 대상의 지표를 보는 경보가 멈춰 있다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#targetdown"}
+            exp_annotations: {description: "수집 대상 node n1 가 5분 넘게 응답하지 않는다. 그 대상의 지표를 보는 경보가 멈춰 있다. Prometheus 의 Targets 화면에서 오류를 보고 그 컨테이너가 떠 있는지 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#targetdown"}
+      # 15분에 둘 다 돌아온다. 다음 평가에서 해소된다
+      - eval_time: 18m
+        alertname: MysqlConnectionFailed
+        exp_alerts: []
+      - eval_time: 18m
+        alertname: TargetDown
+        exp_alerts: []
 
   # 경보 전달 실패(lc-infra #171). 10분에 Slack 으로 한 번 보내지 못한다
   - interval: 1m
@@ -768,3 +783,50 @@ tests:
         exp_alerts:
           - exp_labels: {severity: warning, instance: h1, mountpoint: /, fstype: ext4}
             exp_annotations: {description: "디스크 사용률이 80% 를 넘었다. 로그를 정리하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#diskusagehigh"}
+
+  # Valkey 메모리와 엔진 CPU, 규칙 평가 실패(lc-infra #171).
+  #   r1 은 상한의 80% 라 5분 뒤 울리고, r2 는 상한이 0(상한 없음)이라 울리지 않는다
+  #   엔진 CPU 는 5분에 95% 가 되어 5분을 기다린 10분 뒤에 울린다
+  #   규칙 평가 실패는 10분에 한 번 늘어 울리고, 15분에 Prometheus 가 다시 떠 카운터가 0 이 되어도 다시 울리지 않는다
+  - interval: 1m
+    input_series:
+      - series: 'redis_memory_used_bytes{instance="r1"}'
+        values: '80x30'
+      - series: 'redis_memory_max_bytes{instance="r1"}'
+        values: '100x30'
+      - series: 'redis_memory_used_bytes{instance="r2"}'
+        values: '80x30'
+      - series: 'redis_memory_max_bytes{instance="r2"}'
+        values: '0x30'
+      - series: 'aws_elasticache_engine_cpuutilization_average{cache_cluster_id="c1"}'
+        values: '50x5 95x25'
+      - series: 'prometheus_rule_evaluation_failures_total{rule_group="g1"}'
+        values: '0x10 1x5 0x15'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: CacheMemoryHigh
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: CacheMemoryHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: r1}
+            exp_annotations: {description: "캐시 메모리가 70% 를 넘었다. TTL 없는 키와 키 개수를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#cachememoryhigh"}
+      - eval_time: 8m
+        alertname: CacheEngineCpuHigh
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: CacheEngineCpuHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, cache_cluster_id: c1}
+            exp_annotations: {description: "Valkey 엔진 CPU 가 5분 넘게 90% 를 넘었다. 느린 명령과 키 개수를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#cacheenginecpuhigh"}
+      - eval_time: 5m
+        alertname: PrometheusRuleEvaluationFailures
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: PrometheusRuleEvaluationFailures
+        exp_alerts:
+          - exp_labels: {severity: warning, rule_group: g1}
+            exp_annotations: {description: "Prometheus 가 규칙 묶음 g1 의 규칙을 평가하지 못했다. 실패한 규칙의 경보가 그동안 평가되지 않았을 수 있다. Prometheus 로그에서 그 규칙을 찾아라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#prometheusruleevaluationfailures"}
+      - eval_time: 25m
+        alertname: PrometheusRuleEvaluationFailures
+        exp_alerts: []

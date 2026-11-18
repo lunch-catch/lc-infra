@@ -29,7 +29,7 @@
           "uid": "prometheus"
         },
         "step": "60s",
-        "expr": "max by (job, instance, instance_id, version) (process_start_time_seconds{job=~\"app|batch\"}) * 1000",
+        "expr": "label_replace(max by (job, instance, instance_id, version) (process_start_time_seconds{job=~\"app|batch\"}), \"version\", \"미수집\", \"version\", \"\") * 1000",
         "titleFormat": "{{job}} 기동",
         "textFormat": "{{instance}} {{instance_id}} 버전 {{version}}",
         "useValueForTime": true
@@ -282,7 +282,7 @@
     {
       "type": "timeseries",
       "title": "모니터링 구성 요소가 살아 있는지",
-      "description": "지표, 경보, 로그, 트레이스, 프로파일을 받는 구성 요소마다 수집이 되는지(1)와 안 되는지(0)다. 0 이 5분 이어지면 경보 TargetDown 이 울린다. 그 구성 요소가 받는 신호는 그동안 빠진다",
+      "description": "지표, 경보, 로그를 받는 구성 요소와 익스포터마다 수집이 되는지(1)와 안 되는지(0)다. 한 종류에 대상이 여럿이면(앱 서버마다의 Alloy 같은 것) 하나라도 수집이 안 되면 0 이다. 어느 대상인지는 Prometheus 의 Targets 화면이나 경보 TargetDown 의 instance 로 본다. 0 이 5분 이어지면 TargetDown 이 울리고, 그 구성 요소가 받는 신호는 그동안 빠진다. Tempo 와 Pyroscope 는 켠 환경에서만 떠 여기서 보지 않는다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -316,7 +316,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max by (job) (up{job=~\"prometheus|alertmanager|loki|tempo|pyroscope|alloy|node|cadvisor|mysqld|redis|cloudwatch\"})",
+          "expr": "min by (job) (up{job=~\"prometheus|alertmanager|loki|alloy|node|cadvisor|mysqld|redis|cloudwatch\"})",
           "legendFormat": "{{job}}"
         }
       ],
@@ -331,7 +331,7 @@
     {
       "type": "timeseries",
       "title": "규칙 평가 실패 (5분)",
-      "description": "Prometheus 가 규칙 묶음을 평가하다 오류가 난 수다. 0 이 정상이다. 0 이 아니면 그 묶음의 경보가 울리지 않은 채 멈춰 있고 경보 PrometheusRuleEvaluationFailures 가 울린다",
+      "description": "Prometheus 가 규칙 묶음 안의 규칙을 평가하다 오류가 난 수다. 0 이 정상이다. 0 이 아니면 실패한 규칙의 경보가 그동안 평가되지 않았을 수 있고 경보 PrometheusRuleEvaluationFailures 가 울린다. Prometheus 자기 자신을 수집하지 못하면 0 이 아니라 비어 있다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -364,7 +364,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (rule_group) (increase(prometheus_rule_evaluation_failures_total[5m])) or (max(up{job=\"prometheus\"}) * 0)",
+          "expr": "sum by (rule_group) (increase(prometheus_rule_evaluation_failures_total[5m]))",
           "legendFormat": "{{rule_group}}"
         }
       ],

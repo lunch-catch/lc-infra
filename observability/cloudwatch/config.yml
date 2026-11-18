@@ -53,12 +53,16 @@ metrics:
     aws_metric_name: FreeableMemory
     aws_dimensions: [DBInstanceIdentifier]
     aws_statistics: [Average]
+    # 경보가 보는 지표라 스크레이프 시각으로 남긴다. 원본 시각은 10분 전이라 경보의 순간 조회에 걸리지 않는다(아래 EC2 크레딧과 같다, lc-infra #171)
+    set_timestamp: false
 
   # 저장 공간 자동 확장을 켜지 않아(modules/data/rds.tf) 차기 전에 알아야 한다. 경보 RdsStorageLow 가 본다(lc-infra #171)
   - aws_namespace: AWS/RDS
     aws_metric_name: FreeStorageSpace
     aws_dimensions: [DBInstanceIdentifier]
     aws_statistics: [Average]
+    # 경보가 보는 지표라 스크레이프 시각으로 남긴다. 원본 시각은 10분 전이라 경보의 순간 조회에 걸리지 않는다(아래 EC2 크레딧과 같다, lc-infra #171)
+    set_timestamp: false
 
   - aws_namespace: AWS/RDS
     aws_metric_name: DatabaseConnections
@@ -87,6 +91,8 @@ metrics:
     aws_metric_name: EngineCPUUtilization
     aws_dimensions: [CacheClusterId]
     aws_statistics: [Average]
+    # 경보가 보는 지표라 스크레이프 시각으로 남긴다. 원본 시각은 10분 전이라 경보의 순간 조회에 걸리지 않는다(아래 EC2 크레딧과 같다, lc-infra #171)
+    set_timestamp: false
 
   # 크레딧은 서서히 변한다. 300초로 긁어 API 요청을 아낀다.
   - aws_namespace: AWS/RDS

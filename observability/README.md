@@ -219,7 +219,7 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 | `dependency/in-memory-db.json` | 5. 의존 시스템 | 2. 인메모리 DB | Valkey(ElastiCache)의 메모리, 메모리가 차서 거절한 쓰기, 엔진 CPU, 적중률, 연결 수, 명령 수와 지연 |
 | `dependency/external.json` | 5. 의존 시스템 | 3. 외부 연동 | 외부 HTTP 호출과 AWS SDK 호출의 호출 수, 실패율, p99 |
 | `infra/hosts.json` | 6. 인프라 | 1. 호스트 | CPU 크레딧, 기계 전체의 CPU, 메모리, 디스크, 컨테이너마다의 CPU 와 메모리, 컨테이너 재기동 |
-| `infra/monitoring.json` | 6. 인프라 | 2. 모니터링 상태 | 앱과 배치의 지표 수집 시간과 수집이 빠진 칸, 모니터링 구성 요소(Prometheus, Alertmanager, Loki, Tempo, Pyroscope, Alloy, 익스포터)가 살아 있는지, 규칙 평가 실패 |
+| `infra/monitoring.json` | 6. 인프라 | 2. 모니터링 상태 | 앱과 배치의 지표 수집 시간과 수집이 빠진 칸, 모니터링 구성 요소(Prometheus, Alertmanager, Loki, Alloy, 익스포터)가 살아 있는지, 규칙 평가 실패 |
 | `test/loadtest.json` | 7. 테스트 | 부하 시험 | k6 가 보낸 것과 목표 부하를 다 보냈는지 |
 
 **모든 대시보드에 배포 주석을 건다.** 앱과 배치 프로세스가 뜬 시각에 세로 선을 긋고, 앱 지표의 `version` 꼬리표(배포가 넘기는 `APP_VERSION`)를 적는다. 배포 직후 지표가 바뀌었는지 그 선과 견준다. `version` 꼬리표는 lc-backend 가 지표에 다는 것이라(`management.metrics.tags.version`), 그 설정이 든 이미지부터 버전이 찍힌다. 그 전 이미지는 기동 시각만 찍히고 버전이 빈다.
@@ -233,8 +233,8 @@ API 의 응답 시간 패널(전체 분위수, 느린 엔드포인트, API별 p9
 배치 작업은 작업마다 BatchNotRun 기준이 달라(300초, 1800초, 90000초, 180000초) 선 하나를 긋지 않는다. 기준은 `prometheus/thresholds.yml` 의 `batch_job_not_run_threshold_seconds` 가 작업마다 갖고, 경보와 백그라운드 작업 대시보드의 기준 대비 패널(100% 선)이 같은 값을 읽는다.
 알람이 울리기 전에 어디쯤 와 있는지 화면에서 먼저 보라고 맞춰 둔 것이다.
 
-**`(미정)` 을 채울 값을 읽는 자리도 표시해 두었다.** p99 기준선, 톰캣 스레드 사용률,
-RDS 여유 메모리가 그것이고, 해당 패널 설명에 적어 두었다. 부하 시험 뒤 이 화면에서 읽어 `rules.yml` 에 넣는다.
+**`(미정)` 을 채울 값을 읽는 자리도 표시해 두었다.** 톰캣 스레드 사용률과 502 발생률이 그것이고, 아래 표에 있다. 부하 시험 뒤 이 화면에서 읽어 `rules.yml` 에 넣는다.
+API 의 p99 는 이미 API 마다의 목표로 경보(`ApiLatencyHigh`)를 건다. SLI 의 SLO 목표선은 SLO 를 정한 뒤(lunch-catch/lc-backend#1250) 더한다.
 
 고치는 절차는 설정 파일과 같다.
 

@@ -58,7 +58,7 @@
           "uid": "prometheus"
         },
         "step": "60s",
-        "expr": "max by (job, instance, instance_id, version) (process_start_time_seconds{job=~\"app|batch\"}) * 1000",
+        "expr": "label_replace(max by (job, instance, instance_id, version) (process_start_time_seconds{job=~\"app|batch\"}), \"version\", \"미수집\", \"version\", \"\") * 1000",
         "titleFormat": "{{job}} 기동",
         "textFormat": "{{instance}} {{instance_id}} 버전 {{version}}",
         "useValueForTime": true
