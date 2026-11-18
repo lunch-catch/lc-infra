@@ -207,7 +207,7 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 
 | 파일 | 폴더 | 화면 | 무엇을 보나 |
 |---|---|---|---|
-| `overview/overview.json` | (맨 위) | 시스템 개요 | 지금 울리는 경보와 고른 범위에 울린 경보, 영역별 핵심 지표(누르면 그 영역의 대시보드로 넘어간다), 요청률, 5xx 비율, 응답시간 분위수 |
+| `overview/overview.json` | 개요 | 시스템 개요 | 지금 울리는 경보와 고른 범위에 울린 경보, 영역별 핵심 지표(누르면 그 영역의 대시보드로 넘어간다), 요청률, 5xx 비율, 응답시간 분위수 |
 | `service/api.json` | 서비스 | API | 기준을 넘은 API, API 마다 요청률, 5xx 비율, p99, 성공과 실패의 처리 시간 |
 | `service/sli.json` | 서비스 | SLI | API 마다 5xx 가 아닌 요청의 비율과 그 API 의 목표 안에 끝난 비율. 기록 규칙은 `prometheus/sli.yml` 이다 |
 | `service/background.json` | 서비스 | 백그라운드 작업 | 아웃박스 릴레이, 비동기 워커, cron 배치의 기준 초과와 밀린 양, 배치 마지막 성공 |

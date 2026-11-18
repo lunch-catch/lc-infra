@@ -5,13 +5,13 @@
 # 고칠 일이 생기면 JSON 을 커밋하고 컨테이너를 재시작한다.
 #
 # 대시보드는 계층마다 Grafana 폴더 하나에 묶는다(lc-infra #169). 디렉터리는 영어로 두어 스크립트에서 다루기 쉽게 하고,
-# 화면에 보이는 폴더 이름은 provider 마다 folder 로 붙인다. 시스템 개요는 폴더 없이 두고 Grafana 의 홈 대시보드로 연다(compose 의 GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH).
+# 화면에 보이는 폴더 이름은 provider 마다 folder 로 붙인다. 시스템 개요는 개요 폴더에 둔다. Grafana 는 폴더를 이름순으로 놓고 폴더 밖 대시보드를 그 아래에 놓아, 폴더 밖에 두면 맨 아래로 간다. 개요(ㄱ)가 다른 폴더보다 앞이라 맨 위에 온다. Grafana 를 열면 먼저 뜨게 홈 대시보드로도 둔다(compose 의 GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH).
 apiVersion: 1
 
 providers:
   - name: lunchcatch-overview
     type: file
-    folder: ""
+    folder: "개요"
     disableDeletion: false
     allowUiUpdates: false
     updateIntervalSeconds: 30

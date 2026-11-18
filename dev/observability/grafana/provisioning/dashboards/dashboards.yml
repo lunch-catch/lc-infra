@@ -6,7 +6,7 @@ apiVersion: 1
 providers:
   - name: lunchcatch-overview
     type: file
-    folder: ""
+    folder: "개요"
     disableDeletion: false
     allowUiUpdates: false
     updateIntervalSeconds: 30
