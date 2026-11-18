@@ -7,6 +7,11 @@ rule_files:
   - /etc/prometheus/sli.yml
 
 scrape_configs:
+  # 운영처럼 자기 자신도 수집해, 모니터링 상태의 규칙 평가 실패 패널과 경보를 로컬에서도 확인한다(lc-infra #171)
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
   - job_name: app
     metrics_path: /actuator/prometheus
     # 부하로 CPU 가 바닥나면 지표 응답이 10초(기본값)를 넘는다. 수집 간격과 같게 두어 늦은 칸을 건진다. 늘려도 수집은 겹치지 않는다(#159)
