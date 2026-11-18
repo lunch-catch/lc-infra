@@ -177,9 +177,10 @@ groups:
           runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#cacheconnectionfailed"
           description: "캐시 연결이 1분간 끊겼다. 강등 경로 동작을 확인하라"
 
-      # 퇴출 정책이 noeviction 이라 메모리가 차면 쓰기가 오류가 된다. 차기 전에 알린다
+      # 퇴출 정책이 noeviction 이라 메모리가 차면 쓰기가 오류가 된다. 차기 전에 알린다.
+      # 상한(maxmemory)이 0 이면 상한이 없다는 뜻이라 뺀다. 로컬 Valkey 가 그렇고, 빼지 않으면 0 으로 나눠 늘 울린다(lc-infra #171)
       - alert: CacheMemoryHigh
-        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.7
+        expr: redis_memory_used_bytes / (redis_memory_max_bytes > 0) > 0.7
         for: 5m
         labels:
           severity: warning
