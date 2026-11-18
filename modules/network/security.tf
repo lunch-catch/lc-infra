@@ -169,6 +169,9 @@ resource "aws_vpc_security_group_ingress_rule" "exporters_from_mon" {
     batch_node     = { sg = aws_security_group.batch.id, port = 9100, desc = "node_exporter" }
     batch_cadvisor = { sg = aws_security_group.batch.id, port = 8082, desc = "cAdvisor" }
     batch_mgmt     = { sg = aws_security_group.batch.id, port = 8081, desc = "actuator" }
+    # Alloy 가 로그를 보내지 못하는 것을 모니터링이 Alloy 자신의 지표로 본다(lc-infra #171)
+    app_alloy   = { sg = aws_security_group.app.id, port = 12345, desc = "Alloy" }
+    batch_alloy = { sg = aws_security_group.batch.id, port = 12345, desc = "Alloy" }
     /*
      * 부하 생성기에도 node_exporter 가 뜬다.
      *

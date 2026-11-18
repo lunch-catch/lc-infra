@@ -138,6 +138,9 @@ services:
       INSTANCE_ROLE: "${role}"
       GIT_SHA: "$${GIT_SHA}"
       LOKI_ENDPOINT: "$${LOKI_ENDPOINT}"
+    # 모니터링이 Alloy 자신의 지표를 긁어 로그를 보내지 못하는 것을 잡는다(lc-infra #171). 보안 그룹은 모니터링에서만 연다
+    ports:
+      - "12345:12345"
     command:
       - run
       - --server.http.listen-addr=0.0.0.0:12345
