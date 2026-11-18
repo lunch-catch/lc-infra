@@ -53,7 +53,7 @@
     {
       "type": "timeseries",
       "title": "ALB 가 직접 낸 5xx (분당)",
-      "description": "앱이 아니라 ALB 가 만든 5xx(HTTPCode_ELB_5XX)의 분당 건수다. 앱이 낸 500 은 들어가지 않는다. 앱의 5xx 는 위의 5xx 비율에서 본다.",
+      "description": "앱이 아니라 ALB 가 만든 5xx(HTTPCode_ELB_5XX)의 분당 건수다. 앱이 낸 500 은 들어가지 않는다. 앱의 5xx 는 서비스 개요의 5xx 비율과 API 대시보드의 API 마다 5xx 비율에서 본다.",
       "gridPos": {
         "x": 0,
         "y": 1,
@@ -537,7 +537,7 @@
     {
       "type": "timeseries",
       "title": "컨테이너 메모리",
-      "description": "그 기계의 컨테이너마다 쓰는 메모리(working set)다. 파일 캐시 가운데 돌려줄 수 있는 몫을 뺀 값이라 OOM 을 가를 때 쓰는 값과 같다. 애플리케이션 서버 자원의 프로세스 메모리와 같은 숫자다",
+      "description": "그 기계의 컨테이너마다 쓰는 메모리(working set)다. 파일 캐시 가운데 돌려줄 수 있는 몫을 뺀 값이다. 앱과 배치 컨테이너(lunchcatch) 안에는 자바 프로세스 하나만 돌아, 그 선이 곧 앱과 배치 프로세스의 메모리다. 애플리케이션 서버 자원의 JVM 메모리(자바 힙, 힙 밖)를 빼고 남는 몫은 스레드 스택처럼 JVM 이 보고하지 않는 메모리다",
       "gridPos": {
         "x": 12,
         "y": 36,

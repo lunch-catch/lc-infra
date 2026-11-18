@@ -108,7 +108,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "보고 있는 범위에서 수집이 빠진 칸(15초)의 수를 서버마다 센다. 받아야 할 칸에서 수집에 성공한 칸을 빼, 수집이 실패한 칸(up 이 0)과 표본이 아예 없는 칸(가상 머신이나 서버가 멈춤)을 함께 센다. 0 이 아니면 그 칸의 그래프는 비어 있고, 비어 있는 것은 괜찮았다는 뜻이 아니다. 범위 전체에 표본이 없는 서버는 나오지 않는다",
+      "description": "보고 있는 범위에서 수집이 빠진 칸(15초)의 수를 서버마다 둘로 나눠 센다. 수집 실패는 Prometheus 가 긁다 실패해 up 이 0 으로 남은 칸이다. 표본 없음은 받아야 할 칸에서 남은 표본 수를 뺀 추정이고, 가상 머신이나 서버가 멈춰 아무것도 남지 않은 칸이다. 표본 없음은 그 서버가 범위 내내 수집 대상이었다고 보고 센다. 범위 중간에 새로 뜨거나 내려간 서버는 그만큼 표본 없음으로 잡힌다. 0 이 아니면 그 칸의 그래프는 비어 있고, 비어 있는 것은 괜찮았다는 뜻이 아니다",
       "gridPos": {
         "x": 12,
         "y": 0,
@@ -122,9 +122,19 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "floor(clamp_min(($__range_s / 15 - 1) - sum by (job, instance, instance_id) (sum_over_time(up{job=~\"app|batch\"}[$__range])), 0))",
-          "legendFormat": "{{job}} {{instance}} {{instance_id}}",
-          "instant": true
+          "instant": true,
+          "legendFormat": "수집 실패 {{job}} {{instance}} {{instance_id}}",
+          "expr": "sum by (job, instance, instance_id) (count_over_time((up{job=~\"app|batch\"} == 0)[$__range:15s])) or sum by (job, instance, instance_id) (up{job=~\"app|batch\"}) * 0"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "legendFormat": "표본 없음 {{job}} {{instance}} {{instance_id}}",
+          "expr": "floor(clamp_min(($__range_s / 15 - 1) - sum by (job, instance, instance_id) (count_over_time(up{job=~\"app|batch\"}[$__range])), 0))"
         }
       ],
       "fieldConfig": {

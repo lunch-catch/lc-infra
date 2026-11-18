@@ -525,7 +525,7 @@
     {
       "type": "timeseries",
       "title": "요청률 (상태코드별)",
-      "description": "",
+      "description": "API 서버(job=\"app\")가 받은 요청을 상태 코드마다 초당 요청 수로 더한 값이다",
       "gridPos": {
         "x": 0,
         "y": 12,
@@ -610,7 +610,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"app\",status=~\"5..\"}[$__rate_interval])) / sum(rate(http_server_requests_seconds_count{job=\"app\"}[$__rate_interval]))",
+          "expr": "(sum(rate(http_server_requests_seconds_count{job=\"app\",status=~\"5..\"}[$__rate_interval])) or sum(rate(http_server_requests_seconds_count{job=\"app\"}[$__rate_interval])) * 0) / (sum(rate(http_server_requests_seconds_count{job=\"app\"}[$__rate_interval])) > 0)",
           "legendFormat": "5xx",
           "datasource": {
             "type": "prometheus",
@@ -623,7 +623,7 @@
     {
       "type": "timeseries",
       "title": "전체 API 응답시간 분위수",
-      "description": "모든 API 를 합친 요청 시간의 분위수다. 노출처럼 요청이 많은 API 에 끌려가므로 API 별로는 아래 느린 엔드포인트 상위 5개를 본다. 앱이 요청을 받은 때부터 재므로 톰캣 대기 줄에서 기다린 시간은 빠진다. P99Slow 알람이 아직 (미정) 인 이유가 여기 있다. 기준선을 이 패널에서 읽어 채운다.",
+      "description": "모든 API 를 합친 요청 시간의 분위수다. 노출처럼 요청이 많은 API 에 끌려가므로 API 별로는 영역별 핵심 지표의 API 패널 링크에서 API 대시보드로 넘어가 본다. 앱이 요청을 받은 때부터 재므로 톰캣 대기 줄에서 기다린 시간은 빠진다. P99Slow 알람이 아직 (미정) 인 이유가 여기 있다. 기준선을 이 패널에서 읽어 채운다.",
       "gridPos": {
         "x": 0,
         "y": 20,
@@ -2035,7 +2035,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(floor(clamp_min(($__range_s / 15 - 1) - sum by (job, instance, instance_id) (sum_over_time(up{job=~\"app|batch\"}[$__range])), 0))) or vector(0)",
+          "expr": "sum(floor(clamp_min(($__range_s / 15 - 1) - sum by (job, instance, instance_id) (sum_over_time(up{job=~\"app|batch\"}[$__range])), 0)))",
           "legendFormat": "수집 실패(칸)",
           "datasource": {
             "type": "prometheus",
