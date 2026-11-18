@@ -411,7 +411,7 @@
     {
       "type": "timeseries",
       "title": "디스크 사용률",
-      "description": "DiskUsageHigh 임계 80% 를 선으로 그렸다. 읽기 전용 디스크는 늘 100% 라 경보 DiskUsageHigh 처럼 뺀다",
+      "description": "DiskUsageHigh 임계 80% 를 선으로 그렸다. 읽기 전용 파일시스템은 경보 DiskUsageHigh 처럼 표시하지 않는다",
       "gridPos": {
         "x": 0,
         "y": 18,
@@ -478,7 +478,7 @@
     {
       "type": "timeseries",
       "title": "부하 평균 (1분)",
-      "description": "1분 부하 평균이다. CPU 를 쓰거나 기다리는 프로세스 수의 평균이라 사용률이 아니다. 코어 수보다 오래 크면 CPU 를 기다리는 일이 쌓인다",
+      "description": "1분 부하 평균이다. CPU 를 쓰거나 기다리는 태스크와, 디스크 I/O 처럼 끊을 수 없는 대기에 든 태스크 수의 평균이라 사용률이 아니다. 코어 수보다 오래 크면 일이 쌓이고 있다. CPU 때문인지 디스크 때문인지는 CPU 사용률과 디스크 지표를 함께 보고 가린다",
       "gridPos": {
         "x": 12,
         "y": 18,

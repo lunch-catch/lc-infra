@@ -77,7 +77,7 @@ while [ $# -gt 0 ]; do
     --from)    FROM="${2:-}"; shift 2 ;;
     --to)      TO="${2:-}"; shift 2 ;;
     --dash)    DASH+=("${2:-}"); shift 2 ;;
-    --domain)  DOMAINS+=("${2:-}"); shift 2 ;;
+    --domain)  case "${2:-}" in ""|-*) die "--domain 에는 도메인 이름을 준다(예: --domain adserving)" ;; esac; DOMAINS+=("$2"); shift 2 ;;
     --out)     OUT_ROOT="${2:-}"; shift 2 ;;
     --diag)    DIAG="${2:-}"; shift 2 ;;
     --trace)   TRACES+=("${2:-}"); shift 2 ;;
@@ -130,6 +130,7 @@ fi
 # 진단 회차는 기준을 넘은 것을 그리는 API 와 백그라운드 작업만 찍는다(lc-infra #94, #169).
 # 기본 목록은 그라파나에 붙은 뒤 정한다(아래 "찍을 대시보드").
 [ ${#DOMAINS[@]} -eq 0 ] || [ ${#DASH[@]} -eq 0 ] || die "--domain 과 --dash 는 함께 주지 않는다"
+[ ${#DOMAINS[@]} -eq 0 ] || [ -z "$DIAG" ] || die "--domain 과 --diag 는 함께 주지 않는다. 진단 회차는 API 와 백그라운드 작업만 찍는다"
 if [ -n "$DIAG" ]; then
   DASH=(lc-api lc-background)
 fi
@@ -194,7 +195,9 @@ rows = [r for r in rows if not want or "도메인" not in r.get("tags", []) or r
 for r in sorted(rows, key=lambda r: (r.get("folderTitle", ""), r["title"])):
     print(r["uid"])
 ' ${DOMAINS[@]+"${DOMAINS[@]}"}) || die "찍을 대시보드 목록을 읽지 못했다"
-  read -r -a DASH <<< "$(echo $list)"
+  while IFS= read -r uid; do
+    [ -n "$uid" ] && DASH+=("$uid")
+  done <<< "$list"
   [ ${#DASH[@]} -gt 0 ] || die "lunchcatch 태그가 붙은 대시보드가 없다"
 fi
 

@@ -595,7 +595,7 @@
         },
         {
           "refId": "B",
-          "expr": "sum(rate(mysql_global_status_innodb_row_lock_time[$__rate_interval])) / sum(rate(mysql_global_status_innodb_row_lock_waits[$__rate_interval]))",
+          "expr": "sum(rate(mysql_global_status_innodb_row_lock_time[$__rate_interval])) / (sum(rate(mysql_global_status_innodb_row_lock_waits[$__rate_interval])) > 0)",
           "legendFormat": "평균 wait (ms)",
           "datasource": {
             "type": "prometheus",

@@ -20,6 +20,7 @@
 cd /opt/lunchcatch/infra && git pull --ff-only
 cd observability && docker compose restart prometheus       # 규칙과 스크레이프 설정
 docker compose up -d --force-recreate cloudwatch-exporter   # 익스포터 설정
+docker compose up -d --force-recreate grafana               # 대시보드 공급 설정과 환경 변수(홈 대시보드 같은 것)
 ```
 
 반영됐는지는 파일이 아니라 **프로세스에 물어본다.**
