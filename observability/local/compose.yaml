@@ -68,7 +68,7 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       # API 와 백그라운드 작업 대시보드가 읽는 기준은 운영과 같은 파일을 쓴다
       - ../prometheus/thresholds.yml:/etc/prometheus/thresholds.yml:ro
-      # 서비스 개요의 경보 패널을 로컬에서도 보려고 경보 규칙도 운영과 같은 파일을 쓴다. 로컬에는 Alertmanager 가 없어 Slack 으로 나가지 않는다
+      # 시스템 개요의 경보 패널을 로컬에서도 보려고 경보 규칙도 운영과 같은 파일을 쓴다. 로컬에는 Alertmanager 가 없어 Slack 으로 나가지 않는다
       - ../prometheus/rules.yml:/etc/prometheus/rules.yml:ro
       # SLI 대시보드의 기록 규칙도 운영과 같은 파일을 쓴다
       - ../prometheus/sli.yml:/etc/prometheus/sli.yml:ro
@@ -89,6 +89,8 @@ services:
       # 캡처 스크립트(scripts/loadtest-snapshot.sh --local)가 패널을 PNG 로 받는다
       GF_RENDERING_SERVER_URL: http://renderer:8081/render
       GF_RENDERING_CALLBACK_URL: http://grafana:3000/
+      # Grafana 를 열면 시스템 개요가 먼저 뜨게 홈 대시보드로 둔다(lc-infra #169). 대시보드 목록은 폴더를 먼저 보여 줘 폴더 밖의 개요가 아래로 간다
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/overview/overview.json
 
   renderer:
     image: grafana/grafana-image-renderer:v5.12.4

@@ -5,7 +5,7 @@
 # 고칠 일이 생기면 JSON 을 커밋하고 컨테이너를 재시작한다.
 #
 # 대시보드는 계층마다 Grafana 폴더 하나에 묶는다(lc-infra #169). 디렉터리는 영어로 두어 스크립트에서 다루기 쉽게 하고,
-# 화면에 보이는 폴더 이름은 provider 마다 folder 로 붙인다. 서비스 개요는 폴더 없이 맨 위에 둔다.
+# 화면에 보이는 폴더 이름은 provider 마다 folder 로 붙인다. 시스템 개요는 폴더 없이 두고 Grafana 의 홈 대시보드로 연다(compose 의 GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH).
 apiVersion: 1
 
 providers:

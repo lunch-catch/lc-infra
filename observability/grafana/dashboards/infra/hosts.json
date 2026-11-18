@@ -53,7 +53,7 @@
     {
       "type": "timeseries",
       "title": "ALB 가 직접 낸 5xx (분당)",
-      "description": "앱이 아니라 ALB 가 만든 5xx(HTTPCode_ELB_5XX)의 분당 건수다. 앱이 낸 500 은 들어가지 않는다. 앱의 5xx 는 서비스 개요의 5xx 비율과 API 대시보드의 API 마다 5xx 비율에서 본다.",
+      "description": "앱이 아니라 ALB 가 만든 5xx(HTTPCode_ELB_5XX)의 분당 건수다. 앱이 낸 500 은 들어가지 않는다. 앱의 5xx 는 시스템 개요의 5xx 비율과 API 대시보드의 API 마다 5xx 비율에서 본다.",
       "gridPos": {
         "x": 0,
         "y": 1,
