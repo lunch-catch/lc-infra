@@ -742,3 +742,29 @@ tests:
         exp_alerts:
           - exp_labels: {severity: warning, instance: m1}
             exp_annotations: {description: "MySQL 연결이 상한의 90% 를 넘었다. 커넥션 풀 크기와 오래 쥔 연결을 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#mysqlconnectionshigh"}
+
+  # 디스크 사용률(lc-infra #171). 쓰는 디스크가 5분에 85% 가 되고, 읽기 전용 디스크는 처음부터 100% 다.
+  # 10분을 기다려 쓰는 디스크만 울리고 읽기 전용 디스크는 울리지 않는다
+  - interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{instance="h1", mountpoint="/", fstype="ext4"}'
+        values: '50x5 15x20'
+      - series: 'node_filesystem_size_bytes{instance="h1", mountpoint="/", fstype="ext4"}'
+        values: '100x25'
+      - series: 'node_filesystem_readonly{instance="h1", mountpoint="/", fstype="ext4"}'
+        values: '0x25'
+      - series: 'node_filesystem_avail_bytes{instance="h1", mountpoint="/oldroot", fstype="erofs"}'
+        values: '0x25'
+      - series: 'node_filesystem_size_bytes{instance="h1", mountpoint="/oldroot", fstype="erofs"}'
+        values: '100x25'
+      - series: 'node_filesystem_readonly{instance="h1", mountpoint="/oldroot", fstype="erofs"}'
+        values: '1x25'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: DiskUsageHigh
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: DiskUsageHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: h1, mountpoint: /, fstype: ext4}
+            exp_annotations: {description: "디스크 사용률이 80% 를 넘었다. 로그를 정리하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#diskusagehigh"}
