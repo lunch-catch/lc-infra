@@ -141,7 +141,7 @@
     {
       "type": "timeseries",
       "title": "응답 지연",
-      "description": "부하 생성기가 본 응답 시간이다. k6 가 보낸 히스토그램으로 구간마다 계산해 램프업과 유지가 섞이지 않는다. 앱 서버의 스레드를 기다린 시간까지 들어가, 앱이 잰 API 별 p99 보다 크면 그 차이가 앱 앞의 대기다.",
+      "description": "부하 생성기가 본 응답 시간이다. k6 가 보낸 히스토그램으로 구간마다 계산해 램프업과 유지가 섞이지 않는다. 앱 서버의 스레드를 기다린 시간까지 들어가, 앱이 잰 API 별 p99 보다 크면 그 차이가 앱 앞의 대기다. 붉은 점선은 목표를 정하지 않은 API 의 기본 상한(0.5초)이다. 모든 API 의 기준은 아니다. API 마다 목표가 달라 k6 의 판정은 피드 p99 300ms, 노출 p99 500ms 이다(lc-backend 의 loadtest/adserving 시나리오). 앱의 API 기본 기준(lunchcatch.observability.targets)에서 읽는다",
       "gridPos": {
         "x": 12,
         "y": 1,
@@ -160,7 +160,7 @@
             "fillOpacity": 6,
             "showPoints": "never",
             "thresholdsStyle": {
-              "mode": "line"
+              "mode": "off"
             }
           },
           "thresholds": {
@@ -177,7 +177,37 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "기본 상한 0.5초"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -217,6 +247,15 @@
             "type": "prometheus",
             "uid": "prometheus"
           }
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "기본 상한 0.5초",
+          "expr": "max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})"
         }
       ],
       "id": 3

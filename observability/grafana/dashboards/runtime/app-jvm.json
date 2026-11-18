@@ -162,7 +162,7 @@
     {
       "type": "timeseries",
       "title": "DB 커넥션 풀",
-      "description": "HikariPendingHigh 임계 9(풀 10 의 90%) 를 선으로 그렸다. 대기가 쌓이면 톰캣 스레드가 먼저 마른다.",
+      "description": "앱의 DB 커넥션 풀에서 쓰는 커넥션, 쉬는 커넥션, 커넥션을 기다리는 스레드 수다. 풀 크기는 API 서버 8, 배치 서버 6 이다(lc-backend 의 application.yml, application-batch.yml). 붉은 선 9 는 경보 HikariPendingHigh 의 기준(기다리는 스레드 9 초과, 2분 지속)이고, 앱과 배치에 같은 값이다. 이 값은 풀이 10 이던 때 정해 지금 풀 크기의 비율이 아니다. 대기가 쌓이면 톰캣 스레드가 먼저 마른다",
       "gridPos": {
         "x": 0,
         "y": 10,
@@ -353,7 +353,7 @@
     {
       "type": "timeseries",
       "title": "트랜잭션 시간 (커넥션을 쥔 시간의 p99)",
-      "description": "커넥션을 빌려 돌려줄 때까지의 시간의 p99 다. 트랜잭션 시간에 가깝고, 트랜잭션 밖에서 빌린 커넥션도 섞인다. 붉은 점선은 품질 문서 데이터 무결성의 트랜잭션 상한 1초다. 선 위면 요청의 1% 넘게 커넥션을 1초 넘게 쥐었다는 뜻이고, 5분 넘게 이어지면 경보 TransactionSlow 가 울린다. 오래 쥔 코드는 앱의 누수 감지 경고 로그(5초 넘게 쥔 커넥션의 스택)로 찾는다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다.",
+      "description": "커넥션을 빌려 돌려줄 때까지의 시간의 p99 다. 트랜잭션 시간에 가깝고, 트랜잭션 밖에서 빌린 커넥션도 섞인다. 붉은 점선 1초는 품질 문서 데이터 무결성의 트랜잭션 기본 상한이다. 모든 트랜잭션의 기준은 아니다. 배치는 별도 기준이고, 트랜잭션마다 @Transactional(timeout) 으로 다른 시간 제한을 둔 곳이 있다. 이 패널의 p99 는 커넥션 풀 전체의 값이라 트랜잭션마다 나누지 못한다. 선 위면 요청의 1% 넘게 커넥션을 1초 넘게 쥐었다는 뜻이고, 5분 넘게 이어지면 경보 TransactionSlow 가 울린다. 오래 쥔 코드는 앱의 누수 감지 경고 로그(5초 넘게 쥔 커넥션의 스택)로 찾는다. 값은 lc-infra 의 기준 규칙(observability/prometheus/thresholds.yml)에서 읽는다",
       "gridPos": {
         "x": 12,
         "y": 18,
@@ -377,7 +377,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "기준(상한 1초)"
+              "options": "기본 상한 1초"
             },
             "properties": [
               {
@@ -429,7 +429,7 @@
         {
           "refId": "B",
           "expr": "max(overrun_threshold_seconds{kind=\"global\", name=\"transaction\"})",
-          "legendFormat": "기준(상한 1초)",
+          "legendFormat": "기본 상한 1초",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"

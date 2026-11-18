@@ -135,7 +135,7 @@ groups:
           description: "{{ $labels.instance }} 가 5분 넘게 시간의 10% 넘게 GC 로 멈췄다. GC 뒤에 남은 힙을 확인하라"
 
       # GC 를 해도 힙이 비워지지 않는다. 그대로 가면 OutOfMemoryError 로 죽는다(#108).
-      # 03 의 선은 품질 문서의 70% 이고, 경보는 평소 부하에 울리지 않게 85% 로 나눈다.
+      # 애플리케이션 서버 자원의 GC 뒤에 남은 힙 선은 품질 문서의 70% 이고, 경보는 평소 부하에 울리지 않게 85% 로 나눈다.
       # 앱이 막 떠 아직 GC 를 하지 않으면 최대 크기가 0 이라 그때는 뺀다
       - alert: HeapAfterGcHigh
         expr: max by (job, instance, instance_id) (jvm_gc_live_data_size_bytes / (jvm_gc_max_data_size_bytes > 0)) > 0.85
