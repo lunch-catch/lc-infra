@@ -1,7 +1,7 @@
 {
   "uid": "lc-overview",
   "title": "01 서비스 개요",
-  "description": "요청, 지연, 에러를 한 화면에서 본다. 장애 판단의 첫 화면이다.",
+  "description": "요청, 지연, 에러와 영역마다의 핵심 지표를 한 화면에서 본다. 장애 판단의 첫 화면이다. 영역의 패널을 누르면 그 영역의 대시보드로 넘어간다",
   "tags": [
     "lunchcatch"
   ],
@@ -488,11 +488,1671 @@
     },
     {
       "type": "row",
-      "title": "애플리케이션",
+      "title": "영역별 핵심 지표 (패널을 누르면 자세한 대시보드가 같은 시간 범위로 열린다)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
         "y": 11,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "API",
+      "description": "앱의 기준 지표보다 p99 가 높은 API 의 수다. 하나라도 넘으면 빨강이다",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "links": [
+        {
+          "title": "06 기준 초과",
+          "url": "/d/lc-overrun?${__url_time_range}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "지표 없음",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) > on(uri) group_left() max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) or ((histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job=\"app\"}[$__rate_interval]))) unless on(uri) max by (uri) (label_replace(overrun_threshold_seconds{kind=\"api\", name!=\"default\"}, \"uri\", \"$1\", \"name\", \"[A-Z]+ (.+)\"))) > scalar(max(overrun_threshold_seconds{kind=\"api\", name=\"default\"})))) or vector(0)",
+          "legendFormat": "목표를 넘은 API",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "노출 릴레이",
+      "description": "발행 지연 p99 가 기준을 넘은 릴레이 수와 미발행, 포기한 건수다. 미발행 건수는 정상으로 돌아도 쌓여 판정하지 않는다",
+      "gridPos": {
+        "x": 6,
+        "y": 12,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "links": [
+        {
+          "title": "06 기준 초과",
+          "url": "/d/lc-overrun?${__url_time_range}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "지표 없음",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) > on(relay) group_left() (max by (relay) (label_replace(overrun_threshold_seconds{kind=\"relay\", name!=\"default\"}, \"relay\", \"$1\", \"name\", \"(.+)\")) or histogram_quantile(0.99, sum by (relay, le) (rate(outbox_relay_publish_delay_seconds_bucket[$__rate_interval]))) * 0 + scalar(max(overrun_threshold_seconds{kind=\"relay\", name=\"default\"})))) or vector(0)",
+          "legendFormat": "기준을 넘은 릴레이",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "max(outbox_relay_backlog or adserving_impression_dispatch_backlog)",
+          "legendFormat": "미발행",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "expr": "max(outbox_relay_abandoned) or vector(0)",
+          "legendFormat": "포기",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "비동기 워커",
+      "description": "가장 오래 기다린 일의 대기 시간이 기준을 넘은 워커 수, 대기열이 가장 많이 찬 비율, 고른 범위에 버린 작업 수다",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "links": [
+        {
+          "title": "06 기준 초과",
+          "url": "/d/lc-overrun?${__url_time_range}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "지표 없음",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(max by (worker) (async_worker_oldest_age_seconds) > on(worker) group_left() (max by (worker) (label_replace(overrun_threshold_seconds{kind=\"worker\", name!=\"default\"}, \"worker\", \"$1\", \"name\", \"(.+)\")) or max by (worker) (async_worker_oldest_age_seconds) * 0 + scalar(max(overrun_threshold_seconds{kind=\"worker\", name=\"default\"})))) or vector(0)",
+          "legendFormat": "기준을 넘은 워커",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "max(async_worker_queue_size / async_worker_queue_capacity)",
+          "legendFormat": "대기열이 찬 비율",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "expr": "(sum(increase(adserving_impression_dropped_total[$__range])) or vector(0)) + (sum(increase(adserving_impression_write_lost_total[$__range])) or vector(0))",
+          "legendFormat": "버린 작업",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "cron 배치",
+      "description": "시작 뒤 지난 시간이나 실행 한 번의 시간이 기준을 넘은 작업 수, 고른 범위에 실패한 실행 수, 오늘 00:00 묶음이 끝났는지다",
+      "gridPos": {
+        "x": 18,
+        "y": 12,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "links": [
+        {
+          "title": "06 기준 초과",
+          "url": "/d/lc-overrun?${__url_time_range}"
+        },
+        {
+          "title": "03 앱 JVM",
+          "url": "/d/lc-app-jvm?${__url_time_range}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "지표 없음",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bool_yes_no"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(max by (scheduler) (max by (scheduler) ((timestamp(batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) - batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"} > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_running_since_seconds{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"})))) or max by (scheduler) ((max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) and (max by (scheduler) (batch_job_duration_seconds_max{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) > 0)) > on(scheduler) group_left() (max by (scheduler) (label_replace(overrun_threshold_seconds{kind=\"job\", name!=\"default\"}, \"scheduler\", \"$1\", \"name\", \"(.+)\")) or max by (scheduler) (batch_job_duration_seconds_count{job=\"batch\",scheduler!~\"(ImpressionDispatchJob.dispatchPending|PaymentRecheckWorker.recheckUnknownPayments|RechargeReservationWorker.reserveCharged|DailyJobScheduler.sendHeartbeat|DailyJobScheduler.takeOverStale)\\\\(\\\\)\"}) * 0 + scalar(max(overrun_threshold_seconds{kind=\"job\", name=\"default\"}))))) or vector(0)",
+          "legendFormat": "기준을 넘은 작업",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "sum(increase(batch_job_duration_seconds_count{job=\"batch\", outcome=\"failure\"}[$__range])) or vector(0)",
+          "legendFormat": "실패한 실행",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "expr": "max(batch_job_last_success_timestamp_seconds{job=\"batch\", scheduler=\"DailyJobScheduler.runDailyBundle()\"}) > bool scalar(floor((vector(time()) + 32400) / 86400) * 86400 - 32400)",
+          "legendFormat": "오늘 00:00 묶음",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "DB 커넥션",
+      "description": "앱의 DB 커넥션 풀이 가장 많이 찬 비율과 기다리는 요청 수, 고른 범위에 커넥션을 얻지 못하고 시간 제한에 걸린 횟수다",
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "links": [
+        {
+          "title": "03 앱 JVM",
+          "url": "/d/lc-app-jvm?${__url_time_range}"
+        },
+        {
+          "title": "04 데이터 저장소",
+          "url": "/d/lc-data-stores?${__url_time_range}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "지표 없음",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(hikaricp_connections_active / hikaricp_connections_max)",
+          "legendFormat": "풀 사용률",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "max(hikaricp_connections_pending)",
+          "legendFormat": "기다리는 요청",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "expr": "sum(increase(hikaricp_connections_timeout_total[$__range])) or vector(0)",
+          "legendFormat": "시간 제한",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Valkey",
+      "description": "Valkey 명령의 평균 지연과 가장 긴 지연, 고른 범위에 캐시 장애로 규칙을 건너뛴 횟수다",
+      "gridPos": {
+        "x": 6,
+        "y": 17,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "links": [
+        {
+          "title": "04 데이터 저장소",
+          "url": "/d/lc-data-stores?${__url_time_range}"
+        },
+        {
+          "title": "07 광고 서빙",
+          "url": "/d/lc-adserving?${__url_time_range}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "지표 없음",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(lettuce_command_completion_seconds_sum[$__rate_interval])) / sum(rate(lettuce_command_completion_seconds_count[$__rate_interval]))",
+          "legendFormat": "평균 지연",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "max(lettuce_command_completion_seconds_max)",
+          "legendFormat": "가장 긴 지연",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "expr": "sum(increase(adserving_cache_bypass_total[$__range])) or vector(0)",
+          "legendFormat": "장애로 건너뜀",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "JVM",
+      "description": "GC 로 멈춘 비율이나 가장 긴 멈춤, GC 뒤 남은 힙이 기준을 넘은 서버 수와 톰캣 작업 스레드가 가장 많이 찬 비율이다",
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "links": [
+        {
+          "title": "03 앱 JVM",
+          "url": "/d/lc-app-jvm?${__url_time_range}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "지표 없음",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count((sum by (instance, instance_id) (rate(jvm_gc_pause_seconds_sum[$__rate_interval])) > scalar(max(overrun_threshold_ratio{kind=\"global\", name=\"gc-overhead\"}))) or (max by (instance, instance_id) (jvm_gc_pause_seconds_max) > scalar(max(overrun_threshold_seconds{kind=\"global\", name=\"gc-pause\"})))) or vector(0)",
+          "legendFormat": "GC 초과 서버",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "count(max by (instance, instance_id) (jvm_gc_live_data_size_bytes / (jvm_gc_max_data_size_bytes > 0)) > scalar(max(overrun_threshold_ratio{kind=\"global\", name=\"heap-after-gc\"}))) or vector(0)",
+          "legendFormat": "힙 초과 서버",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "expr": "max(tomcat_threads_busy_threads / tomcat_threads_config_max_threads)",
+          "legendFormat": "톰캣 스레드",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "외부 연동",
+      "description": "카카오와 토스 같은 외부 HTTP 호출의 서버 오류와 응답 없음 비율, 상대와 경로마다의 p99 중 가장 큰 값, AWS SDK 호출 p99 중 가장 큰 값이다",
+      "gridPos": {
+        "x": 18,
+        "y": 17,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "links": [
+        {
+          "title": "06 기준 초과",
+          "url": "/d/lc-overrun?${__url_time_range}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "지표 없음",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum(rate(http_client_requests_seconds_count{outcome=~\"SERVER_ERROR|UNKNOWN\"}[$__rate_interval])) or vector(0)) / sum(rate(http_client_requests_seconds_count[$__rate_interval]))",
+          "legendFormat": "외부 HTTP 실패율",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "max(histogram_quantile(0.99, sum by (client_name, uri, le) (rate(http_client_requests_histogram_seconds_bucket[$__rate_interval]))))",
+          "legendFormat": "외부 HTTP p99",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "expr": "max(histogram_quantile(0.99, sum by (service, operation, le) (rate(aws_sdk_calls_seconds_bucket[$__rate_interval]))))",
+          "legendFormat": "AWS SDK p99",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "광고 서빙과 정산",
+      "description": "초당 피드와 노출 요청, 초당 정산에 넘긴 노출, 고른 범위에 실패한 노출 차감 묶음이다. 과금된 비율과 미과금 사유는 앱 지표가 없어 두지 않는다",
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 18,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "links": [
+        {
+          "title": "07 광고 서빙",
+          "url": "/d/lc-adserving?${__url_time_range}"
+        },
+        {
+          "title": "08 정산과 분석",
+          "url": "/d/lc-billing-analytics?${__url_time_range}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "지표 없음",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "reqps"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "reqps"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "D"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"app\", uri=\"/v1/feed\"}[$__rate_interval]))",
+          "legendFormat": "초당 피드",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"app\", method=\"POST\", uri=\"/v1/impressions\"}[$__rate_interval]))",
+          "legendFormat": "초당 노출",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "expr": "sum(rate(adserving_impression_dispatched_total[$__rate_interval]))",
+          "legendFormat": "초당 정산 넘김",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        },
+        {
+          "refId": "D",
+          "expr": "sum(increase(billing_deduct_batch_failed_total[$__range])) or vector(0)",
+          "legendFormat": "실패한 차감 묶음",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "지표 수집",
+      "description": "고른 범위에 앱과 배치의 지표 수집이 실패한 칸(15초) 수다. 0 이 아니면 그 구간의 다른 패널을 덜 믿는다",
+      "gridPos": {
+        "x": 18,
+        "y": 22,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "links": [
+        {
+          "title": "05 부하 시험",
+          "url": "/d/lc-loadtest?${__url_time_range}"
+        },
+        {
+          "title": "06 기준 초과",
+          "url": "/d/lc-overrun?${__url_time_range}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "지표 없음",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time((up{job=~\"app|batch\"} == 0)[$__range:15s])) or vector(0)",
+          "legendFormat": "수집 실패(칸)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "애플리케이션",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 27,
         "w": 24,
         "h": 1
       },
@@ -504,7 +2164,7 @@
       "description": "",
       "gridPos": {
         "x": 0,
-        "y": 12,
+        "y": 28,
         "w": 12,
         "h": 8
       },
@@ -552,7 +2212,7 @@
       "description": "rules.yml 의 HighFiveXXRate 는 이 값을 한 시간 전과 비교한다.",
       "gridPos": {
         "x": 12,
-        "y": 12,
+        "y": 28,
         "w": 12,
         "h": 8
       },
@@ -600,7 +2260,7 @@
       "description": "모든 API 를 합친 요청 시간의 분위수다. 노출처럼 요청이 많은 API 에 끌려가므로 API 별로는 아래 느린 엔드포인트 상위 5개를 본다. 앱이 요청을 받은 때부터 재므로 톰캣 대기 줄에서 기다린 시간은 빠진다. P99Slow 알람이 아직 (미정) 인 이유가 여기 있다. 기준선을 이 패널에서 읽어 채운다.",
       "gridPos": {
         "x": 0,
-        "y": 20,
+        "y": 36,
         "w": 12,
         "h": 8
       },
@@ -666,7 +2326,7 @@
       "description": "API 마다 p99 를 계산해 가장 느린 다섯을 그린다. 지표는 API 종류 200 개까지 받는다(lc-backend#1093).",
       "gridPos": {
         "x": 12,
-        "y": 20,
+        "y": 36,
         "w": 12,
         "h": 8
       },
@@ -714,7 +2374,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 28,
+        "y": 44,
         "w": 24,
         "h": 1
       },
@@ -726,7 +2386,7 @@
       "description": "앱이 아니라 ALB 가 만든 5xx(HTTPCode_ELB_5XX)의 분당 건수다. 앱이 낸 500 은 들어가지 않는다. 앱의 5xx 는 위의 5xx 비율에서 본다.",
       "gridPos": {
         "x": 0,
-        "y": 29,
+        "y": 45,
         "w": 12,
         "h": 8
       },
@@ -783,7 +2443,7 @@
       "description": "ALB 가 요청을 앱에 넘긴 뒤 응답이 오기까지의 시간(TargetResponseTime)이다. ALB 자신의 처리 시간이 아니다. 앱이 잰 응답시간보다 크면 그 차이는 앱 앞(톰캣 대기 줄, 연결)에서 기다린 시간이다.",
       "gridPos": {
         "x": 12,
-        "y": 29,
+        "y": 45,
         "w": 12,
         "h": 8
       },
