@@ -19,7 +19,22 @@
     "list": []
   },
   "annotations": {
-    "list": []
+    "list": [
+      {
+        "name": "배포와 재기동",
+        "enable": true,
+        "iconColor": "blue",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "step": "60s",
+        "expr": "label_replace(max by (job, instance, instance_id, version) (process_start_time_seconds{job=~\"app|batch\"}), \"version\", \"미수집\", \"version\", \"\") * 1000",
+        "titleFormat": "{{job}} 기동",
+        "textFormat": "{{instance}} {{instance_id}} 버전 {{version}}",
+        "useValueForTime": true
+      }
+    ]
   },
   "links": [
     {
@@ -426,10 +441,74 @@
     },
     {
       "type": "timeseries",
+      "title": "엔진 CPU 사용률",
+      "description": "Valkey 가 명령을 처리하는 스레드의 CPU 사용률이다(CloudWatch EngineCPUUtilization). 명령을 한 스레드로 돌려 노드 CPU 보다 먼저 찬다. 붉은 선 90% 를 5분 넘게 넘으면 경보 CacheEngineCpuHigh 가 울린다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "aws_elasticache_engine_cpuutilization_average",
+          "legendFormat": "{{cache_cluster_id}}"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "id": 12
+    },
+    {
+      "type": "timeseries",
       "title": "적중률",
       "description": "캐시가 Degradable 로 남아도 되는지 판단할 근거다. 낮으면 캐시가 일을 안 하고 있다.",
       "gridPos": {
-        "x": 0,
+        "x": 12,
         "y": 14,
         "w": 12,
         "h": 8
@@ -480,8 +559,8 @@
       "title": "연결 수",
       "description": "Valkey 에 지금 붙어 있는 연결 수다. 열고 바로 닫는 연결은 이 값에 보이지 않아 아래 새 연결 수로 본다.",
       "gridPos": {
-        "x": 12,
-        "y": 14,
+        "x": 0,
+        "y": 22,
         "w": 12,
         "h": 8
       },
@@ -529,7 +608,7 @@
       "title": "초당 명령",
       "description": "",
       "gridPos": {
-        "x": 0,
+        "x": 12,
         "y": 22,
         "w": 12,
         "h": 8
@@ -578,8 +657,8 @@
       "title": "Valkey 명령 지연",
       "description": "앱이 Valkey 명령 한 번을 보내고 완료되기까지 기다린 시간이다(앱의 lettuce_command_completion_seconds, Lettuce 자체의 지연 기록기, lc-backend#1180). 위의 초당 명령은 Valkey 가 처리한 명령 수뿐이다. 이 시간이 Redis 서버의 처리 시간보다 크게 길면 대기는 서버가 아니라 앱 쪽(연결의 줄, 응답을 처리하는 스레드)에 있다",
       "gridPos": {
-        "x": 12,
-        "y": 22,
+        "x": 0,
+        "y": 30,
         "w": 12,
         "h": 10
       },
@@ -642,8 +721,8 @@
       "title": "Valkey 새 연결 수 (분당)",
       "description": "Valkey 가 받아들인 새 연결 수다. 앱이 연결을 다시 쓰면 0 에 가깝다. 파이프라인마다 연결을 새로 열면 요청 수에 맞춰 오른다(lc-backend#1065).",
       "gridPos": {
-        "x": 0,
-        "y": 32,
+        "x": 12,
+        "y": 30,
         "w": 12,
         "h": 8
       },

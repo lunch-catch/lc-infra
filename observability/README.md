@@ -210,29 +210,32 @@ sudo chmod 755 /usr/local/bin/lunchcatch-refresh-monitoring-env
 |---|---|---|---|
 | `overview/overview.json` | 1. 개요 | 시스템 개요 | 지금 울리는 경보와 고른 범위에 울린 경보, 영역별 핵심 지표(누르면 그 영역의 대시보드로 넘어간다), 요청률, 5xx 비율, 응답시간 분위수. Grafana 의 홈 대시보드다 |
 | `service/sli.json` | 2. 서비스 | 1. SLI | API별 5xx 가 아닌 요청의 비율과 그 API 의 목표 안에 끝난 비율. 기록 규칙은 `prometheus/sli.yml` 이다 |
-| `service/api.json` | 2. 서비스 | 2. API | 로드밸런서(ALB)가 잰 5xx 와 응답 시간, 기준을 넘은 API, API별 요청률, 5xx 비율, p99, 성공과 실패의 처리 시간 |
+| `service/api.json` | 2. 서비스 | 2. API | 로드밸런서(ALB)가 잰 5xx 와 응답 시간, 대상 그룹의 정상과 비정상 대상 수, ALB 가 받지 못한 연결, 기준을 넘은 API, API별 요청률, 5xx 비율, p99, 성공과 실패의 처리 시간 |
 | `service/background.json` | 2. 서비스 | 3. 백그라운드 작업 | 아웃박스 릴레이, 비동기 워커, cron 배치의 기준 초과와 밀린 양, 배치 마지막 성공과 그 기준 대비 |
 | `domain/adserving.json` | 3. 도메인 | 1. 광고 서빙 | 노출 유실, 정산 청크, 캐시 장애로 건너뛴 규칙, 서빙 로그, 경고 로그 |
 | `domain/billing.json` | 3. 도메인 | 2. 정산 | 결제 승인, 재조회, 웹훅, PG 대사, 노출 차감 |
 | `domain/analytics.json` | 3. 도메인 | 3. 분석 | 일 집계, 정합성, 퍼널 이벤트 |
 | `runtime/app-jvm.json` | 4. 런타임 | 애플리케이션 서버 자원 | 스레드(톰캣 스레드와 모든 스레드), HikariCP, JVM(CPU 사용률, Heap, 힙 밖 메모리, GC, 열린 파일). 서버 종류(`job`)를 고른다 |
-| `dependency/rdb.json` | 5. 의존 시스템 | 1. RDB | MySQL(RDS)의 연결 수, 쿼리, 느린 쿼리, 행 잠금 대기, 여유 메모리 |
-| `dependency/in-memory-db.json` | 5. 의존 시스템 | 2. 인메모리 DB | Valkey(ElastiCache)의 메모리, 적중률, 연결 수, 명령 수와 지연 |
+| `dependency/rdb.json` | 5. 의존 시스템 | 1. RDB | MySQL(RDS)의 연결 수, 쿼리, 느린 쿼리, 행 잠금 대기, 여유 메모리, 남은 저장 공간, RDS CPU 와 읽기, 쓰기 지연 |
+| `dependency/in-memory-db.json` | 5. 의존 시스템 | 2. 인메모리 DB | Valkey(ElastiCache)의 메모리, 메모리가 차서 거절한 쓰기, 엔진 CPU, 적중률, 연결 수, 명령 수와 지연 |
 | `dependency/external.json` | 5. 의존 시스템 | 3. 외부 연동 | 외부 HTTP 호출과 AWS SDK 호출의 호출 수, 실패율, p99 |
 | `infra/hosts.json` | 6. 인프라 | 1. 호스트 | CPU 크레딧, 기계 전체의 CPU, 메모리, 디스크, 컨테이너마다의 CPU 와 메모리, 컨테이너 재기동 |
-| `infra/monitoring.json` | 6. 인프라 | 2. 모니터링 상태 | 앱과 배치의 지표 수집 시간과 수집이 빠진 칸 |
+| `infra/monitoring.json` | 6. 인프라 | 2. 모니터링 상태 | 앱과 배치의 지표 수집 시간과 수집이 빠진 칸, 모니터링 구성 요소(Prometheus, Alertmanager, Loki, Alloy, 익스포터)가 살아 있는지, 규칙 평가 실패 |
 | `test/loadtest.json` | 7. 테스트 | 부하 시험 | k6 가 보낸 것과 목표 부하를 다 보냈는지 |
+
+**모든 대시보드에 배포 주석을 건다.** 앱과 배치 프로세스가 뜬 시각에 세로 선을 긋고, 앱 지표의 `version` 꼬리표(배포가 넘기는 `APP_VERSION`)를 적는다. 배포 직후 지표가 바뀌었는지 그 선과 견준다. `version` 꼬리표는 lc-backend 가 지표에 다는 것이라(`management.metrics.tags.version`), 그 설정이 든 이미지부터 버전이 찍힌다. 그 전 이미지는 기동 시각만 찍히고 버전이 빈다.
 
 **임계값이 있는 패널에는 선을 그어 두었다.** `rules.yml` 의 값과 같은 값이다.
 CPU 크레딧 173 과 58(알람이 아니라 시험 전 참고선이다. 알람은 초과분을 본다), 디스크 80%, Hikari 대기 9, 컨테이너 재기동 3회,
-5xx 비율의 1시간 전의 2배, 배치 서버 2대, GC 뒤에 남은 힙 70%, Valkey 메모리 상한의 70%, 노출과 서빙 로그 유실률 0.1%, 분석의 밀린 날짜 3일이다.
+5xx 비율의 1시간 전의 2배, 배치 서버 2대, GC 뒤에 남은 힙 70%, Valkey 메모리 상한의 70%, 노출과 서빙 로그 유실률 0.1%, 분석의 밀린 날짜 3일,
+기계 메모리 90%, MySQL 연결 상한의 90%, RDS 여유 메모리 256MiB, RDS 남은 저장 공간 2GiB 다.
 경보가 0 보다 크면 울리는 값(OOM 거절, 커넥션 시간 제한, 실행 실패 같은 것)은 선을 긋지 않고 0 이 정상이라고 패널 설명에 적는다.
 API 의 응답 시간 패널(전체 분위수, 느린 엔드포인트, API별 p99)에는 경보가 아니라 앱의 기본 상한 0.5초(`overrun_threshold_seconds{kind="api", name="default"}`)를 긋는다. API마다의 목표는 기준을 넘은 API 패널이 견준다.
 배치 작업은 작업마다 BatchNotRun 기준이 달라(300초, 1800초, 90000초, 180000초) 선 하나를 긋지 않는다. 기준은 `prometheus/thresholds.yml` 의 `batch_job_not_run_threshold_seconds` 가 작업마다 갖고, 경보와 백그라운드 작업 대시보드의 기준 대비 패널(100% 선)이 같은 값을 읽는다.
 알람이 울리기 전에 어디쯤 와 있는지 화면에서 먼저 보라고 맞춰 둔 것이다.
 
-**`(미정)` 을 채울 값을 읽는 자리도 표시해 두었다.** p99 기준선, 톰캣 스레드 사용률,
-RDS 여유 메모리가 그것이고, 해당 패널 설명에 적어 두었다. 부하 시험 뒤 이 화면에서 읽어 `rules.yml` 에 넣는다.
+**`(미정)` 을 채울 값을 읽는 자리도 표시해 두었다.** 톰캣 스레드 사용률과 502 발생률이 그것이고, 아래 표에 있다. 부하 시험 뒤 이 화면에서 읽어 `rules.yml` 에 넣는다.
+API 의 p99 는 이미 API 마다의 목표로 경보(`ApiLatencyHigh`)를 건다. SLI 의 SLO 목표선은 SLO 를 정한 뒤(lunch-catch/lc-backend#1250) 더한다.
 
 고치는 절차는 설정 파일과 같다.
 
@@ -262,10 +265,7 @@ curl -s localhost:9106/metrics | grep -o '^aws_[a-z_0-9]*' | sort -u
 | 알람 | 무엇이 필요한가 |
 |---|---|
 | 502 발생 | 정상 구간의 502 발생률 |
-| RDS 여유 메모리 | 정상 구간의 여유 메모리 |
 | 톰캣 스레드 사용률 | 정상 구간의 사용률 |
-| ConsumedLCUs | 정상 구간의 LCU 소비 |
-| p99 응답시간 | 기준선 |
 | 정합성 검증 실패 | 검증 쿼리와 그 결과를 내보내는 경로 |
 
 `rules.yml` 하단에 자리만 주석으로 남겨 두었다.

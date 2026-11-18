@@ -10,6 +10,7 @@ groups:
         labels:
           severity: watchdog
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#watchdog"
           description: "알림 파이프라인이 살아 있다"
 
   - name: critical
@@ -20,6 +21,7 @@ groups:
         labels:
           severity: critical
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#cacheoomrejected"
           description: "캐시가 메모리 부족으로 쓰기를 거절했다. 키를 정리하거나 노드를 키워라"
 
       # 배포 전 대비 2배, 3분 지속. 롤백 판단의 근거다.
@@ -36,6 +38,7 @@ groups:
         labels:
           severity: critical
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#highfivexxrate"
           description: "5xx 비율이 한 시간 전 대비 2배를 넘었다. 롤백을 판단하라"
 
       # 배치가 한 대도 살아 있지 않다. 00:00 묶음과 쿠폰 만료가 돌지 않는다.
@@ -52,7 +55,19 @@ groups:
         labels:
           severity: critical
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchalldown"
           description: "살아 있는 배치 서버가 없다. 영업일 경계 작업이 돌지 않는다"
+
+      # MySQL 에 닿지 못한다(lc-infra #171). 캐시와 달리 강등할 경로가 없어 거의 모든 요청이 실패한다.
+      # 기다리는 시간은 CacheConnectionFailed 와 같은 1분이다
+      - alert: MysqlConnectionFailed
+        expr: mysql_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#mysqlconnectionfailed"
+          description: "MySQL 연결이 1분간 끊겼다. RDS 상태와 보안 그룹을 확인하라"
 
   - name: warning
     rules:
@@ -79,6 +94,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#cpusurpluscreditinuse"
           description: "{{ $labels.instance_id }} 가 한 시간 넘게 초과분 크레딧을 쓰고 있다. 기준선보다 바쁜 원인을 확인하라"
 
       # 초과분이 실제로 과금됐다. 24시간 안에 갚지 못했거나 초과분을 든 채 종료된 것이다.
@@ -87,6 +103,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#cpusurpluscreditcharged"
           description: "{{ $labels.instance_id }} 의 초과분 크레딧이 과금됐다. 부하 원인을 확인하라"
 
       # 풀 크기 10 의 90%. 대기가 쌓이면 톰캣 스레드가 먼저 마른다.
@@ -96,6 +113,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#hikaripendinghigh"
           description: "커넥션 풀 대기가 90% 를 넘었다. slow query 를 확인하라"
 
       # 풀에서 커넥션을 시간 제한(앱의 connection-timeout) 안에 얻지 못해 요청이 실패했다. 정상이면 0 이다.
@@ -105,6 +123,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#hikariconnectiontimeout"
           description: "{{ $labels.instance }} 에서 커넥션을 시간 제한 안에 얻지 못해 요청이 실패했다. 풀 크기와 오래 쥔 커넥션을 확인하라"
 
       # 커넥션을 1초 넘게 쥔 사용이 1% 를 넘었다. 품질 문서 데이터 무결성의 트랜잭션 상한 1초다(#108).
@@ -121,6 +140,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#transactionslow"
           description: "{{ $labels.instance }} 에서 커넥션을 1초 넘게 쥔 사용이 1% 를 넘었다. 4. 런타임의 애플리케이션 서버 자원에 있는 트랜잭션 시간 (커넥션을 쥔 시간의 p99) 패널과 누수 감지 경고 로그로 오래 쥔 코드를 확인하라"
 
       # GC 만 하고 일을 못 하는 상태다. 메모리가 모자라기 시작한 가장 이른 신호다(#108).
@@ -132,6 +152,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#gcoverheadhigh"
           description: "{{ $labels.instance }} 가 5분 넘게 시간의 10% 넘게 GC 로 멈췄다. GC 뒤에 남은 힙을 확인하라"
 
       # GC 를 해도 힙이 비워지지 않는다. 그대로 가면 OutOfMemoryError 로 죽는다(#108).
@@ -143,6 +164,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#heapaftergchigh"
           description: "{{ $labels.instance }} 의 GC 뒤에 남은 힙이 10분 넘게 70% 를 넘었다. 메모리 누수와 힙 크기를 확인하라"
 
       # 캐시는 Degradable 이라 죽어도 서비스는 돈다. 강등 경로가 실제로 동작하는지 확인한다.
@@ -152,15 +174,18 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#cacheconnectionfailed"
           description: "캐시 연결이 1분간 끊겼다. 강등 경로 동작을 확인하라"
 
-      # 퇴출 정책이 noeviction 이라 메모리가 차면 쓰기가 오류가 된다. 차기 전에 알린다
+      # 퇴출 정책이 noeviction 이라 메모리가 차면 쓰기가 오류가 된다. 차기 전에 알린다.
+      # 상한(maxmemory)이 0 이면 상한이 없다는 뜻이라 뺀다. 로컬 Valkey 가 그렇고, 빼지 않으면 0 으로 나눠 늘 울린다(lc-infra #171)
       - alert: CacheMemoryHigh
-        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.7
+        expr: redis_memory_used_bytes / (redis_memory_max_bytes > 0) > 0.7
         for: 5m
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#cachememoryhigh"
           description: "캐시 메모리가 70% 를 넘었다. TTL 없는 키와 키 개수를 확인하라"
 
       # 10분 내 3회. OOM 이 가장 흔한 원인이다.
@@ -169,27 +194,65 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#containerrestartloop"
           description: "컨테이너가 10분 내 3회 재기동했다. OOM 여부를 확인하라"
 
+      # 기계의 메모리가 거의 다 찼다(lc-infra #171). 더 차면 커널이 프로세스를 죽인다.
+      # 값은 node_exporter 가 내는 경보 묶음(node-mixin)의 NodeMemoryHighUtilization 기본값 90%, 15분이다
+      - alert: NodeMemoryHigh
+        expr: 100 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100) > 90
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#nodememoryhigh"
+          description: "{{ $labels.instance }} 의 메모리 사용률이 15분 넘게 90% 를 넘었다. 컨테이너 메모리와 OOM 로그를 확인하라"
+
+      # RDS 의 남은 저장 공간이 적다(lc-infra #171). 자동 확장을 켜지 않아 다 차면 쓰기가 멈춘다.
+      # 값은 AWS 권장 경보의 FreeStorageSpace 기준인 할당량의 10% 다. 할당량 20GiB(modules/data/rds.tf 의 allocated_storage)의 10% 인 2GiB 이고, 할당량을 고치면 여기도 같이 고친다
+      - alert: RdsStorageLow
+        expr: aws_rds_free_storage_space_average < 2147483648
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#rdsstoragelow"
+          description: "RDS 의 남은 저장 공간이 2GiB 아래다. 오래된 데이터를 정리하거나 allocated_storage 를 올려라"
+
+      # RDS 의 여유 메모리가 적다(lc-infra #171). 연결이 몰렸거나 버퍼 풀이 메모리를 밀어내고 있다.
+      # 값은 AWS 권장 경보의 FreeableMemory 기준인 전체 메모리의 25%, 15분이다. db.t4g.micro(modules/data/variables.tf)의 1GiB 의 25% 인 256MiB 이고, 클래스를 바꾸면 여기도 같이 고친다
+      - alert: RdsFreeableMemoryLow
+        expr: aws_rds_freeable_memory_average < 268435456
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#rdsfreeablememorylow"
+          description: "RDS 의 여유 메모리가 15분 넘게 256MiB 아래다. 연결 수와 느린 쿼리를 확인하라"
+
+      # MySQL 의 연결이 상한에 가깝다(lc-infra #171). 다 차면 새 연결이 거절돼 커넥션 풀이 마른다.
+      # 값은 AWS 권장 경보의 DatabaseConnections 기준인 상한의 90~95% 가운데 먼저 알리는 90% 다. 상한은 mysqld_exporter 가 max_connections 로 읽는다
+      - alert: MysqlConnectionsHigh
+        expr: mysql_global_status_threads_connected / mysql_global_variables_max_connections > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#mysqlconnectionshigh"
+          description: "MySQL 연결이 상한의 90% 를 넘었다. 커넥션 풀 크기와 오래 쥔 연결을 확인하라"
+
+      # 읽기 전용 디스크는 늘 100% 라 뺀다(lc-infra #171). node_exporter 의 경보 묶음(node-mixin)과 같은 조건이다. 맥의 Docker Desktop 에서 /oldroot 가 그렇다
       - alert: DiskUsageHigh
         expr: |
-          100 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}
-                 / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} * 100) > 80
+          (100 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}
+                  / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} * 100) > 80)
+          and node_filesystem_readonly == 0
         for: 10m
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#diskusagehigh"
           description: "디스크 사용률이 80% 를 넘었다. 로그를 정리하라"
-
-      # 배포 절차가 신규 인스턴스를 최대 6분 기다린다. 90초를 넘으면 먼저 알린다.
-      - alert: ReadinessSlow
-        expr: |
-          probe_success{job="app"} == 0
-        for: 90s
-        labels:
-          severity: warning
-        annotations:
-          description: "readiness 가 90초 넘게 실패했다. 배포를 중단하라"
 
       # 배치 두 대 중 한 대가 죽었다. 남은 한 대가 작업을 이어받아 지금은 돌지만,
       # 그것마저 죽으면 끝이라 알아야 한다. 이것이 없으면 두 번째 장애 때 처음 알게 된다.
@@ -202,6 +265,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchdegraded"
           description: "배치 서버가 {{ $value }} 대만 살아 있다. 나머지 한 대를 확인하라"
 
       # 배치가 조용히 멈추는 것을 잡는다.
@@ -223,7 +287,76 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"
           description: "배치 {{ $labels.instance }} 의 {{ $labels.scheduler }} 가 주기를 넘겨 성공하지 못했다"
+
+      # API 의 p99 가 그 API 의 목표를 넘었다(lc-infra #171). 사용자가 겪는 지연이라 스택의 가장 위인 API 에서 본다.
+      # 목표는 앱 설정(lunchcatch.observability.targets)이 이름마다 내고, 이름이 없는 API 는 기본 목표를 쓴다. API 대시보드의 기준을 넘은 API 와 같은 식이다.
+      # 기다리는 시간은 릴레이 발행 지연(RelayPublishDelayHigh)과 같은 10분이다. 요청이 적은 API 는 p99 가 튀므로 한 번 넘은 것으로는 울리지 않는다
+      - alert: ApiLatencyHigh
+        expr: |
+          (
+            histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job="app", uri!~"UNKNOWN|/actuator.*"}[5m])))
+            > on(uri) group_left()
+            max by (uri) (label_replace(overrun_threshold_seconds{kind="api", name!="default"}, "uri", "$1", "name", "[A-Z]+ (.+)"))
+          )
+          or
+          (
+            (
+              histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_histogram_seconds_bucket{job="app", uri!~"UNKNOWN|/actuator.*"}[5m])))
+              unless on(uri)
+              max by (uri) (label_replace(overrun_threshold_seconds{kind="api", name!="default"}, "uri", "$1", "name", "[A-Z]+ (.+)"))
+            )
+            > scalar(max(overrun_threshold_seconds{kind="api", name="default"}))
+          )
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#apilatencyhigh"
+          description: "{{ $labels.uri }} 의 p99 가 10분 넘게 목표를 넘었다. API 대시보드의 기준을 넘은 API 에서 트레이스를 확인하라"
+
+      # 수집 대상이 응답하지 않는다(lc-infra #171). 익스포터가 죽으면 그 지표를 보는 경보가 울리지 않고 조용히 멈춘다.
+      # API 서버가 모두 내려간 것은 CloudWatch 의 HealthyHostCount 경보가, 배치가 모두 내려간 것은 BatchAllDown 이 본다. 여기서는 살아 있는 줄 알던 대상이 답하지 않는 것을 본다.
+      # 기다리는 시간은 BatchDegraded 와 같은 5분이다. 배포 때 한 대씩 재시작하는 동안은 울리지 않는다
+      - alert: TargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#targetdown"
+          description: "수집 대상 {{ $labels.job }} {{ $labels.instance }} 가 5분 넘게 응답하지 않는다. 그 대상의 지표를 보는 경보가 멈춰 있다. Prometheus 의 Targets 화면에서 오류를 보고 그 컨테이너가 떠 있는지 확인하라"
+
+      # Alertmanager 가 Slack 으로 알림을 보내지 못했다(lc-infra #171). 웹훅이 틀려 모든 경보를 버린 적이 있다.
+      # 같은 Slack 으로 가는 이 경보도 닿지 않을 수 있지만, 다른 채널로 가는 경보와 Prometheus 화면에는 남는다
+      # 규칙을 평가하다 오류가 났다(lc-infra #171). 실패한 규칙의 경보는 그동안 울리지 않는다
+      - alert: PrometheusRuleEvaluationFailures
+        expr: sum by (rule_group) (increase(prometheus_rule_evaluation_failures_total[5m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#prometheusruleevaluationfailures"
+          description: "Prometheus 가 규칙 묶음 {{ $labels.rule_group }} 의 규칙을 평가하지 못했다. 실패한 규칙의 경보가 그동안 평가되지 않았을 수 있다. Prometheus 로그에서 그 규칙을 찾아라"
+
+      # Valkey 엔진 CPU 가 거의 다 찼다(lc-infra #171). 명령을 한 스레드로 돌려 이 값이 차면 모든 명령이 줄을 선다.
+      # 값은 AWS 권장 경보의 EngineCPUUtilization 기준인 90%, 1분 간격 5번(5분)이다
+      - alert: CacheEngineCpuHigh
+        expr: aws_elasticache_engine_cpuutilization_average > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#cacheenginecpuhigh"
+          description: "Valkey 엔진 CPU 가 5분 넘게 90% 를 넘었다. 느린 명령과 키 개수를 확인하라"
+
+      - alert: AlertmanagerNotificationsFailing
+        expr: sum by (integration) (increase(alertmanager_notifications_failed_total[5m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#alertmanagernotificationsfailing"
+          description: "Alertmanager 가 {{ $labels.integration }} 로 알림을 보내지 못했다. 웹훅과 Alertmanager 로그를 확인하라"
 
   # 광고 서빙이 장애 때 막지 않고 통과시키거나 버린 횟수다 (lc-infra #4).
   #
@@ -246,6 +379,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#adservingcachebypass"
           description: "광고 서빙이 {{ $labels.use }} 규칙을 10분 넘게 건너뛰고 있다. Valkey 명령 실패를 확인하라"
 
       # 예산을 넘긴 캠페인도 피드에 나간다. 정산의 예산 진행률 조회를 확인한다.
@@ -256,6 +390,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#adservingbudgetunavailable"
           description: "예산 진행률을 읽지 못해 예산 규칙 없이 피드를 내보내고 있다. 예산을 넘긴 캠페인도 노출된다"
 
       # 서빙 로그 유실률. 목표가 0.1% 미만이다 (lc-backend docs/design/adserving/feed-api-design.md).
@@ -277,6 +412,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#adservingserveloglosshigh"
           description: "서빙 로그 유실률이 {{ $value | humanizePercentage }} 다. 목표는 0.1% 미만이다. 관리자 진단에 기록 없음이 는다"
 
       # 추천 인원(FR-042)이 줄 수 있다. 분모로 삼을 지표가 없어 0 을 넘는지만 본다.
@@ -287,6 +423,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#adservingfeedvisitwritefailed"
           description: "feed_visit_daily 쓰기가 10분 넘게 실패하고 있다. 추천 인원이 줄 수 있다"
 
       # 읽는 범위(어제 00:00 부터)보다 오래된 미발행이 새로 생겼다. 마감이 지나 과금할 수 없는 노출이라 매출을 잃는다.
@@ -298,6 +435,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#adservingimpressionexpired"
           description: "마감이 지나 넘기지 못한 노출이 1시간 사이 늘었다. 과금되지 않는다. 배치 서버와 노출 릴레이가 하루 넘게 멈췄는지 확인하라"
 
       # 노출을 받고도 저장하지 못해 버렸다. 버린 노출은 과금되지 않는다. 유실 목표(0.1%, lc-backend#1065)를 기준으로 서빙 로그 유실과 같은 꼴로 본다.
@@ -316,6 +454,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#adservingimpressionlosshigh"
           description: "노출 유실률이 {{ $value | humanizePercentage }} 다. 목표는 0.1% 미만이다. 버린 노출은 과금되지 않는다. 노출 저장 워커의 대기 시간과 카운터 호출을 확인하라"
 
       # 노출 릴레이의 실행 하나가 통째로 실패했다. 정산이 예외를 던졌거나(DB, Valkey 장애) 밀린 수를 못 셌거나 임대를 확인하지 못했다.
@@ -327,6 +466,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#adservingdispatcherror"
           description: "노출 릴레이가 10분 넘게 실행 단위로 실패하고 있다. 정산의 DB 와 Valkey, 배치 로그를 확인하라"
 
       # adserving_impression_campaign_mismatch_total 은 알람을 두지 않는다.
@@ -350,6 +490,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#billingrecheckexhausted"
           description: "결제 재조회를 다 쓰고도 승인 결과를 모르는 결제가 생겼다. PG 관리자 화면에서 상태를 확인하고 손으로 확정하라"
 
       # PG 와 우리 기록이 어긋났다. mismatch 는 맞추지 못한 것이고 recovered 는 자동으로 맞춘 것이다.
@@ -360,6 +501,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#billingpgreconmismatch"
           description: "PG 대사에서 {{ $labels.result }} 가 나왔다. mismatch 는 손으로 맞추고, recovered 는 어긋난 원인을 확인하라"
 
   # 분석 경보의 1차다 (lc-infra #43). 정산과 같은 이유로 평소 0 이어야 하는 것만 건다.
@@ -375,17 +517,20 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#analyticsaggregationfailed"
           description: "일 집계가 실패했다. 배치 로그의 ANALYTICS_DAILY_AGGREGATION 이벤트로 원인을 확인하라"
 
       # 집계하지 못하고 밀린 날짜 수다. 하루 실패는 다음 실행이 메운다. 3일 이상이면 그것이 반복해서 실패하고 있다.
       # 서버마다 값이 있어 max 로 묶는다. 더하면 배치 두 대가 같은 날짜를 두 번 센다.
+      # 통계 화면이 늦을 뿐 서비스는 돌아 급하게 깨울 일이 아니라 warning 이다(lc-infra #171)
       - alert: AnalyticsPendingDatesHigh
         expr: |
           max(analytics_aggregation_pending_dates{job="batch"}) >= 3
         for: 10m
         labels:
-          severity: critical
+          severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#analyticspendingdateshigh"
           description: "집계하지 못한 날짜가 {{ $value }} 일 쌓였다. 일 집계가 며칠째 실패하고 있다. 통계 화면이 그만큼 비어 있다"
 
       # 집계 결과의 정합성 검사가 위반을 찾았다.
@@ -402,6 +547,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#analyticsconsistencyviolation"
           description: "집계 정합성 검사 {{ $labels.check }} 가 위반 {{ $value }} 건을 찾았다. 집계 결과를 믿기 전에 원천 데이터와 맞춰 보라"
 
   # 아웃박스 릴레이의 결과를 본다(lc-infra #150). 지표는 모든 릴레이가 내는 공통 이름이라 relay 꼬리표로 나눈다.
@@ -423,6 +569,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#relaypublishdelayhigh"
           description: "릴레이 {{ $labels.relay }} 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 백그라운드 작업 대시보드의 릴레이 줄에서 실행 트레이스를 확인하라"
 
       # 품질 문서의 아웃박스 미발행 적체(100건 초과 시 경보)다. 포기한 건은 빠지고 다시 넘길 시각을 기다리는 건은 든다
@@ -433,6 +580,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#relaybackloghigh"
           description: "릴레이 {{ $labels.relay }} 의 미발행이 {{ $value }} 건이다. 기준은 100건이다. 백그라운드 작업 대시보드의 아웃박스 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라"
 
       # 상한만큼 실패해 넘기기를 포기한 건이 있다. 데드레터처럼 사람이 원인을 고쳐야 줄어드니 기다리지 않고 곧바로 울린다
@@ -442,6 +590,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#relayabandoned"
           description: "릴레이 {{ $labels.relay }} 가 {{ $value }} 건의 넘기기를 포기했다. 원인을 고친 뒤 포기 시각을 비워 다시 넘겨라"
 
   # 앱 안의 메모리 대기열(비동기 워커)을 본다(lc-infra #151). 지표는 모든 워커가 내는 공통 이름이라 worker 꼬리표로 나눈다.
@@ -462,13 +611,11 @@ groups:
         labels:
           severity: warning
         annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#workerwaithigh"
           description: "워커 {{ $labels.worker }} 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 백그라운드 작업 대시보드의 워커 줄을 확인하라"
 
   # 임계값이 정해지지 않은 알람들. 부하 시험 후 채운다.
   #
   # - alert: FiveZeroTwo            502 발생. (미정) 초과
-  # - alert: RdsFreeableMemoryLow   RDS 여유 메모리. (미정) 미만
   # - alert: TomcatThreadsHigh      톰캣 스레드 사용률. (미정)% 초과
-  # - alert: ConsumedLcuHigh        ConsumedLCUs. (미정) 초과
-  # - alert: P99Slow                p99 응답시간. 기준선 대비 3배. 기준선이 없다
   # - alert: IntegrityCheckFailed   정합성 검증 실패. 검증 쿼리 결과를 내보내는 경로가 없다

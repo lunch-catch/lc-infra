@@ -32,7 +32,8 @@ receivers:
     slack_configs:
       - api_url_file: /run/secrets/slack_webhook_critical
         title: '[CRITICAL] {{ .CommonLabels.alertname }}{{ with .CommonLabels.env }} ({{ . }}){{ end }}'
-        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        # 경보마다의 대응 절차(docs/runbook/경보_대응.md)로 가는 링크를 붙인다(lc-infra #171)
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ with .Annotations.runbook_url }} <{{ . }}|대응 절차>{{ end }}{{ end }}'
         # 대응 중인 사람이 복구를 알아야 한다.
         send_resolved: true
 
@@ -40,7 +41,8 @@ receivers:
     slack_configs:
       - api_url_file: /run/secrets/slack_webhook_warning
         title: '[WARNING] {{ .CommonLabels.alertname }}{{ with .CommonLabels.env }} ({{ . }}){{ end }}'
-        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        # 경보마다의 대응 절차(docs/runbook/경보_대응.md)로 가는 링크를 붙인다(lc-infra #171)
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ with .Annotations.runbook_url }} <{{ . }}|대응 절차>{{ end }}{{ end }}'
         # 스스로 해소되는 경우가 많아 소음이 된다.
         send_resolved: false
 

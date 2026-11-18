@@ -39,47 +39,47 @@ tests:
         alertname: BatchNotRun
         exp_alerts:
           - exp_labels: {severity: warning, instance: b1, scheduler: "DailyJobScheduler.sendHeartbeat()"}
-            exp_annotations: {description: "배치 b1 의 DailyJobScheduler.sendHeartbeat() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 DailyJobScheduler.sendHeartbeat() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
           - exp_labels: {severity: warning, instance: b1, scheduler: "PaymentRecheckWorker.recheckUnknownPayments()"}
-            exp_annotations: {description: "배치 b1 의 PaymentRecheckWorker.recheckUnknownPayments() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 PaymentRecheckWorker.recheckUnknownPayments() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
           - exp_labels: {severity: warning, instance: b1, scheduler: "RechargeReservationWorker.reserveCharged()"}
-            exp_annotations: {description: "배치 b1 의 RechargeReservationWorker.reserveCharged() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 RechargeReservationWorker.reserveCharged() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
           - exp_labels: {severity: warning, instance: b1, scheduler: "ImpressionDispatchJob.dispatchPending()"}
-            exp_annotations: {description: "배치 b1 의 ImpressionDispatchJob.dispatchPending() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 ImpressionDispatchJob.dispatchPending() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
       # 26시간: 하루 작업이 울린다. 이벤트 보존은 50시간 전이라 울리지 않는다
       - eval_time: 1560m
         alertname: BatchNotRun
         exp_alerts:
           - exp_labels: {severity: warning, instance: b1, scheduler: "DailyJobScheduler.sendHeartbeat()"}
-            exp_annotations: {description: "배치 b1 의 DailyJobScheduler.sendHeartbeat() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 DailyJobScheduler.sendHeartbeat() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
           - exp_labels: {severity: warning, instance: b1, scheduler: "PaymentRecheckWorker.recheckUnknownPayments()"}
-            exp_annotations: {description: "배치 b1 의 PaymentRecheckWorker.recheckUnknownPayments() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 PaymentRecheckWorker.recheckUnknownPayments() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
           - exp_labels: {severity: warning, instance: b1, scheduler: "RechargeReservationWorker.reserveCharged()"}
-            exp_annotations: {description: "배치 b1 의 RechargeReservationWorker.reserveCharged() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 RechargeReservationWorker.reserveCharged() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
           - exp_labels: {severity: warning, instance: b1, scheduler: "ImpressionDispatchJob.dispatchPending()"}
-            exp_annotations: {description: "배치 b1 의 ImpressionDispatchJob.dispatchPending() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 ImpressionDispatchJob.dispatchPending() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
           - exp_labels: {severity: warning, instance: b1, scheduler: "DailyAggregationJob.run()"}
-            exp_annotations: {description: "배치 b1 의 DailyAggregationJob.run() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 DailyAggregationJob.run() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
           - exp_labels: {severity: warning, instance: b1, scheduler: "CouponIssueCloseJob.closeCoupons()"}
-            exp_annotations: {description: "배치 b1 의 CouponIssueCloseJob.closeCoupons() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 CouponIssueCloseJob.closeCoupons() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
       # 51시간: 이벤트 보존까지 울린다. 매분 성공하는 b2 는 끝까지 울리지 않는다
       - eval_time: 3060m
         alertname: BatchNotRun
         exp_alerts:
           - exp_labels: {severity: warning, instance: b1, scheduler: "DailyJobScheduler.sendHeartbeat()"}
-            exp_annotations: {description: "배치 b1 의 DailyJobScheduler.sendHeartbeat() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 DailyJobScheduler.sendHeartbeat() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
           - exp_labels: {severity: warning, instance: b1, scheduler: "PaymentRecheckWorker.recheckUnknownPayments()"}
-            exp_annotations: {description: "배치 b1 의 PaymentRecheckWorker.recheckUnknownPayments() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 PaymentRecheckWorker.recheckUnknownPayments() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
           - exp_labels: {severity: warning, instance: b1, scheduler: "RechargeReservationWorker.reserveCharged()"}
-            exp_annotations: {description: "배치 b1 의 RechargeReservationWorker.reserveCharged() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 RechargeReservationWorker.reserveCharged() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
           - exp_labels: {severity: warning, instance: b1, scheduler: "ImpressionDispatchJob.dispatchPending()"}
-            exp_annotations: {description: "배치 b1 의 ImpressionDispatchJob.dispatchPending() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 ImpressionDispatchJob.dispatchPending() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
           - exp_labels: {severity: warning, instance: b1, scheduler: "DailyAggregationJob.run()"}
-            exp_annotations: {description: "배치 b1 의 DailyAggregationJob.run() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 DailyAggregationJob.run() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
           - exp_labels: {severity: warning, instance: b1, scheduler: "CouponIssueCloseJob.closeCoupons()"}
-            exp_annotations: {description: "배치 b1 의 CouponIssueCloseJob.closeCoupons() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 CouponIssueCloseJob.closeCoupons() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
           - exp_labels: {severity: warning, instance: b1, scheduler: "EventLogRetentionJob.purgeExpiredEvents()"}
-            exp_annotations: {description: "배치 b1 의 EventLogRetentionJob.purgeExpiredEvents() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 EventLogRetentionJob.purgeExpiredEvents() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
 
   # 충전 재예약의 5분 경계와 해소. b1 은 0분에 성공하고 20분 동안 멈췄다가 21분부터 다시 매분 성공한다. b2 는 매분 성공한다.
   #   10분  6분에 5분을 넘었지만 for 5분이 안 차 울리지 않는다
@@ -99,7 +99,7 @@ tests:
         alertname: BatchNotRun
         exp_alerts:
           - exp_labels: {severity: warning, instance: b1, scheduler: "RechargeReservationWorker.reserveCharged()"}
-            exp_annotations: {description: "배치 b1 의 RechargeReservationWorker.reserveCharged() 가 주기를 넘겨 성공하지 못했다"}
+            exp_annotations: {description: "배치 b1 의 RechargeReservationWorker.reserveCharged() 가 주기를 넘겨 성공하지 못했다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#batchnotrun"}
       - eval_time: 25m
         alertname: BatchNotRun
         exp_alerts: []
@@ -132,7 +132,7 @@ tests:
         alertname: BillingRecheckExhausted
         exp_alerts:
           - exp_labels: {severity: warning}
-            exp_annotations: {description: "결제 재조회를 다 쓰고도 승인 결과를 모르는 결제가 생겼다. PG 관리자 화면에서 상태를 확인하고 손으로 확정하라"}
+            exp_annotations: {description: "결제 재조회를 다 쓰고도 승인 결과를 모르는 결제가 생겼다. PG 관리자 화면에서 상태를 확인하고 손으로 확정하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#billingrecheckexhausted"}
       - eval_time: 100m
         alertname: BillingRecheckExhausted
         exp_alerts: []
@@ -146,7 +146,7 @@ tests:
         alertname: BillingPgReconMismatch
         exp_alerts:
           - exp_labels: {severity: warning, result: mismatch}
-            exp_annotations: {description: "PG 대사에서 mismatch 가 나왔다. mismatch 는 손으로 맞추고, recovered 는 어긋난 원인을 확인하라"}
+            exp_annotations: {description: "PG 대사에서 mismatch 가 나왔다. mismatch 는 손으로 맞추고, recovered 는 어긋난 원인을 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#billingpgreconmismatch"}
       - eval_time: 100m
         alertname: BillingPgReconMismatch
         exp_alerts: []
@@ -160,7 +160,7 @@ tests:
         alertname: AnalyticsAggregationFailed
         exp_alerts:
           - exp_labels: {severity: warning}
-            exp_annotations: {description: "일 집계가 실패했다. 배치 로그의 ANALYTICS_DAILY_AGGREGATION 이벤트로 원인을 확인하라"}
+            exp_annotations: {description: "일 집계가 실패했다. 배치 로그의 ANALYTICS_DAILY_AGGREGATION 이벤트로 원인을 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#analyticsaggregationfailed"}
       - eval_time: 100m
         alertname: AnalyticsAggregationFailed
         exp_alerts: []
@@ -214,8 +214,8 @@ tests:
       - eval_time: 35m
         alertname: AnalyticsPendingDatesHigh
         exp_alerts:
-          - exp_labels: {severity: critical}
-            exp_annotations: {description: "집계하지 못한 날짜가 3 일 쌓였다. 일 집계가 며칠째 실패하고 있다. 통계 화면이 그만큼 비어 있다"}
+          - exp_labels: {severity: warning}
+            exp_annotations: {description: "집계하지 못한 날짜가 3 일 쌓였다. 일 집계가 며칠째 실패하고 있다. 통계 화면이 그만큼 비어 있다", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#analyticspendingdateshigh"}
       - eval_time: 70m
         alertname: AnalyticsPendingDatesHigh
         exp_alerts: []
@@ -242,7 +242,7 @@ tests:
         alertname: AnalyticsConsistencyViolation
         exp_alerts:
           - exp_labels: {severity: warning, check: ledger_sum}
-            exp_annotations: {description: "집계 정합성 검사 ledger_sum 가 위반 2 건을 찾았다. 집계 결과를 믿기 전에 원천 데이터와 맞춰 보라"}
+            exp_annotations: {description: "집계 정합성 검사 ledger_sum 가 위반 2 건을 찾았다. 집계 결과를 믿기 전에 원천 데이터와 맞춰 보라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#analyticsconsistencyviolation"}
       - eval_time: 75m
         alertname: AnalyticsConsistencyViolation
         exp_alerts: []
@@ -263,7 +263,7 @@ tests:
         alertname: HikariConnectionTimeout
         exp_alerts:
           - exp_labels: {severity: warning, instance: a1, instance_id: i-1}
-            exp_annotations: {description: "a1 에서 커넥션을 시간 제한 안에 얻지 못해 요청이 실패했다. 풀 크기와 오래 쥔 커넥션을 확인하라"}
+            exp_annotations: {description: "a1 에서 커넥션을 시간 제한 안에 얻지 못해 요청이 실패했다. 풀 크기와 오래 쥔 커넥션을 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#hikariconnectiontimeout"}
       - eval_time: 25m
         alertname: HikariConnectionTimeout
         exp_alerts: []
@@ -310,17 +310,17 @@ tests:
         alertname: GcOverheadHigh
         exp_alerts:
           - exp_labels: {severity: warning, job: app, instance: a1}
-            exp_annotations: {description: "a1 가 5분 넘게 시간의 10% 넘게 GC 로 멈췄다. GC 뒤에 남은 힙을 확인하라"}
+            exp_annotations: {description: "a1 가 5분 넘게 시간의 10% 넘게 GC 로 멈췄다. GC 뒤에 남은 힙을 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#gcoverheadhigh"}
       - eval_time: 35m
         alertname: HeapAfterGcHigh
         exp_alerts:
           - exp_labels: {severity: warning, job: app, instance: a1}
-            exp_annotations: {description: "a1 의 GC 뒤에 남은 힙이 10분 넘게 70% 를 넘었다. 메모리 누수와 힙 크기를 확인하라"}
+            exp_annotations: {description: "a1 의 GC 뒤에 남은 힙이 10분 넘게 70% 를 넘었다. 메모리 누수와 힙 크기를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#heapaftergchigh"}
       - eval_time: 35m
         alertname: TransactionSlow
         exp_alerts:
           - exp_labels: {severity: warning, job: app, instance: a1}
-            exp_annotations: {description: "a1 에서 커넥션을 1초 넘게 쥔 사용이 1% 를 넘었다. 4. 런타임의 애플리케이션 서버 자원에 있는 트랜잭션 시간 (커넥션을 쥔 시간의 p99) 패널과 누수 감지 경고 로그로 오래 쥔 코드를 확인하라"}
+            exp_annotations: {description: "a1 에서 커넥션을 1초 넘게 쥔 사용이 1% 를 넘었다. 4. 런타임의 애플리케이션 서버 자원에 있는 트랜잭션 시간 (커넥션을 쥔 시간의 p99) 패널과 누수 감지 경고 로그로 오래 쥔 코드를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#transactionslow"}
       - eval_time: 65m
         alertname: GcOverheadHigh
         exp_alerts: []
@@ -378,7 +378,7 @@ tests:
         alertname: RelayPublishDelayHigh
         exp_alerts:
           - exp_labels: {severity: warning, relay: adserving.impression}
-            exp_annotations: {description: "릴레이 adserving.impression 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 백그라운드 작업 대시보드의 릴레이 줄에서 실행 트레이스를 확인하라"}
+            exp_annotations: {description: "릴레이 adserving.impression 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 백그라운드 작업 대시보드의 릴레이 줄에서 실행 트레이스를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#relaypublishdelayhigh"}
       # 적체는 11분부터 100건을 넘고 10분 지속 뒤 울린다
       - eval_time: 15m
         alertname: RelayBacklogHigh
@@ -387,7 +387,7 @@ tests:
         alertname: RelayBacklogHigh
         exp_alerts:
           - exp_labels: {severity: warning, relay: adserving.impression}
-            exp_annotations: {description: "릴레이 adserving.impression 의 미발행이 150 건이다. 기준은 100건이다. 백그라운드 작업 대시보드의 아웃박스 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라"}
+            exp_annotations: {description: "릴레이 adserving.impression 의 미발행이 150 건이다. 기준은 100건이다. 백그라운드 작업 대시보드의 아웃박스 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#relaybackloghigh"}
       # 포기한 건은 기다리지 않고 곧바로 울린다
       - eval_time: 5m
         alertname: RelayAbandoned
@@ -396,7 +396,7 @@ tests:
         alertname: RelayAbandoned
         exp_alerts:
           - exp_labels: {severity: warning, relay: adserving.impression}
-            exp_annotations: {description: "릴레이 adserving.impression 가 2 건의 넘기기를 포기했다. 원인을 고친 뒤 포기 시각을 비워 다시 넘겨라"}
+            exp_annotations: {description: "릴레이 adserving.impression 가 2 건의 넘기기를 포기했다. 원인을 고친 뒤 포기 시각을 비워 다시 넘겨라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#relayabandoned"}
       - eval_time: 15m
         alertname: AdservingDispatchError
         exp_alerts: []
@@ -404,7 +404,7 @@ tests:
         alertname: AdservingDispatchError
         exp_alerts:
           - exp_labels: {severity: warning}
-            exp_annotations: {description: "노출 릴레이가 10분 넘게 실행 단위로 실패하고 있다. 정산의 DB 와 Valkey, 배치 로그를 확인하라"}
+            exp_annotations: {description: "노출 릴레이가 10분 넘게 실행 단위로 실패하고 있다. 정산의 DB 와 Valkey, 배치 로그를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#adservingdispatcherror"}
 
   # 마감이 지난 미발행(lc-infra #150). 30분 뒤 3건이 새로 생기고 그대로 남는다. 늘어난 뒤 1시간 동안만 울리고 그 뒤로는 남아 있어도 울리지 않는다.
   - interval: 1m
@@ -419,7 +419,7 @@ tests:
         alertname: AdservingImpressionExpired
         exp_alerts:
           - exp_labels: {severity: warning}
-            exp_annotations: {description: "마감이 지나 넘기지 못한 노출이 1시간 사이 늘었다. 과금되지 않는다. 배치 서버와 노출 릴레이가 하루 넘게 멈췄는지 확인하라"}
+            exp_annotations: {description: "마감이 지나 넘기지 못한 노출이 1시간 사이 늘었다. 과금되지 않는다. 배치 서버와 노출 릴레이가 하루 넘게 멈췄는지 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#adservingimpressionexpired"}
       - eval_time: 100m
         alertname: AdservingImpressionExpired
         exp_alerts: []
@@ -475,23 +475,23 @@ tests:
         alertname: AdservingDispatchError
         exp_alerts:
           - exp_labels: {severity: warning}
-            exp_annotations: {description: "노출 릴레이가 10분 넘게 실행 단위로 실패하고 있다. 정산의 DB 와 Valkey, 배치 로그를 확인하라"}
+            exp_annotations: {description: "노출 릴레이가 10분 넘게 실행 단위로 실패하고 있다. 정산의 DB 와 Valkey, 배치 로그를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#adservingdispatcherror"}
       # 해소를 보기 전에, 같은 입력에서 실제로 울리는지 본다
       - eval_time: 35m
         alertname: RelayPublishDelayHigh
         exp_alerts:
           - exp_labels: {severity: warning, relay: adserving.impression}
-            exp_annotations: {description: "릴레이 adserving.impression 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 백그라운드 작업 대시보드의 릴레이 줄에서 실행 트레이스를 확인하라"}
+            exp_annotations: {description: "릴레이 adserving.impression 의 발행 지연 p99 가 10분 넘게 기준을 넘었다. 백그라운드 작업 대시보드의 릴레이 줄에서 실행 트레이스를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#relaypublishdelayhigh"}
       - eval_time: 35m
         alertname: RelayBacklogHigh
         exp_alerts:
           - exp_labels: {severity: warning, relay: adserving.impression}
-            exp_annotations: {description: "릴레이 adserving.impression 의 미발행이 150 건이다. 기준은 100건이다. 백그라운드 작업 대시보드의 아웃박스 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라"}
+            exp_annotations: {description: "릴레이 adserving.impression 의 미발행이 150 건이다. 기준은 100건이다. 백그라운드 작업 대시보드의 아웃박스 릴레이 줄에서 발행 지연과 포기한 건수를, 배치 로그에서 실행 실패를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#relaybackloghigh"}
       - eval_time: 35m
         alertname: RelayAbandoned
         exp_alerts:
           - exp_labels: {severity: warning, relay: adserving.impression}
-            exp_annotations: {description: "릴레이 adserving.impression 가 2 건의 넘기기를 포기했다. 원인을 고친 뒤 포기 시각을 비워 다시 넘겨라"}
+            exp_annotations: {description: "릴레이 adserving.impression 가 2 건의 넘기기를 포기했다. 원인을 고친 뒤 포기 시각을 비워 다시 넘겨라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#relayabandoned"}
       # 해소: 40분 뒤 정상으로 돌아오면 모두 그친다
       - eval_time: 60m
         alertname: RelayPublishDelayHigh
@@ -552,7 +552,7 @@ tests:
         alertname: WorkerWaitHigh
         exp_alerts:
           - exp_labels: {severity: warning, worker: adserving.impression-write}
-            exp_annotations: {description: "워커 adserving.impression-write 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 백그라운드 작업 대시보드의 워커 줄을 확인하라"}
+            exp_annotations: {description: "워커 adserving.impression-write 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 백그라운드 작업 대시보드의 워커 줄을 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#workerwaithigh"}
       - eval_time: 15m
         alertname: AdservingImpressionLossHigh
         exp_alerts: []
@@ -560,7 +560,7 @@ tests:
         alertname: AdservingImpressionLossHigh
         exp_alerts:
           - exp_labels: {severity: warning}
-            exp_annotations: {description: "노출 유실률이 0.5% 다. 목표는 0.1% 미만이다. 버린 노출은 과금되지 않는다. 노출 저장 워커의 대기 시간과 카운터 호출을 확인하라"}
+            exp_annotations: {description: "노출 유실률이 0.5% 다. 목표는 0.1% 미만이다. 버린 노출은 과금되지 않는다. 노출 저장 워커의 대기 시간과 카운터 호출을 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#adservingimpressionlosshigh"}
 
   # 워커 경보의 해소와 카운터 초기화(lc-infra #151). 노출은 10~40분에만 0.5% 를 버리고 워커 대기는 10~40분에만 30초다.
   # 버린 노출 카운터는 25분에 재시작으로 0 이 된다.
@@ -585,13 +585,13 @@ tests:
         alertname: WorkerWaitHigh
         exp_alerts:
           - exp_labels: {severity: warning, worker: adserving.impression-write}
-            exp_annotations: {description: "워커 adserving.impression-write 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 백그라운드 작업 대시보드의 워커 줄을 확인하라"}
+            exp_annotations: {description: "워커 adserving.impression-write 의 대기열이 5분 넘게 기준보다 오래 기다린다. 곧 차서 일을 버린다. 백그라운드 작업 대시보드의 워커 줄을 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#workerwaithigh"}
       # 카운터가 25분에 0 으로 돌아가도 increase 가 재시작을 이어 붙여 계속 울린다. 0 으로 떨어진 한 칸의 증가분은 빠져 0.45% 로 센다
       - eval_time: 35m
         alertname: AdservingImpressionLossHigh
         exp_alerts:
           - exp_labels: {severity: warning}
-            exp_annotations: {description: "노출 유실률이 0.45% 다. 목표는 0.1% 미만이다. 버린 노출은 과금되지 않는다. 노출 저장 워커의 대기 시간과 카운터 호출을 확인하라"}
+            exp_annotations: {description: "노출 유실률이 0.45% 다. 목표는 0.1% 미만이다. 버린 노출은 과금되지 않는다. 노출 저장 워커의 대기 시간과 카운터 호출을 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#adservingimpressionlosshigh"}
       - eval_time: 70m
         alertname: WorkerWaitHigh
         exp_alerts: []
@@ -610,4 +610,223 @@ tests:
         exp_alerts: []
       - eval_time: 20m
         alertname: AdservingImpressionLossHigh
+        exp_alerts: []
+
+  # API 지연(lc-infra #171). /v1/feed 는 20분부터 모든 요청이 0.5~1초라 p99 가 목표 0.3초를 넘는다.
+  # /v1/other 는 목표가 없어 기본 0.5초와 견준다. 20~40분만 0.5~1초로 느리고 그 뒤 0.1초 안으로 돌아온다.
+  #   15분  둘 다 빠르다: 울리지 않는다
+  #   25분  넘은 지 5분 남짓: for 10분이 안 차 울리지 않는다
+  #   38분  넘은 지 18분: 둘 다 울린다. /v1/other 는 기본 목표 분기로 울린다
+  #   58분  /v1/other 는 40분에 돌아와 해소되고 /v1/feed 만 남는다
+  - interval: 1m
+    input_series:
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/feed", le="0.1"}'
+        values: '0+60x20 1200x40'
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/feed", le="0.5"}'
+        values: '0+60x20 1200x40'
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/feed", le="1.0"}'
+        values: '0+60x60'
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/feed", le="+Inf"}'
+        values: '0+60x60'
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/other", le="0.1"}'
+        values: '0+60x20 1200x20 1200+60x20'
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/other", le="0.5"}'
+        values: '0+60x20 1200x20 1200+60x20'
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/other", le="1.0"}'
+        values: '0+60x60'
+      - series: 'http_server_requests_histogram_seconds_bucket{job="app", uri="/v1/other", le="+Inf"}'
+        values: '0+60x60'
+      - series: 'overrun_threshold_seconds{kind="api", name="GET /v1/feed"}'
+        values: '0.3x60'
+      - series: 'overrun_threshold_seconds{kind="api", name="default"}'
+        values: '0.5x60'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: ApiLatencyHigh
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: ApiLatencyHigh
+        exp_alerts: []
+      - eval_time: 38m
+        alertname: ApiLatencyHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, uri: /v1/feed}
+            exp_annotations: {description: "/v1/feed 의 p99 가 10분 넘게 목표를 넘었다. API 대시보드의 기준을 넘은 API 에서 트레이스를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#apilatencyhigh"}
+          - exp_labels: {severity: warning, uri: /v1/other}
+            exp_annotations: {description: "/v1/other 의 p99 가 10분 넘게 목표를 넘었다. API 대시보드의 기준을 넘은 API 에서 트레이스를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#apilatencyhigh"}
+      - eval_time: 58m
+        alertname: ApiLatencyHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, uri: /v1/feed}
+            exp_annotations: {description: "/v1/feed 의 p99 가 10분 넘게 목표를 넘었다. API 대시보드의 기준을 넘은 API 에서 트레이스를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#apilatencyhigh"}
+
+  # MySQL 연결 끊김과 수집 대상이 내려감(lc-infra #171). 둘 다 5분에 내려간다.
+  #   MySQL 은 1분을 기다려 7분부터, 수집 대상은 5분을 기다려 10분부터 울린다. 15분에 둘 다 돌아와 해소된다
+  - interval: 1m
+    input_series:
+      - series: 'mysql_up{job="mysqld", instance="m1"}'
+        values: '1x5 0x10 1x10'
+      - series: 'up{job="node", instance="n1"}'
+        values: '1x5 0x10 1x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: MysqlConnectionFailed
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: MysqlConnectionFailed
+        exp_alerts:
+          - exp_labels: {severity: critical, job: mysqld, instance: m1}
+            exp_annotations: {description: "MySQL 연결이 1분간 끊겼다. RDS 상태와 보안 그룹을 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#mysqlconnectionfailed"}
+      - eval_time: 8m
+        alertname: TargetDown
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: TargetDown
+        exp_alerts:
+          - exp_labels: {severity: warning, job: node, instance: n1}
+            exp_annotations: {description: "수집 대상 node n1 가 5분 넘게 응답하지 않는다. 그 대상의 지표를 보는 경보가 멈춰 있다. Prometheus 의 Targets 화면에서 오류를 보고 그 컨테이너가 떠 있는지 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#targetdown"}
+      # 15분에 둘 다 돌아온다. 다음 평가에서 해소된다
+      - eval_time: 18m
+        alertname: MysqlConnectionFailed
+        exp_alerts: []
+      - eval_time: 18m
+        alertname: TargetDown
+        exp_alerts: []
+
+  # 경보 전달 실패(lc-infra #171). 10분에 Slack 으로 한 번 보내지 못한다
+  - interval: 1m
+    input_series:
+      - series: 'alertmanager_notifications_failed_total{job="alertmanager", instance="alertmanager:9093", integration="slack"}'
+        values: '0x10 1x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: AlertmanagerNotificationsFailing
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: AlertmanagerNotificationsFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, integration: slack}
+            exp_annotations: {description: "Alertmanager 가 slack 로 알림을 보내지 못했다. 웹훅과 Alertmanager 로그를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#alertmanagernotificationsfailing"}
+
+  # 용량 경보(lc-infra #171). 모두 10분에 기준을 넘는다.
+  #   메모리는 15분, 저장 공간과 MySQL 연결은 5분, RDS 여유 메모리는 15분을 기다린다
+  - interval: 1m
+    input_series:
+      - series: 'node_memory_MemAvailable_bytes{instance="h1"}'
+        values: '500x10 50x30'
+      - series: 'node_memory_MemTotal_bytes{instance="h1"}'
+        values: '1000x40'
+      - series: 'aws_rds_free_storage_space_average{dimension_DBInstanceIdentifier="lunchcatch"}'
+        values: '5000000000x10 1000000000x30'
+      - series: 'aws_rds_freeable_memory_average{dimension_DBInstanceIdentifier="lunchcatch"}'
+        values: '500000000x10 100000000x30'
+      - series: 'mysql_global_status_threads_connected{instance="m1"}'
+        values: '10x10 80x30'
+      - series: 'mysql_global_variables_max_connections{instance="m1"}'
+        values: '85x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: NodeMemoryHigh
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: NodeMemoryHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: h1}
+            exp_annotations: {description: "h1 의 메모리 사용률이 15분 넘게 90% 를 넘었다. 컨테이너 메모리와 OOM 로그를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#nodememoryhigh"}
+      - eval_time: 12m
+        alertname: RdsStorageLow
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: RdsStorageLow
+        exp_alerts:
+          - exp_labels: {severity: warning, dimension_DBInstanceIdentifier: lunchcatch}
+            exp_annotations: {description: "RDS 의 남은 저장 공간이 2GiB 아래다. 오래된 데이터를 정리하거나 allocated_storage 를 올려라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#rdsstoragelow"}
+      - eval_time: 20m
+        alertname: RdsFreeableMemoryLow
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: RdsFreeableMemoryLow
+        exp_alerts:
+          - exp_labels: {severity: warning, dimension_DBInstanceIdentifier: lunchcatch}
+            exp_annotations: {description: "RDS 의 여유 메모리가 15분 넘게 256MiB 아래다. 연결 수와 느린 쿼리를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#rdsfreeablememorylow"}
+      - eval_time: 12m
+        alertname: MysqlConnectionsHigh
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: MysqlConnectionsHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: m1}
+            exp_annotations: {description: "MySQL 연결이 상한의 90% 를 넘었다. 커넥션 풀 크기와 오래 쥔 연결을 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#mysqlconnectionshigh"}
+
+  # 디스크 사용률(lc-infra #171). 쓰는 디스크가 5분에 85% 가 되고, 읽기 전용 디스크는 처음부터 100% 다.
+  # 10분을 기다려 쓰는 디스크만 울리고 읽기 전용 디스크는 울리지 않는다
+  - interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{instance="h1", mountpoint="/", fstype="ext4"}'
+        values: '50x5 15x20'
+      - series: 'node_filesystem_size_bytes{instance="h1", mountpoint="/", fstype="ext4"}'
+        values: '100x25'
+      - series: 'node_filesystem_readonly{instance="h1", mountpoint="/", fstype="ext4"}'
+        values: '0x25'
+      - series: 'node_filesystem_avail_bytes{instance="h1", mountpoint="/oldroot", fstype="erofs"}'
+        values: '0x25'
+      - series: 'node_filesystem_size_bytes{instance="h1", mountpoint="/oldroot", fstype="erofs"}'
+        values: '100x25'
+      - series: 'node_filesystem_readonly{instance="h1", mountpoint="/oldroot", fstype="erofs"}'
+        values: '1x25'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: DiskUsageHigh
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: DiskUsageHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: h1, mountpoint: /, fstype: ext4}
+            exp_annotations: {description: "디스크 사용률이 80% 를 넘었다. 로그를 정리하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#diskusagehigh"}
+
+  # Valkey 메모리와 엔진 CPU, 규칙 평가 실패(lc-infra #171).
+  #   r1 은 상한의 80% 라 5분 뒤 울리고, r2 는 상한이 0(상한 없음)이라 울리지 않는다
+  #   엔진 CPU 는 5분에 95% 가 되어 5분을 기다린 10분 뒤에 울린다
+  #   규칙 평가 실패는 10분에 한 번 늘어 울리고, 15분에 Prometheus 가 다시 떠 카운터가 0 이 되어도 다시 울리지 않는다
+  - interval: 1m
+    input_series:
+      - series: 'redis_memory_used_bytes{instance="r1"}'
+        values: '80x30'
+      - series: 'redis_memory_max_bytes{instance="r1"}'
+        values: '100x30'
+      - series: 'redis_memory_used_bytes{instance="r2"}'
+        values: '80x30'
+      - series: 'redis_memory_max_bytes{instance="r2"}'
+        values: '0x30'
+      - series: 'aws_elasticache_engine_cpuutilization_average{cache_cluster_id="c1"}'
+        values: '50x5 95x25'
+      - series: 'prometheus_rule_evaluation_failures_total{rule_group="g1"}'
+        values: '0x10 1x5 0x15'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: CacheMemoryHigh
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: CacheMemoryHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: r1}
+            exp_annotations: {description: "캐시 메모리가 70% 를 넘었다. TTL 없는 키와 키 개수를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#cachememoryhigh"}
+      - eval_time: 8m
+        alertname: CacheEngineCpuHigh
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: CacheEngineCpuHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, cache_cluster_id: c1}
+            exp_annotations: {description: "Valkey 엔진 CPU 가 5분 넘게 90% 를 넘었다. 느린 명령과 키 개수를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#cacheenginecpuhigh"}
+      - eval_time: 5m
+        alertname: PrometheusRuleEvaluationFailures
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: PrometheusRuleEvaluationFailures
+        exp_alerts:
+          - exp_labels: {severity: warning, rule_group: g1}
+            exp_annotations: {description: "Prometheus 가 규칙 묶음 g1 의 규칙을 평가하지 못했다. 실패한 규칙의 경보가 그동안 평가되지 않았을 수 있다. Prometheus 로그에서 그 규칙을 찾아라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#prometheusruleevaluationfailures"}
+      - eval_time: 25m
+        alertname: PrometheusRuleEvaluationFailures
         exp_alerts: []
