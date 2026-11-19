@@ -202,7 +202,7 @@
     {
       "type": "timeseries",
       "title": "외부 HTTP 호출: 상대마다 실패율",
-      "description": "상대마다 서버 오류와 응답 없음(UNKNOWN)으로 끝난 호출의 비율이다. 4xx 는 우리 요청의 잘못이라 넣지 않는다",
+      "description": "상대마다 서버 오류와 응답 없음(UNKNOWN)으로 끝난 호출의 비율이다. 4xx 는 카드 거절 같은 업무상 거절에도 와서 넣지 않는다. 분자는 앱이 상대마다 0 부터 세는 http_client_failures_total 이라 첫 실패도 잡힌다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -227,7 +227,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(sum by (client_name) (rate(http_client_requests_seconds_count{outcome=~\"SERVER_ERROR|UNKNOWN\"}[$__rate_interval])) or sum by (client_name) (rate(http_client_requests_seconds_count[$__rate_interval])) * 0) / (sum by (client_name) (rate(http_client_requests_seconds_count[$__rate_interval])) > 0)",
+          "expr": "sum by (client_name) (rate(http_client_failures_total[$__rate_interval])) / (sum by (client_name) (rate(http_client_requests_seconds_count[$__rate_interval])) > 0)",
           "legendFormat": "{{client_name}}",
           "datasource": {
             "type": "prometheus",
@@ -367,8 +367,8 @@
     },
     {
       "type": "timeseries",
-      "title": "AWS SDK 호출: 서비스와 작업마다 실패율",
-      "description": "서비스와 작업마다 성공이 아닌 결과로 끝난 호출의 비율이다",
+      "title": "AWS SDK 호출: 서비스마다 실패율",
+      "description": "서비스마다 실패로 끝난 호출의 비율이다. 분자는 앱이 서비스의 첫 호출부터 0 으로 세는 aws_sdk_failures_total 이라 첫 실패도 잡힌다. 그 카운터에 작업 꼬리표가 없어 어느 작업이 실패했는지는 호출 수와 p99 패널, 로그로 좁힌다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -393,8 +393,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(sum by (service, operation) (rate(aws_sdk_calls_seconds_count{outcome!=\"success\"}[$__rate_interval])) or sum by (service, operation) (rate(aws_sdk_calls_seconds_count[$__rate_interval])) * 0) / (sum by (service, operation) (rate(aws_sdk_calls_seconds_count[$__rate_interval])) > 0)",
-          "legendFormat": "{{service}} {{operation}}",
+          "expr": "sum by (service) (rate(aws_sdk_failures_total[$__rate_interval])) / (sum by (service) (rate(aws_sdk_calls_seconds_count[$__rate_interval])) > 0)",
+          "legendFormat": "{{service}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
