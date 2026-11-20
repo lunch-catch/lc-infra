@@ -22,7 +22,7 @@
 | 구역 | 구성 |
 |---|---|
 | 네트워크 | Dev VPC 10.10.0.0/16, 단일 AZ 2a, 퍼블릭 서브넷 10.10.1.0/24 |
-| 서버 | Dev EC2 (t3.medium) 한 대에서 caddy, app-blue, app-green, MySQL, Valkey, Grafana, Prometheus 컨테이너가 돈다 |
+| 서버 | Dev EC2 (t3.large) 한 대에서 caddy, app-blue, app-green, MySQL, Valkey, Grafana, Prometheus, Loki, Tempo, Alloy 컨테이너가 돈다 |
 | 배포 | 배포마다 쉬고 있는 쪽(blue 또는 green)을 띄우고 caddy 가 그쪽으로 넘긴다. 이미지는 ECR (`lunchcatch-dev`) 에서 받는다 |
 | 로그 | 앱 로그는 CloudWatch Logs `/lunchcatch/dev/app` (30일) |
 

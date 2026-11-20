@@ -1,5 +1,5 @@
 // 앱의 스팬을 받아 테일 샘플링 뒤 모니터링 서버의 Tempo 로 보낸다(lunch-catch/lc-infra#72).
-// 추적을 켠 환경(부하 시험 환경)에서만 config.alloy 뒤에 붙는다. compute 모듈의 tracing_enabled 가 정한다.
+// 추적을 켠 환경(부하 시험 환경과 운영)에서만 config.alloy 뒤에 붙는다. compute 모듈의 tracing_enabled 가 정한다.
 
 otelcol.receiver.otlp "app" {
 	http {

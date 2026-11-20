@@ -1,5 +1,6 @@
 # 개발 Grafana 의 데이터 소스다. uid 는 운영과 같게 둔다. 대시보드 JSON 이 uid 로 찾는다.
-# 운영의 Loki 대신 CloudWatch Logs 를 쓴다. 서버 역할로 인증하고 키를 두지 않는다.
+# 로그는 Loki 와 CloudWatch Logs 둘에 있다. CloudWatch 는 서버 역할로 인증하고 키를 두지 않는다.
+# Loki 와 Tempo 는 lc-infra #177 에서 더했다. 트레이스와 로그를 잇는 링크는 운영과 같다.
 apiVersion: 1
 
 datasources:
@@ -21,3 +22,36 @@ datasources:
       logGroups:
         - arn: arn:aws:logs:ap-northeast-2:762794225116:log-group:/lunchcatch/dev/app
           name: /lunchcatch/dev/app
+
+  # 로그의 trace_id(OpenTelemetry 에이전트가 남김)에서 그 요청의 추적(Tempo)으로 넘어간다. 운영과 같다
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      derivedFields:
+        - name: trace_id
+          datasourceUid: tempo
+          matcherRegex: '"trace_id":"(\w+)"'
+          url: "$${__value.raw}"
+
+  # 추적에서 로그(Loki)와 지표(Prometheus)로 넘어간다. 개발에는 Pyroscope 가 없어 프로파일 링크는 두지 않는다
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: false
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: -1m
+        spanEndTimeShift: 1m
+        customQuery: true
+        query: '{container=~"lunchcatch.*"} |= "$${__trace.traceId}"'
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true

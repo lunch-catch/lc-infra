@@ -1,0 +1,5 @@
+{
+  "version": "2.32.0",
+  "url": "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.32.0/opentelemetry-javaagent.jar",
+  "sha256": "f787eb6c7f3d18e69a431e108a15278d25ee37f83d68b678f621e063f3988f82"
+}

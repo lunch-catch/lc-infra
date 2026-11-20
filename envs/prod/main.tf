@@ -116,6 +116,9 @@ module "compute" {
   app_target_requests_per_instance = var.app_target_requests_per_instance
   app_image_repository             = var.app_image_repository
   load_test_enabled                = var.load_test_enabled
+  # 추적 저장소(Tempo)와 앱, 배치의 에이전트를 상시로 켠다. 남길 트레이스와 보관 기간은 부하 시험 환경과 같다(#177)
+  tracing_enabled       = true
+  tracing_agent_enabled = true
 }
 
 module "observability" {

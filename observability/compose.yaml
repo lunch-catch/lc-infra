@@ -138,7 +138,7 @@ services:
     #
     mem_limit: 256m
 
-  # 추적 저장소다. tracing 프로필이 켜진 부하 시험 환경에서만 뜬다(refresh-monitoring-env 가 정한다).
+  # 추적 저장소다. tracing 프로필이 켜진 부하 시험 환경과 운영에서만 뜬다(refresh-monitoring-env 가 정한다, #177).
   # 앱 서버의 Alloy 가 테일 샘플링한 스팬을 4317 로 받고, 그라파나가 3200 으로 묻는다(lunch-catch/lc-backend#1099).
   tempo:
     image: grafana/tempo:2.10.8

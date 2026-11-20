@@ -31,7 +31,7 @@ scrape_configs:
       - targets: ["alertmanager:9093"]
 
   # 로그를 받는 구성 요소다(lc-infra #171). 죽으면 로그가 조용히 빠지므로 TargetDown 이 보게 수집한다.
-  # Tempo 와 Pyroscope 는 tracing, profiling 프로필을 켠 때만 떠 수집하지 않는다. 늘 수집하면 켜지 않은 운영에서 TargetDown 이 늘 울린다
+  # Tempo 와 Pyroscope 는 tracing, profiling 프로필을 켠 때만 떠 수집하지 않는다. 늘 수집하면 켜지 않은 환경에서 TargetDown 이 늘 울린다
   - job_name: loki
     static_configs:
       - targets: ["loki:3100"]

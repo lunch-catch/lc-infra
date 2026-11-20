@@ -16,9 +16,29 @@ opt() { aws ssm get-parameter --name "$P/dev/$1" --region "$R" --query 'Paramete
 GIT_SHA=$(aws ssm get-parameter --name "$P/dev/current-sha" --region "$R" --query 'Parameter.Value' --output text 2>/dev/null || true)
 
 install -d -m 0755 "$DIR"
+
+# 추적 에이전트를 받아 둔다(lc-infra #177). 운영의 refresh-env 와 같다. 고정한 해시로 검증한 파일만 붙인다.
+# 받지 못하거나 검증에 실패하면 에이전트 없이 뜬다. 컨테이너에는 폴더째 걸어 파일이 없을 때 빈 폴더가 생기지 않게 한다
+install -d -m 0755 "$DIR/otel"
+AGENT="$DIR/otel/javaagent.jar"
+if ! echo "${otel_jar_sha256}  $AGENT" | sha256sum -c --status - 2> /dev/null; then
+  if curl -fsSL --retry 3 -o "$AGENT.part" "${otel_jar_url}" \
+      && echo "${otel_jar_sha256}  $AGENT.part" | sha256sum -c --status -; then
+    mv "$AGENT.part" "$AGENT"
+  else
+    rm -f "$AGENT.part"
+    echo "추적 에이전트를 받지 못했거나 해시가 다르다. 에이전트 없이 뜬다" >&2
+  fi
+fi
+OTEL_AGENT_OPTS=""
+if echo "${otel_jar_sha256}  $AGENT" | sha256sum -c --status - 2> /dev/null; then
+  OTEL_AGENT_OPTS="-javaagent:/opt/otel/javaagent.jar"
+fi
+
 umask 077
 cat > "$DIR/.env" <<ENV
 GIT_SHA=$GIT_SHA
+OTEL_AGENT_OPTS=$OTEL_AGENT_OPTS
 DB_PASSWORD=$(sec "$P/dev/db-password")
 JWT_SECRET=$(sec "$P/dev/jwt-signing-key")
 KAKAO_CLIENT_ID=$(sec "$P/kakao-client-id")
@@ -66,7 +86,7 @@ fi
 SERVICES=""
 if ! grep -q '^GRAFANA_ADMIN_PASSWORD=.' "$DIR/.env"; then
   echo "SSM $P/dev/grafana-admin-password 가 없다. Grafana 를 빼고 올린다 (dev-up.sh 가 만든다)"
-  SERVICES="caddy mysql valkey prometheus"
+  SERVICES="caddy mysql valkey prometheus loki tempo alloy"
 fi
 
 # 관리자 비밀번호를 SSM 값으로 맞추고 팀 공용 보기 계정(team)을 만든다. 비밀번호는 SSM 에만 있다
@@ -105,13 +125,13 @@ fi
 aws ecr get-login-password --region "$R" | docker login --username AWS --password-stdin ${registry}
 
 # 앱 밖의 서비스를 먼저 맞춘다. 설정이 바뀐 것만 다시 만든다
-INFRA="$${SERVICES:-caddy mysql valkey prometheus grafana}"
+INFRA="$${SERVICES:-caddy mysql valkey prometheus grafana loki tempo alloy}"
 docker compose up -d $INFRA
 
-# Prometheus 의 수집과 규칙, Grafana 의 공급 설정은 기동 때만 읽는다. lc-infra 가 바뀌었으면 둘을 다시 띄운다(lc-infra #169).
+# Prometheus 의 수집과 규칙, Grafana 의 공급 설정, Loki, Tempo, Alloy 의 설정은 기동 때만 읽는다. lc-infra 가 바뀌었으면 다시 띄운다(lc-infra #169, #177).
 # 대시보드 JSON 만 바뀐 것은 Grafana 가 30초마다 다시 읽지만, 새 폴더와 새 provider 는 다시 띄워야 생긴다
 if [ "$INFRA_BEFORE" != "$(git -C "$DIR/infra" rev-parse HEAD)" ]; then
-  docker compose restart $(printf '%s\n' $INFRA | grep -x 'prometheus\|grafana')
+  docker compose restart $(printf '%s\n' $INFRA | grep -x 'prometheus\|grafana\|loki\|tempo\|alloy')
 fi
 
 # 끊김 없는 배포다 (개발 서버 문서 7장). 앱은 app-blue 와 app-green 중 하나만 돈다.
