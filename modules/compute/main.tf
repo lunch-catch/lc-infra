@@ -29,7 +29,11 @@ data "aws_ami" "ubuntu_arm" {
  */
 locals {
   common_bootstrap = file("${path.module}/templates/common-bootstrap.sh")
-  # 추적을 켠 환경만 스팬 수집을 뒤에 붙인다. 운영 앱 서버의 user-data 는 바뀌지 않는다(lunch-catch/lc-infra#72)
+  # 상시로 붙이는 추적 에이전트의 판과 해시다(#177). 개발 서버와 함께 읽어 한곳에서 올린다
+  otel_agent      = jsondecode(file("${path.module}/../../observability/otel-agent.json"))
+  otel_jar_url    = local.otel_agent.url
+  otel_jar_sha256 = local.otel_agent.sha256
+  # 추적을 켠 환경만 스팬 수집을 뒤에 붙인다(lunch-catch/lc-infra#72). 부하 시험 환경과 운영이 켠다(#177)
   alloy_config = join("\n", concat(
     [file("${path.module}/../../observability/alloy/config.alloy")],
     var.tracing_enabled ? [file("${path.module}/../../observability/alloy/tracing.alloy")] : []
@@ -37,10 +41,13 @@ locals {
 
   # 최초 부팅과 재배포가 같은 코드를 쓴다
   refresh_env = templatefile("${path.module}/templates/refresh-env.sh.tftpl", {
-    project   = var.project
-    region    = var.region
-    registry  = local.ecr_registry
-    ecr_login = local.image_from_ecr
+    project         = var.project
+    region          = var.region
+    registry        = local.ecr_registry
+    ecr_login       = local.image_from_ecr
+    tracing_agent   = var.tracing_agent_enabled
+    otel_jar_url    = local.otel_jar_url
+    otel_jar_sha256 = local.otel_jar_sha256
   })
 
   # 모니터링도 같은 이유로 갱신 경로가 필요하다. 다만 읽는 값과 쓰는 자리가 달라 별도다
@@ -113,6 +120,7 @@ locals {
   ) : aws_ecr_repository.app.arn
 
   compose_args = {
+    tracing_agent      = var.tracing_agent_enabled
     project            = var.project
     app_image          = local.app_image
     db_name            = var.db_name
@@ -203,6 +211,11 @@ resource "aws_launch_template" "app" {
   lifecycle {
     create_before_destroy = true
     ignore_changes        = [image_id]
+
+    precondition {
+      condition     = !var.tracing_agent_enabled || var.tracing_enabled
+      error_message = "tracing_agent_enabled 를 켜려면 tracing_enabled 도 켠다. 스팬을 받을 Alloy 설정과 Tempo 가 없다"
+    }
   }
 }
 

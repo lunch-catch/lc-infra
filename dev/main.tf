@@ -299,10 +299,15 @@ resource "aws_iam_instance_profile" "dev" {
 locals {
   registry = split("/", data.aws_ecr_repository.dev.repository_url)[0]
 
+  # 상시로 붙이는 추적 에이전트의 판과 해시다(#177). 운영과 같은 파일을 읽는다
+  otel_agent = jsondecode(file("${path.module}/../observability/otel-agent.json"))
+
   refresh = templatefile("${path.module}/templates/refresh.sh.tftpl", {
-    project  = var.project
-    region   = var.region
-    registry = local.registry
+    project         = var.project
+    region          = var.region
+    registry        = local.registry
+    otel_jar_url    = local.otel_agent.url
+    otel_jar_sha256 = local.otel_agent.sha256
   })
 
   compose = templatefile("${path.module}/templates/compose.yaml.tftpl", {

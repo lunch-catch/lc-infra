@@ -311,7 +311,19 @@ variable "profiling_enabled" {
 }
 
 variable "tracing_enabled" {
-  description = "모니터링 서버에 추적 저장소(Tempo)를 띄우고 앱과 배치 서버의 Alloy 가 스팬을 받게 할지 여부. 부하 시험 환경만 켠다"
+  description = "모니터링 서버에 추적 저장소(Tempo)를 띄우고 앱과 배치 서버의 Alloy 가 스팬을 받게 할지 여부. 부하 시험 환경과 운영이 켠다(#177)"
+  type        = bool
+  nullable    = false
+  default     = false
+}
+
+/*
+ * 앱과 배치에 OpenTelemetry 에이전트를 상시로 붙일지 여부다(#177). 운영이 켠다.
+ * 부하 시험 환경은 끈다. 측정마다 lc-backend 의 run.sh switch --tracing 으로 켜고 끄는 시험이 있어서다.
+ * 켜려면 tracing_enabled 도 켜야 한다. 스팬을 받는 Alloy 설정과 Tempo 가 그 스위치로 뜬다.
+ */
+variable "tracing_agent_enabled" {
+  description = "앱과 배치에 OpenTelemetry 에이전트를 상시로 붙일지 여부. tracing_enabled 가 함께 켜져야 한다"
   type        = bool
   nullable    = false
   default     = false

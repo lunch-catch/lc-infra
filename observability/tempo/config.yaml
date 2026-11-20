@@ -1,4 +1,4 @@
-# 추적 저장소(Tempo)다. tracing 프로필이 켜진 부하 시험 환경에서만 뜬다(lunch-catch/lc-infra#72).
+# 추적 저장소(Tempo)다. tracing 프로필이 켜진 부하 시험 환경과 운영에서만 뜬다(lunch-catch/lc-infra#72, #177).
 # 스팬은 서버마다 도는 Alloy 가 테일 샘플링 뒤에 보낸다(observability/alloy/tracing.alloy).
 stream_over_http_enabled: true
 server:

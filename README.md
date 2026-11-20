@@ -20,7 +20,7 @@
 |---|---|---|
 | 리전과 가용 영역 | 서울, 2a 와 2c 두 곳 | 서울, 2a 한 곳 |
 | 네트워크 | 퍼블릭 서브넷에 ALB 와 NAT Gateway, 프라이빗 서브넷에 서버와 데이터 | 퍼블릭 서브넷 하나에 EC2 한 대 |
-| 앱 | API 서버 t3.small 2대, Auto Scaling Group (2 ~ 3대) | EC2 t3.medium 한 대에 app-blue, app-green 컨테이너 |
+| 앱 | API 서버 t3.small 2대, Auto Scaling Group (2 ~ 3대) | EC2 t3.large 한 대에 app-blue, app-green 컨테이너 |
 | 배치 | 배치 서버 t3.small 2대, 두 대 모두 스케줄러를 켠 액티브-액티브 | 앱 컨테이너가 batch 프로필로 스케줄러까지 돌린다 |
 | DB | RDS MySQL 8.4 Multi-AZ | 같은 EC2 의 MySQL 컨테이너 |
 | 캐시 | ElastiCache Valkey 9.0, Primary 와 Replica | 같은 EC2 의 Valkey 컨테이너 |

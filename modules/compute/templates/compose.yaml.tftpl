@@ -83,6 +83,37 @@ services:
         -Dnetworkaddress.cache.ttl=5
         -Dnetworkaddress.cache.negative.ttl=1
         -Duser.timezone=Asia/Seoul
+%{ if tracing_agent ~}
+      #
+      # 추적 에이전트를 상시로 붙인다(#177). 계측 목록은 lc-backend 의 run.sh switch --tracing 과 같다.
+      # JAVA_TOOL_OPTIONS 에 힙과 DNS 설정이 있어 에이전트는 JDK_JAVA_OPTIONS 로 준다.
+      # refresh-env 가 검증한 파일을 받았을 때만 값이 있다. 없으면 에이전트 없이 뜬다.
+      # 서비스 이름은 Alloy 의 테일 샘플링이 배치의 작업 트레이스를 따로 고르는 데 쓴다.
+      #
+      JDK_JAVA_OPTIONS: "$${OTEL_AGENT_OPTS}"
+      OTEL_SERVICE_NAME: "${role == "batch" ? "lunchcatch-batch" : "lunchcatch"}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_TRACES_SAMPLER: always_on
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: "false"
+      OTEL_INSTRUMENTATION_TOMCAT_ENABLED: "true"
+      OTEL_INSTRUMENTATION_SERVLET_ENABLED: "true"
+      OTEL_INSTRUMENTATION_SPRING_WEBMVC_ENABLED: "true"
+      OTEL_INSTRUMENTATION_JDBC_ENABLED: "true"
+      OTEL_INSTRUMENTATION_HIBERNATE_ENABLED: "true"
+      OTEL_INSTRUMENTATION_SPRING_DATA_ENABLED: "true"
+      OTEL_INSTRUMENTATION_SPRING_WEBFLUX_ENABLED: "true"
+      OTEL_INSTRUMENTATION_REACTOR_ENABLED: "true"
+      OTEL_INSTRUMENTATION_REACTOR_NETTY_ENABLED: "true"
+      OTEL_INSTRUMENTATION_AWS_SDK_ENABLED: "true"
+      OTEL_INSTRUMENTATION_SPRING_SCHEDULING_ENABLED: "true"
+      OTEL_INSTRUMENTATION_EXECUTORS_ENABLED: "true"
+      OTEL_INSTRUMENTATION_LOGBACK_MDC_ENABLED: "true"
+    volumes:
+      - ./otel:/opt/otel:ro
+%{ endif ~}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health/liveness"]
       interval: 10s

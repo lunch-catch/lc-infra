@@ -102,6 +102,27 @@ aws ecr get-login-password --region "$R" \
 %{ endif ~}
 
 install -d -m 0755 /opt/${project}
+%{ if tracing_agent ~}
+
+# 추적 에이전트를 받아 둔다(lc-infra #177). 고정한 해시로 검증한 파일만 붙인다.
+# 받지 못하거나 검증에 실패하면 에이전트 없이 뜬다. 추적이 없다고 운영 앱을 멈추지 않는다.
+# 컨테이너에는 폴더째 걸어, 파일이 없을 때 Docker 가 그 자리에 빈 폴더를 만들지 않게 한다.
+install -d -m 0755 /opt/${project}/otel
+AGENT=/opt/${project}/otel/javaagent.jar
+if ! echo "${otel_jar_sha256}  $AGENT" | sha256sum -c --status - 2> /dev/null; then
+  if curl -fsSL --retry 3 -o "$AGENT.part" "${otel_jar_url}" \
+      && echo "${otel_jar_sha256}  $AGENT.part" | sha256sum -c --status -; then
+    mv "$AGENT.part" "$AGENT"
+  else
+    rm -f "$AGENT.part"
+    echo "추적 에이전트를 받지 못했거나 해시가 다르다. 에이전트 없이 뜬다" >&2
+  fi
+fi
+OTEL_AGENT_OPTS=""
+if echo "${otel_jar_sha256}  $AGENT" | sha256sum -c --status - 2> /dev/null; then
+  OTEL_AGENT_OPTS="-javaagent:/opt/otel/javaagent.jar"
+fi
+%{ endif ~}
 cat > /opt/${project}/.env <<ENV
 GIT_SHA=$GIT_SHA
 LOKI_ENDPOINT=$LOKI_ENDPOINT
@@ -119,6 +140,9 @@ APP_INSTANCE_ID=$INSTANCE_ID
 BATCH_SCHEDULER_ENABLED=$BATCH_SCHEDULER_ENABLED
 RUN_MODE=$RUN_MODE
 PROFILE_SUFFIX=$PROFILE_SUFFIX
+%{ if tracing_agent ~}
+OTEL_AGENT_OPTS=$OTEL_AGENT_OPTS
+%{ endif ~}
 BASE_ENABLED=$BASE_ENABLED
 BASE_DATE=$BASE_DATE
 ACCOUNT_SUPERADMIN_PASSWORD_HASH='$ACCOUNT_SUPERADMIN_PASSWORD_HASH'

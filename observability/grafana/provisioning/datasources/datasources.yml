@@ -23,7 +23,7 @@ datasources:
     url: http://loki:3100
     jsonData:
       # 로그의 trace_id(OpenTelemetry 에이전트가 남김)에서 그 요청의 추적(Tempo)으로 넘어간다.
-      # 로그의 traceId 는 앱이 만든 별개의 값이라 쓰지 않는다. Tempo 가 없는 운영에서는 링크만 깨진다
+      # 로그의 traceId 는 앱이 만든 별개의 값이라 쓰지 않는다. Tempo 가 없는 환경에서는 링크만 깨진다
       derivedFields:
         - name: trace_id
           datasourceUid: tempo
@@ -37,7 +37,7 @@ datasources:
     access: proxy
     url: http://pyroscope:4040
 
-  # Tempo 도 부하 시험 환경에서만 뜬다. 추적에서 로그(Loki), 지표(Prometheus), 프로파일(Pyroscope)로 넘어간다
+  # Tempo 는 부하 시험 환경과 운영에서 뜬다(#177). 추적에서 로그(Loki), 지표(Prometheus), 프로파일(Pyroscope)로 넘어간다
   - name: Tempo
     uid: tempo
     type: tempo

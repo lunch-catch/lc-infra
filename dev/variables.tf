@@ -53,11 +53,12 @@ variable "frontend_origins" {
 /*
  * 메모리 2 GB 에 앱, MySQL, Valkey, Caddy 를 함께 올린다. 컨테이너마다 상한을 건다 (문서 4장).
  * 2026-10-21 Grafana 와 Prometheus 를 더하며 t3.medium(4 GB)으로 올렸다. t3.small 의 시간당 두 배다.
+ * 2026-11-20 Loki, Tempo, Alloy 를 더하며 t3.large(8 GB)로 올렸다(lc-infra #177). 셋을 더하면 블루와 그린이 함께 뜨는 배포 중 상한 합이 약 4.8 GB 로 4 GB 를 넘는다.
  */
 variable "instance_type" {
   description = "개발 서버 인스턴스 타입"
   type        = string
-  default     = "t3.medium"
+  default     = "t3.large"
 }
 
 # 운영 VPC(10.0.0.0/16)와 겹치지 않게 둔다. 나중에 둘을 이을 일이 생겨도 충돌하지 않는다.
