@@ -23,7 +23,12 @@
 #                      API 와 백그라운드 작업 대시보드를 렌더러로, Call Tree(wall, cpu)와 트레이스 화면을 브라우저 자동화(scripts/diag-capture)로 찍는다.
 #                      그림은 --out 폴더에 바로 diag-{회차}-*.png 로 둔다. 결과 문서 옆에 두려는 것이다(lc-infra #106)
 #                      회차 구간의 Redis 명령별 호출 수, 서버 평균, 서버 p99 와 느린 명령 건수를 diag-{회차}-redis.txt 로 남긴다(lc-infra #116)
-#   --trace <ID>       --diag 와 함께 찍을 트레이스 ID. 여러 번 줄 수 있다. 결과 문서의 진단 표에 적은 가장 느린 트레이스다
+#   --trace <ID>       --diag 와 함께 찍을 트레이스 ID. 여러 번 줄 수 있다. 주면 고르지 않고 이것만 찍는다
+#   --trace-top <수>   측정 회차와 --trace 없는 진단 회차에서 API 마다 고를 트레이스 수 (기본 3, 작성자가 2026-11-21 대화에서 정했다).
+#                      구간에 요청이 있었던 API 마다 앱이 내보내는 기준(overrun_threshold_seconds)을 넘은 서버 스팬을 오래 걸린 순으로 고른다.
+#                      고른 트레이스마다 트레이스 화면과 그 트레이스 ID 가 든 로그(화면과 글)를 찍고, 고른 목록을 traces.txt 로 남긴다(lc-infra #187).
+#                      트레이스 화면을 찍으려고 이 기계에 Docker 가 떠 있어야 한다
+#   --no-traces        트레이스를 고르지도 찍지도 않는다. Tempo 가 없는 환경은 주지 않아도 건너뛴다
 #   --baseline <회차> --baseline-from <ms> --baseline-to <ms>
 #                      --diag 와 함께 준다. 고치기 전 진단 회차를 기준으로 이 회차를 견준 Diff flame graph(wall, cpu)를
 #                      diag-{회차}-diff-{wall|cpu}.png 로 찍는다. 두 회차의 조건(부하, 데이터 규모, 구간 길이)이 같아야 견줄 수 있다(lc-infra #115).
@@ -62,7 +67,7 @@ WIDTH="${WIDTH:-1600}"
 # 비워 두면 대시보드마다 패널 배치에서 높이를 잰다. 주면 모든 장을 그 높이로 자른다
 HEIGHT="${HEIGHT:-}"
 
-LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); DOMAINS=(); LT=""; LOCAL=""; DIAG=""; TRACES=(); EXPANDS=(); BASELINE=""; BASE_FROM=""; BASE_TO=""; FIXED=()
+TRACE_TOP=3; NO_TRACES=""; LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); DOMAINS=(); LT=""; LOCAL=""; DIAG=""; TRACES=(); EXPANDS=(); BASELINE=""; BASE_FROM=""; BASE_TO=""; FIXED=()
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -81,6 +86,8 @@ while [ $# -gt 0 ]; do
     --out)     OUT_ROOT="${2:-}"; shift 2 ;;
     --diag)    DIAG="${2:-}"; shift 2 ;;
     --trace)   TRACES+=("${2:-}"); shift 2 ;;
+    --trace-top) case "${2:-}" in ""|*[!0-9]*) die "--trace-top 에는 0 이상의 정수를 준다" ;; esac; TRACE_TOP="$2"; shift 2 ;;
+    --no-traces) NO_TRACES=1; shift ;;
     --expand)  EXPANDS+=("${2:-}"); shift 2 ;;
     --baseline) BASELINE="${2:-}"; shift 2 ;;
     --baseline-from) BASE_FROM="${2:-}"; shift 2 ;;
@@ -130,6 +137,7 @@ if [ "$TO" -gt "$now_ms" ]; then
 fi
 
 [ $(( ${#TRACES[@]} + ${#EXPANDS[@]} )) -eq 0 ] || [ -n "$DIAG" ] || die "--trace 와 --expand 는 --diag 와 함께 준다"
+[ ${#TRACES[@]} -eq 0 ] || [ -z "$NO_TRACES" ] || die "--trace 와 --no-traces 는 함께 주지 않는다"
 [ -z "$BASELINE" ] || { [ -n "$DIAG" ] && [ -n "$BASE_FROM" ] && [ -n "$BASE_TO" ]; } || die "--baseline 은 --diag, --baseline-from, --baseline-to 와 함께 준다"
 [ ${#FIXED[@]} -eq 0 ] || { [ -n "$BASELINE" ] && [ ${#EXPANDS[@]} -gt 0 ]; } || die "--fixed 는 --baseline 과 --expand 와 함께 준다"
 
@@ -259,27 +267,39 @@ for uid in "${DASH[@]}"; do
 done
 
 #
-# 진단 회차의 Call Tree 와 트레이스 화면이다 (#106).
+# 진단 회차의 Call Tree 와 트레이스 화면, 측정 회차의 트레이스 화면이다 (#106, #187).
 #
 # 렌더러는 URL 을 열어 찍기만 해서 Drilldown 의 Call Tree 를 누르지 못한다. 그래서 브라우저 자동화(Playwright)를 쓴다.
 # 팀원 기계에 설치하지 않게 공식 이미지에 얹은 이미지(scripts/diag-capture)를 그때 짓는다. 바뀐 것이 없으면 캐시를 쓴다.
+# 트레이스는 Tempo 가 응답할 때만 고른다. 데이터 소스는 늘 프로비저닝되어 있어 있는지만으로는 트레이싱을 켰는지 모른다.
 #
-if [ -n "$DIAG" ]; then
-  log "2-1. 진단 화면 ($DIAG, 트레이스 ${#TRACES[@]} 개)"
+tempo_up() {
+  [ "$(curl -s -u "admin:$PW" "http://localhost:$LOCAL_PORT/api/datasources/proxy/uid/tempo/api/echo" 2>/dev/null)" = "echo" ]
+}
+want_traces=""
+if [ -z "$NO_TRACES" ] && { [ ${#TRACES[@]} -gt 0 ] || { [ "$TRACE_TOP" -gt 0 ] && tempo_up; }; }; then
+  want_traces=1
+elif [ -z "$NO_TRACES" ] && [ "$TRACE_TOP" -gt 0 ]; then
+  log "   Tempo 가 응답하지 않아 트레이스를 찍지 않는다"
+fi
+
+if [ -n "$DIAG" ] || [ -n "$want_traces" ]; then
+  log "2-1. ${DIAG:+진단 화면 ($DIAG), }트레이스 (${#TRACES[@]} 개를 받았고, 0 이면 API 마다 ${TRACE_TOP} 개를 고른다)"
   docker build -q -t lunchcatch-diag-capture "$ROOT/scripts/diag-capture" > /dev/null || die "진단 캡처 이미지를 짓지 못했다"
   trace_args=()
+  [ -z "$DIAG" ] || trace_args+=(--run "$DIAG")
+  if [ -n "$want_traces" ]; then trace_args+=(--trace-top "$TRACE_TOP"); else trace_args+=(--trace-top 0); fi
   for t in ${TRACES[@]+"${TRACES[@]}"}; do trace_args+=(--trace "$t"); done
   for f in ${EXPANDS[@]+"${EXPANDS[@]}"}; do trace_args+=(--expand "$f"); done
   [ -z "$BASELINE" ] || trace_args+=(--baseline "$BASELINE" --baseline-from "$BASE_FROM" --baseline-to "$BASE_TO")
   for f in ${FIXED[@]+"${FIXED[@]}"}; do trace_args+=(--fixed "$f"); done
   # 비밀번호는 값을 명령행에 두지 않고 환경변수 이름만 넘긴다. 명령행은 도는 동안 프로세스 목록에 보인다
   if GRAFANA_PASSWORD="$PW" docker run --rm -e GRAFANA_PASSWORD -v "$(cd "$dir" && pwd):/out" lunchcatch-diag-capture \
-      --grafana "http://localhost:$LOCAL_PORT" --run "$DIAG" --from "$FROM" --to "$TO" --out /out \
+      --grafana "http://localhost:$LOCAL_PORT" --from "$FROM" --to "$TO" --out /out \
       ${trace_args[@]+"${trace_args[@]}"} >&2; then
-    ok=$((ok + 2 + ${#TRACES[@]}))
-    [ -z "$BASELINE" ] || ok=$((ok + 2))
+    ok=$((ok + 1))
   else
-    log "   진단 화면 실패"
+    log "   진단 화면과 트레이스 실패"
     fail=$((fail+1))
   fi
 fi
