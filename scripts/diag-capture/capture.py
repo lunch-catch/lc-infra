@@ -1,11 +1,14 @@
 """
-진단 회차의 병목 화면을 Grafana 에서 찍는다(lc-infra #106).
+부하 시험 회차의 병목 화면을 Grafana 에서 찍는다(lc-infra #106, #187).
 
 렌더러는 URL 을 열어 찍기만 하고 누르지 못한다. Call Tree 는 Drilldown 에서 눌러야 나오고 그 상태가 URL 에 남지 않아
 브라우저 자동화로 찍는다. 트레이스 화면은 URL 로 열리지만 같은 브라우저로 함께 찍는다.
 
     GRAFANA_PASSWORD=<admin 비밀번호> python capture.py --grafana http://localhost:13000 --run <회차> --from <ms> --to <ms> \
         --out <폴더> [--trace <트레이스 ID> ...] [--expand <함수> ...]
+
+--run 을 주지 않으면 측정 회차다. Call Tree 없이 트레이스와 그 로그만 찍는다.
+--trace 를 주지 않으면 기준을 넘은 요청의 트레이스를 API 마다 --trace-top 개 고른다(traces.py).
 """
 import argparse
 import base64
@@ -19,6 +22,8 @@ from pathlib import Path
 
 from PIL import Image
 from playwright.sync_api import sync_playwright
+
+import traces
 
 VIEWPORT = {"width": 1600, "height": 1200}
 """
@@ -65,14 +70,28 @@ def main():
         # 로캘을 주지 않으면 컨테이너 기본값이라 Grafana 가 Intl.NumberFormat 에서 멈춘다
         page = browser.new_page(viewport=dict(VIEWPORT), locale="ko-KR", timezone_id="Asia/Seoul",
                                 extra_http_headers={"Authorization": auth})
-        for kind, metric in PROFILES.items():
-            path = out / f"diag-{args.run}-calltree-{kind}.png"
-            capture_call_tree(page, args.grafana, args.run, args.frm, args.to, metric, args.expand, path)
-            print(f"{path.name}")
-        for n, trace_id in enumerate(args.trace, start=1):
-            path = out / f"diag-{args.run}-trace-{n}.png"
+        prefix = f"diag-{args.run}-" if args.run else ""
+        if args.run:
+            for kind, metric in PROFILES.items():
+                path = out / f"{prefix}calltree-{kind}.png"
+                capture_call_tree(page, args.grafana, args.run, args.frm, args.to, metric, args.expand, path)
+                print(f"{path.name}")
+        # 데이터 소스 프록시는 브라우저가 아니라 이 프로세스가 부른다. 컨테이너 안의 localhost 는 호스트가 아니라 호스트로 돌린다
+        api = traces.Grafana(args.grafana.replace("//localhost", "//host.docker.internal"), auth)
+        trace_ids = args.trace
+        if not trace_ids and args.trace_top > 0:
+            chosen, note = traces.select(api, args.frm, args.to, args.trace_top)
+            traces.write_list(out / f"{prefix}traces.txt", chosen, note)
+            print(f"{prefix}traces.txt  {len(chosen)} 개" + (f"  {note}" if note else ""))
+            trace_ids = [t["trace_id"] for t in chosen]
+        for n, trace_id in enumerate(trace_ids, start=1):
+            path = out / f"{prefix}trace-{n}.png"
             capture_trace(page, args.grafana, trace_id, args.frm, args.to, path)
             print(f"{path.name}  {trace_id}")
+            path = out / f"{prefix}trace-{n}-logs.png"
+            capture_logs(page, args.grafana, trace_id, args.frm, args.to, path)
+            lines = traces.write_logs(out / f"{prefix}trace-{n}-logs.txt", api, trace_id, args.frm, args.to)
+            print(f"{path.name}  {lines} 줄")
         if args.baseline:
             for kind, metric in PROFILES.items():
                 path = out / f"diag-{args.run}-diff-{kind}.png"
@@ -85,11 +104,13 @@ def main():
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--grafana", required=True)
-    parser.add_argument("--run", required=True, help="프로파일의 run 라벨")
+    parser.add_argument("--run", help="진단 회차의 프로파일 run 라벨. 주지 않으면 측정 회차라 Call Tree 를 찍지 않는다")
     parser.add_argument("--from", dest="frm", required=True, help="유닉스 밀리초")
     parser.add_argument("--to", required=True, help="유닉스 밀리초")
     parser.add_argument("--out", required=True)
     parser.add_argument("--trace", action="append", default=[])
+    # --trace 를 주지 않았을 때 API 마다 고를 트레이스 수다. 0 이면 고르지 않는다. 기본 3 은 작성자가 2026-11-21 대화에서 정했다
+    parser.add_argument("--trace-top", type=int, default=3)
     # 기준을 넘은 API 의 컨트롤러 메서드와 작업 메서드다. 판정(lc-backend #1128)이 넘긴다. 주지 않으면 맨 위 줄만 보인다
     parser.add_argument("--expand", action="append", default=[])
     # 고치기 전 진단 회차다. 주면 그 회차를 기준으로 이 회차를 견준 Diff flame graph 를 찍는다(lc-infra #115)
@@ -101,6 +122,8 @@ def parse_args():
     args = parser.parse_args()
     if args.baseline and not (args.baseline_from and args.baseline_to):
         parser.error("--baseline 은 --baseline-from 과 --baseline-to 와 함께 준다")
+    if args.baseline and not args.run:
+        parser.error("--baseline 은 --run 과 함께 준다")
     if args.fixed and not (args.baseline and args.expand):
         parser.error("--fixed 는 --baseline 과 --expand 와 함께 준다")
     return args
@@ -585,6 +608,22 @@ def capture_trace(page, grafana, trace_id, frm, to, path):
     page.get_by_text("Critical path", exact=True).click()
     page.wait_for_timeout(500)
     open_slowest_critical_leaf(page)
+    stitch_table(page, path)
+
+
+def capture_logs(page, grafana, trace_id, frm, to, path):
+    """
+    그 트레이스 ID 가 든 로그를 Explore 의 Loki 로 열어 찍는다. Grafana 의 트레이스 -> 로그 연결과 같은 쿼리다.
+    로그 목록도 보이는 만큼만 그려 트레이스 화면처럼 한 화면씩 내려 잇는다.
+    """
+    page.set_viewport_size(dict(VIEWPORT))
+    panes = {"a": {"datasource": "loki", "queries": [{"refId": "A", "datasource": {"type": "loki", "uid": "loki"},
+                                                        "expr": traces.LOG_QUERY.format(trace_id=trace_id)}],
+                   "range": {"from": frm, "to": to}}}
+    page.goto(f"{grafana}/explore?schemaVersion=1&orgId=1&panes={urllib.parse.quote(json.dumps(panes))}",
+              wait_until="networkidle", timeout=60000)
+    page.wait_for_timeout(1500)
+    hide_menu(page)
     stitch_table(page, path)
 
 
