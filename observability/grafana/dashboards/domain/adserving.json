@@ -448,11 +448,129 @@
     },
     {
       "type": "row",
-      "title": "장애로 규칙을 건너뛴 횟수",
+      "title": "과금 판정",
       "collapsed": false,
       "gridPos": {
         "x": 0,
         "y": 17,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [],
+      "id": 14
+    },
+    {
+      "type": "timeseries",
+      "title": "과금된 비율",
+      "description": "판정을 받은 유효 노출 가운데 과금된(BILLED) 노출의 비율이다. 분모는 정산이 돌려준 판정 다섯과 쿠폰 소진 뒤 노출(NOT_BILLED_SOLD_OUT)을 합한 수다. 비율이 떨어지면 아래 판정별 노출 수에서 어느 판정이 늘었는지 본다. 두 배치 서버의 청크가 겹치면 그 청크의 판정을 세지 않아 실제보다 적게 셀 수 있다. 두 번 세지는 않는다. 노출이 없는 구간은 비어 있다",
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 6,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(adserving_impression_billing_total{status=\"BILLED\"}[$__rate_interval])) / (sum(rate(adserving_impression_billing_total[$__rate_interval])) > 0)",
+          "legendFormat": "과금된 비율",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 15
+    },
+    {
+      "type": "timeseries",
+      "title": "판정별 노출 수 (분당)",
+      "description": "유효 노출을 과금 판정별로 쌓아 그린다. BILLED 는 과금했다. NOT_BILLED_BUDGET 은 그날 예약액에 닿았다. NOT_BILLED_PAUSED 는 캠페인이 중단된 뒤 도착했다. NOT_BILLED_NO_PLAN 은 노출을 받은 날의 예산 계획이 없었다(00:00 예약 전, 자정 직후 30분 안). NOT_BILLED_CLOSED 는 정산이 승인할 때 노출 영업일의 자정 마감이 지났다. NOT_BILLED_SOLD_OUT 은 쿠폰이 다 나간 뒤 도착해 정산에 넘기지 않았다. 앞의 다섯은 배치 서버의 릴레이가, 마지막은 앱 서버의 노출 저장이 센다",
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 40,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (status) (rate(adserving_impression_billing_total[$__rate_interval])) * 60",
+          "legendFormat": "{{status}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "id": 16
+    },
+    {
+      "type": "row",
+      "title": "장애로 규칙을 건너뛴 횟수",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 26,
         "w": 24,
         "h": 1
       },
@@ -466,7 +584,7 @@
       "id": 2,
       "gridPos": {
         "x": 0,
-        "y": 18,
+        "y": 27,
         "w": 12,
         "h": 8
       },
@@ -516,7 +634,7 @@
       "id": 3,
       "gridPos": {
         "x": 12,
-        "y": 18,
+        "y": 27,
         "w": 12,
         "h": 8
       },
@@ -565,7 +683,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 26,
+        "y": 35,
         "w": 24,
         "h": 1
       },
@@ -579,7 +697,7 @@
       "id": 6,
       "gridPos": {
         "x": 0,
-        "y": 27,
+        "y": 36,
         "w": 12,
         "h": 8
       },
@@ -703,7 +821,7 @@
       "id": 7,
       "gridPos": {
         "x": 12,
-        "y": 27,
+        "y": 36,
         "w": 12,
         "h": 8
       },
@@ -753,7 +871,7 @@
       "id": 8,
       "gridPos": {
         "x": 0,
-        "y": 35,
+        "y": 44,
         "w": 12,
         "h": 8
       },
@@ -802,7 +920,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 43,
+        "y": 52,
         "w": 24,
         "h": 1
       },
@@ -816,7 +934,7 @@
       "id": 10,
       "gridPos": {
         "x": 0,
-        "y": 44,
+        "y": 53,
         "w": 24,
         "h": 10
       },
