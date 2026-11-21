@@ -49,6 +49,7 @@ jobs:
           fi
 
   # 운영과 부하 시험 두 루트가 같은 모듈을 부른다. 모듈을 고치면 둘 다 깨질 수 있어 둘 다 본다
+  # 개발 서버(dev)는 모듈을 부르지 않지만 모듈의 파일을 읽는다. 빼 두었을 때 옮겨진 파일의 경로가 깨진 것을 놓쳤다(lc-infra #179)
   check:
     needs: changes
     if: needs.changes.outputs.tf == 'true'
@@ -56,7 +57,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        root: [envs/prod, envs/lt]
+        root: [envs/prod, envs/lt, dev]
     defaults:
       run:
         working-directory: ${{ matrix.root }}
@@ -71,7 +72,7 @@ jobs:
       # 모듈까지 보려고 저장소 루트에서 돈다
       - name: 형식
         working-directory: .
-        run: terraform fmt -check -recursive -diff modules envs
+        run: terraform fmt -check -recursive -diff modules envs dev
 
       # validate 는 backend 초기화 없이도 돈다. 자격증명이 필요 없다
       - name: 문법
