@@ -31,10 +31,16 @@ scrape_configs:
       - targets: ["alertmanager:9093"]
 
   # 로그를 받는 구성 요소다(lc-infra #171). 죽으면 로그가 조용히 빠지므로 TargetDown 이 보게 수집한다.
-  # Tempo 와 Pyroscope 는 tracing, profiling 프로필을 켠 때만 떠 수집하지 않는다. 늘 수집하면 켜지 않은 환경에서 TargetDown 이 늘 울린다
+  # Pyroscope 는 profiling 프로필을 켠 때만 떠 수집하지 않는다. 늘 수집하면 켜지 않은 환경에서 TargetDown 이 늘 울린다
   - job_name: loki
     static_configs:
       - targets: ["loki:3100"]
+
+  # 추적 저장소다(lc-infra #185). 죽으면 트레이스가 조용히 빠지므로 TargetDown 이 보게 수집한다.
+  # 추적을 켠 환경에서만 뜬다. refresh-monitoring-env 가 켠 환경에만 대상을 적고 끈 환경에는 빈 목록을 적어, 끈 환경에서 TargetDown 이 울리지 않는다
+  - job_name: tempo
+    file_sd_configs:
+      - files: ["/etc/prometheus/targets/tempo.yml"]
 
   # 모니터링 서버와 앱, 배치 서버의 Alloy 다. 앱과 배치는 Role 태그로 골라 Alloy 가 없는 부하 생성기를 빼고, instance 는 node 와 같은 꼴로 붙인다
   - job_name: alloy

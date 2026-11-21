@@ -43,3 +43,6 @@ loadtest-runs/
 
 ### Claude Code 개인 설정 ###
 .claude/settings.local.json
+
+# 모니터링 서버의 refresh-monitoring-env 가 환경마다 만드는 Prometheus 수집 대상이다(#185)
+observability/prometheus/targets/
