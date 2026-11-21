@@ -1,6 +1,6 @@
 /*
  * 개발 서버다 (INF-45, docs/system-design/런치캐치_개발서버.md).
- * 운영(terraform/)과 상태를 나눠 따로 올리고 내린다. 운영을 destroy 해도 이것은 남는다.
+ * 운영(envs/prod)과 상태를 나눠 따로 올리고 내린다. 운영을 destroy 해도 이것은 남는다.
  */
 
 terraform {

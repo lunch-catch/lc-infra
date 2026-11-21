@@ -325,7 +325,7 @@ locals {
   })
 
   user_data = templatefile("${path.module}/templates/user-data.sh.tftpl", {
-    common_bootstrap = file("${path.module}/../terraform/templates/common-bootstrap.sh")
+    common_bootstrap = file("${path.module}/../modules/compute/templates/common-bootstrap.sh")
     project          = var.project
     api_host         = var.api_host
     refresh          = local.refresh
