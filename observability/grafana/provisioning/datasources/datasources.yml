@@ -23,7 +23,7 @@ datasources:
     url: http://loki:3100
     jsonData:
       # 로그의 trace_id(OpenTelemetry 에이전트가 남김)에서 그 요청의 추적(Tempo)으로 넘어간다.
-      # 로그의 traceId 는 앱이 만든 별개의 값이라 쓰지 않는다. Tempo 가 없는 환경에서는 링크만 깨진다
+      # 앱도 에이전트가 연 트레이스의 ID 를 같은 trace_id 에 넣는다(lunch-catch/lc-backend#1300). Tempo 가 없는 환경에서는 링크만 깨진다
       derivedFields:
         - name: trace_id
           datasourceUid: tempo
