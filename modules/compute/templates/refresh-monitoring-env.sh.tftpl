@@ -147,6 +147,15 @@ COMPOSE_PROFILES=$${COMPOSE_PROFILES:+$COMPOSE_PROFILES,}profiling
 COMPOSE_PROFILES=$${COMPOSE_PROFILES:+$COMPOSE_PROFILES,}tracing
 %{ endif ~}
 install -d -m 0755 "$D"
+
+# 환경마다 다른 수집 대상을 적는다(lc-infra #185). Prometheus 가 file_sd 로 읽고 파일이 바뀌면 다시 읽는다.
+# 추적을 켠 환경만 Tempo 를 적는다. 끈 환경에 적으면 뜨지 않은 Tempo 로 TargetDown 이 늘 울린다
+install -d -m 0755 "$D/prometheus/targets"
+%{ if tracing_enabled ~}
+echo '[{"targets": ["tempo:3200"]}]' > "$D/prometheus/targets/tempo.yml"
+%{ else ~}
+echo '[]' > "$D/prometheus/targets/tempo.yml"
+%{ endif ~}
 cat > "$D/.env" <<ENV
 DB_ENDPOINT=$(get db-endpoint)
 CACHE_ENDPOINT=$(get cache-endpoint)

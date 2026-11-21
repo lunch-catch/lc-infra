@@ -23,3 +23,8 @@ scrape_configs:
         labels:
           instance: lunchcatch-dev
           instance_id: dev
+
+  # 추적 저장소다(lc-infra #185). 개발은 늘 뜬다. 경보는 없지만 모니터링 상태 대시보드가 이 값으로 그린다
+  - job_name: tempo
+    static_configs:
+      - targets: ["tempo:3200"]

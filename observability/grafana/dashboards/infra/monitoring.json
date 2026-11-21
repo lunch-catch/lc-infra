@@ -282,7 +282,7 @@
     {
       "type": "timeseries",
       "title": "모니터링 구성 요소가 살아 있는지",
-      "description": "지표, 경보, 로그를 받는 구성 요소와 익스포터마다 수집이 되는지(1)와 안 되는지(0)다. 한 종류에 대상이 여럿이면(앱 서버마다의 Alloy 같은 것) 하나라도 수집이 안 되면 0 이다. 어느 대상인지는 Prometheus 의 Targets 화면이나 경보 TargetDown 의 instance 로 본다. 0 이 5분 이어지면 TargetDown 이 울리고, 그 구성 요소가 받는 신호는 그동안 빠진다. Tempo 와 Pyroscope 는 켠 환경에서만 떠 여기서 보지 않는다",
+      "description": "지표, 경보, 로그를 받는 구성 요소와 익스포터마다 수집이 되는지(1)와 안 되는지(0)다. 한 종류에 대상이 여럿이면(앱 서버마다의 Alloy 같은 것) 하나라도 수집이 안 되면 0 이다. 어느 대상인지는 Prometheus 의 Targets 화면이나 경보 TargetDown 의 instance 로 본다. 0 이 5분 이어지면 TargetDown 이 울리고, 그 구성 요소가 받는 신호는 그동안 빠진다. Tempo 는 추적을 켠 환경에서만 수집해 끈 환경에서는 여기에 없다. Pyroscope 는 켠 환경에서만 떠 여기서 보지 않는다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -316,7 +316,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "min by (job) (up{job=~\"prometheus|alertmanager|loki|alloy|node|cadvisor|mysqld|redis|cloudwatch\"})",
+          "expr": "min by (job) (up{job=~\"prometheus|alertmanager|loki|tempo|alloy|node|cadvisor|mysqld|redis|cloudwatch\"})",
           "legendFormat": "{{job}}"
         }
       ],
