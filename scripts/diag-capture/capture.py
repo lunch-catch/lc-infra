@@ -608,7 +608,20 @@ def capture_trace(page, grafana, trace_id, frm, to, path):
     page.get_by_text("Critical path", exact=True).click()
     page.wait_for_timeout(500)
     open_slowest_critical_leaf(page)
+    clear_tooltip(page)
     stitch_table(page, path)
+
+
+def clear_tooltip(page):
+    """
+    누른 버튼 위에 마우스가 남으면 그라파나가 버튼 설명 말풍선을 띄워 스팬 목록의 첫 줄을 가린다(lc-infra #193).
+    마우스를 화면 왼쪽 위 끝으로 옮겨 말풍선이 사라진 뒤에 찍는다. 말풍선이 없으면 기다리지 않는다.
+    """
+    page.mouse.move(0, 0)
+    tooltip = page.get_by_role("tooltip")
+    if tooltip.count():
+        tooltip.first.wait_for(state="hidden", timeout=5000)
+    page.wait_for_timeout(300)
 
 
 def capture_logs(page, grafana, trace_id, frm, to, path):
