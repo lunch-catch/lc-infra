@@ -70,7 +70,7 @@ def main():
         # 로캘을 주지 않으면 컨테이너 기본값이라 Grafana 가 Intl.NumberFormat 에서 멈춘다
         page = browser.new_page(viewport=dict(VIEWPORT), locale="ko-KR", timezone_id="Asia/Seoul",
                                 extra_http_headers={"Authorization": auth})
-        prefix = f"diag-{args.run}-" if args.run else ""
+        prefix = f"diag-{args.run}-" if args.run else args.prefix
         if args.run:
             for kind, metric in PROFILES.items():
                 path = out / f"{prefix}calltree-{kind}.png"
@@ -108,6 +108,8 @@ def parse_args():
     parser.add_argument("--from", dest="frm", required=True, help="유닉스 밀리초")
     parser.add_argument("--to", required=True, help="유닉스 밀리초")
     parser.add_argument("--out", required=True)
+    # 측정 회차의 파일 이름 앞에 붙인다. loadtest-snapshot.sh 가 회차 이름(--label)으로 넘긴다(lc-infra #191). 진단 회차는 diag-<회차>- 를 쓴다
+    parser.add_argument("--prefix", default="")
     parser.add_argument("--trace", action="append", default=[])
     # --trace 를 주지 않았을 때 기준을 넘은 줄(API, 릴레이, 워커, 작업)마다 고를 트레이스 수다. 0 이면 고르지 않는다. 기본 3 은 작성자가 2026-11-21 대화에서 정했다
     parser.add_argument("--trace-top", type=int, default=3)

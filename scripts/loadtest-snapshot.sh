@@ -13,12 +13,13 @@
 #
 #   --lt               부하 시험 환경이다. 접두사가 lunchcatch-lt 이고 운영 계정 가드 대신 AWS_PROFILE 을 요구한다
 #   --local            로컬 구성이다. 터널 없이 localhost 의 그라파나(GRAFANA_PORT, 기본 13000)를 admin 으로 찍는다
-#   --label <이름>     저장 폴더에 붙인다
+#   --label <이름>     저장 폴더와, 측정 회차(--diag 없음)의 파일 이름 앞에 붙인다. 회차 이름을 준다(lc-infra #191)
 #   --minutes <분>     지금부터 거꾸로 몇 분 (기본 5)
 #   --from / --to      유닉스 밀리초로 구간을 직접 준다
 #   --dash <uid>       그 대시보드만. 여러 번 줄 수 있다
 #   --domain <이름>    도메인 시험이다. 도메인 폴더에서는 그 도메인(lc-<이름>)만 찍고 나머지 계층은 모두 찍는다. 여러 번 줄 수 있다(lc-infra #169)
-#   --out <경로>       저장 위치 (기본 loadtest-runs/)
+#   --out <경로>       저장 위치. 주면 그 폴더에 바로 둔다. 결과 문서 옆의 버전 폴더를 주어 측정 3회의 파일을 한 폴더에 모은다.
+#                      주지 않으면 loadtest-runs/<시각>_<라벨>/grafana/ 에 둔다
 #   --diag <회차>      진단 회차(트레이싱이나 프로파일링을 켠 회차)를 찍는다. 회차 이름은 프로파일의 run 라벨이다.
 #                      API 와 백그라운드 작업 대시보드를 렌더러로, Call Tree(wall, cpu)와 트레이스 화면을 브라우저 자동화(scripts/diag-capture)로 찍는다.
 #                      그림은 --out 폴더에 바로 diag-{회차}-*.png 로 둔다. 결과 문서 옆에 두려는 것이다(lc-infra #106)
@@ -68,7 +69,7 @@ WIDTH="${WIDTH:-1600}"
 # 비워 두면 대시보드마다 패널 배치에서 높이를 잰다. 주면 모든 장을 그 높이로 자른다
 HEIGHT="${HEIGHT:-}"
 
-TRACE_TOP=3; NO_TRACES=""; LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); DOMAINS=(); LT=""; LOCAL=""; DIAG=""; TRACES=(); EXPANDS=(); BASELINE=""; BASE_FROM=""; BASE_TO=""; FIXED=()
+TRACE_TOP=3; NO_TRACES=""; OUT_GIVEN=""; LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); DOMAINS=(); LT=""; LOCAL=""; DIAG=""; TRACES=(); EXPANDS=(); BASELINE=""; BASE_FROM=""; BASE_TO=""; FIXED=()
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -84,7 +85,7 @@ while [ $# -gt 0 ]; do
     --to)      TO="${2:-}"; shift 2 ;;
     --dash)    DASH+=("${2:-}"); shift 2 ;;
     --domain)  case "${2:-}" in ""|-*) die "--domain 에는 도메인 이름을 준다(예: --domain adserving)" ;; esac; DOMAINS+=("$2"); shift 2 ;;
-    --out)     OUT_ROOT="${2:-}"; shift 2 ;;
+    --out)     OUT_ROOT="${2:-}"; OUT_GIVEN=1; shift 2 ;;
     --diag)    DIAG="${2:-}"; shift 2 ;;
     --trace)   TRACES+=("${2:-}"); shift 2 ;;
     --trace-top) case "${2:-}" in ""|*[!0-9]*) die "--trace-top 에는 0 이상의 정수를 준다" ;; esac; TRACE_TOP="$2"; shift 2 ;;
@@ -221,8 +222,10 @@ if [ -n "$DIAG" ]; then
   dir="$OUT_ROOT"
   prefix="diag-$DIAG-"
 else
+  # 회차 이름을 파일 이름 앞에 붙여, 측정 3회의 파일을 한 폴더에 모아도 겹치지 않게 한다(#191)
   dir="$OUT_ROOT/${stamp}${LABEL:+_$LABEL}/grafana"
-  prefix=""
+  [ -z "$OUT_GIVEN" ] || dir="$OUT_ROOT"
+  prefix="${LABEL:+$LABEL-}"
 fi
 mkdir -p "$dir"
 
@@ -288,7 +291,7 @@ if [ -n "$DIAG" ] || [ -n "$want_traces" ]; then
   log "2-1. ${DIAG:+진단 화면 ($DIAG), }트레이스 (${#TRACES[@]} 개를 받았고, 0 이면 기준을 넘은 줄마다 ${TRACE_TOP} 개를 고른다)"
   docker build -q -t lunchcatch-diag-capture "$ROOT/scripts/diag-capture" > /dev/null || die "진단 캡처 이미지를 짓지 못했다"
   trace_args=()
-  [ -z "$DIAG" ] || trace_args+=(--run "$DIAG")
+  if [ -n "$DIAG" ]; then trace_args+=(--run "$DIAG"); else trace_args+=(--prefix "$prefix"); fi
   if [ -n "$want_traces" ]; then trace_args+=(--trace-top "$TRACE_TOP"); else trace_args+=(--trace-top 0); fi
   for t in ${TRACES[@]+"${TRACES[@]}"}; do trace_args+=(--trace "$t"); done
   for f in ${EXPANDS[@]+"${EXPANDS[@]}"}; do trace_args+=(--expand "$f"); done
