@@ -8,7 +8,7 @@
         --out <폴더> [--trace <트레이스 ID> ...] [--expand <함수> ...]
 
 --run 을 주지 않으면 측정 회차다. Call Tree 없이 트레이스와 그 로그만 찍는다.
---trace 를 주지 않으면 기준을 넘은 요청의 트레이스를 API 마다 --trace-top 개 고른다(traces.py).
+--trace 를 주지 않으면 API 와 백그라운드 작업 대시보드가 기준을 넘었다고 판정한 줄마다 --trace-top 개 고른다(traces.py).
 """
 import argparse
 import base64
@@ -109,7 +109,7 @@ def parse_args():
     parser.add_argument("--to", required=True, help="유닉스 밀리초")
     parser.add_argument("--out", required=True)
     parser.add_argument("--trace", action="append", default=[])
-    # --trace 를 주지 않았을 때 API 마다 고를 트레이스 수다. 0 이면 고르지 않는다. 기본 3 은 작성자가 2026-11-21 대화에서 정했다
+    # --trace 를 주지 않았을 때 기준을 넘은 줄(API, 릴레이, 워커, 작업)마다 고를 트레이스 수다. 0 이면 고르지 않는다. 기본 3 은 작성자가 2026-11-21 대화에서 정했다
     parser.add_argument("--trace-top", type=int, default=3)
     # 기준을 넘은 API 의 컨트롤러 메서드와 작업 메서드다. 판정(lc-backend #1128)이 넘긴다. 주지 않으면 맨 위 줄만 보인다
     parser.add_argument("--expand", action="append", default=[])
