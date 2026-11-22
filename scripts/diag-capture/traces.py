@@ -82,14 +82,14 @@ def traceql_of(link):
 
 def judges(dashboard):
     """
-    판정 패널마다 판정식들과 트레이스 링크의 TraceQL 을 돌려준다. 링크가 없는 판정 패널은 고를 트레이스가 없어 뺀다
+    판정 패널마다 대시보드 UID, 제목, 판정식들과 트레이스 링크의 TraceQL 을 돌려준다. 링크가 없는 판정 패널은 고를 트레이스가 없어 뺀다
     """
     for panel in panels(dashboard):
         links = list(tempo_links(panel.get("fieldConfig", {})))
         if not panel.get("title", "").startswith(JUDGE_TITLE) or not links:
             continue
         exprs = [t["expr"] for t in panel.get("targets", []) if t.get("expr") and not t.get("hide")]
-        yield panel["title"], exprs, traceql_of(links[0])
+        yield dashboard.get("uid", ""), panel["title"], exprs, traceql_of(links[0])
 
 
 def fill(template, labels):
@@ -107,6 +107,12 @@ def span_seconds(trace):
     return max(nanos) / 1e9 if nanos else trace.get("durationMs", 0) / 1000
 
 
+def slug(uid, labels, template):
+    # 트레이스 폴더 이름이다. 대시보드(lc- 를 뗀 UID)와 그 줄의 라벨 값으로 짓는다. 예: api-v1-feed, background-serve-log-writer
+    values = [labels[k] for k in FIELD_LABEL.findall(template) if k in labels]
+    return re.sub(r"[^A-Za-z0-9._]+", "-", "-".join([uid.removeprefix("lc-")] + values)).strip("-")
+
+
 def describe(labels, template):
     shown = FIELD_LABEL.findall(template)
     return ", ".join(f"{k}={labels[k]}" for k in shown if k in labels) or "-"
@@ -114,11 +120,11 @@ def describe(labels, template):
 
 def pick(judged, search, top):
     """
-    judged 는 (패널 제목, 줄의 라벨, 판정 값, 링크의 TraceQL) 들이다. 줄마다 링크의 TraceQL 로 찾아 오래 걸린 순으로 top 개 고른다.
+    judged 는 (대시보드 UID, 패널 제목, 줄의 라벨, 판정 값, 링크의 TraceQL) 들이다. 줄마다 링크의 TraceQL 로 찾아 오래 걸린 순으로 top 개 고른다.
     같은 트레이스가 여러 줄에 걸리면 처음 한 번만 고른다
     """
     chosen, seen = [], set()
-    for title, labels, value, template in judged:
+    for uid, title, labels, value, template in judged:
         query = fill(template, labels)
         if query is None:
             continue
@@ -130,7 +136,7 @@ def pick(judged, search, top):
             if trace_id in seen:
                 continue
             seen.add(trace_id)
-            chosen.append({"panel": title, "target": describe(labels, template), "value": value,
+            chosen.append({"panel": title, "target": describe(labels, template), "slug": slug(uid, labels, template), "value": value,
                            "seconds": span_seconds(t), "trace_id": trace_id})
             picked += 1
             if picked == top:
@@ -146,11 +152,11 @@ def judge(grafana, frm, to):
     at = int(to) / 1000
     judged = []
     for uid in DASHBOARDS:
-        for title, exprs, template in judges(grafana.dashboard(uid)):
+        for dash, title, exprs, template in judges(grafana.dashboard(uid)):
             for expr in exprs:
                 query = f"max_over_time(({expr.replace('$__rate_interval', RATE_INTERVAL)})[{window}:{STEP}])"
                 for row in grafana.prometheus(query, at):
-                    judged.append((title, row["metric"], float(row["value"][1]), template))
+                    judged.append((dash, title, row["metric"], float(row["value"][1]), template))
     return judged
 
 
@@ -168,9 +174,9 @@ def select(grafana, frm, to, top):
 
 def write_list(path, chosen, note):
     with open(path, "w") as f:
-        f.write("번호\t패널\t대상\t판정 값(구간 최댓값)\t걸린 시간(ms)\t트레이스 ID\n")
+        f.write("번호\t폴더\t패널\t대상\t판정 값(구간 최댓값)\t걸린 시간(ms)\t트레이스 ID\n")
         for n, t in enumerate(chosen, start=1):
-            f.write(f'{n}\t{t["panel"]}\t{t["target"]}\t{t["value"]:.3g}\t{t["seconds"] * 1000:.1f}\t{t["trace_id"]}\n')
+            f.write(f'{n}\ttraces/{n:02d}-{t["slug"]}\t{t["panel"]}\t{t["target"]}\t{t["value"]:.3g}\t{t["seconds"] * 1000:.1f}\t{t["trace_id"]}\n')
         if note:
             f.write(f"\n{note}\n")
 

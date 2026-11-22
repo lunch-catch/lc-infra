@@ -70,34 +70,36 @@ def main():
         # 로캘을 주지 않으면 컨테이너 기본값이라 Grafana 가 Intl.NumberFormat 에서 멈춘다
         page = browser.new_page(viewport=dict(VIEWPORT), locale="ko-KR", timezone_id="Asia/Seoul",
                                 extra_http_headers={"Authorization": auth})
-        prefix = f"diag-{args.run}-" if args.run else ""
+        # 회차 폴더 안을 종류별로 나눈다(lc-infra #191). 트레이스는 하나마다 폴더를 두어 화면과 로그를 함께 둔다
         if args.run:
             for kind, metric in PROFILES.items():
-                path = out / f"{prefix}calltree-{kind}.png"
+                path = out / "calltree" / f"{kind}.png"
+                path.parent.mkdir(parents=True, exist_ok=True)
                 capture_call_tree(page, args.grafana, args.run, args.frm, args.to, metric, args.expand, path)
-                print(f"{path.name}")
+                print(f"calltree/{path.name}")
         # 데이터 소스 프록시는 브라우저가 아니라 이 프로세스가 부른다. 컨테이너 안의 localhost 는 호스트가 아니라 호스트로 돌린다
         api = traces.Grafana(args.grafana.replace("//localhost", "//host.docker.internal"), auth)
-        trace_ids = args.trace
-        if not trace_ids and args.trace_top > 0:
+        # 받은 트레이스는 대상을 모르므로 ID 앞 8자로 폴더 이름을 짓는다
+        targets = [(trace_id, trace_id[:8]) for trace_id in args.trace]
+        if not targets and args.trace_top > 0:
             chosen, note = traces.select(api, args.frm, args.to, args.trace_top)
-            traces.write_list(out / f"{prefix}traces.txt", chosen, note)
-            print(f"{prefix}traces.txt  {len(chosen)} 개" + (f"  {note}" if note else ""))
-            trace_ids = [t["trace_id"] for t in chosen]
-        for n, trace_id in enumerate(trace_ids, start=1):
-            path = out / f"{prefix}trace-{n}.png"
-            capture_trace(page, args.grafana, trace_id, args.frm, args.to, path)
-            print(f"{path.name}  {trace_id}")
-            path = out / f"{prefix}trace-{n}-logs.png"
-            capture_logs(page, args.grafana, trace_id, args.frm, args.to, path)
-            lines = traces.write_logs(out / f"{prefix}trace-{n}-logs.txt", api, trace_id, args.frm, args.to)
-            print(f"{path.name}  {lines} 줄")
+            traces.write_list(out / "traces.txt", chosen, note)
+            print(f"traces.txt  {len(chosen)} 개" + (f"  {note}" if note else ""))
+            targets = [(t["trace_id"], t["slug"]) for t in chosen]
+        for n, (trace_id, slug) in enumerate(targets, start=1):
+            folder = out / "traces" / f"{n:02d}-{slug}"
+            folder.mkdir(parents=True, exist_ok=True)
+            capture_trace(page, args.grafana, trace_id, args.frm, args.to, folder / "trace.png")
+            capture_logs(page, args.grafana, trace_id, args.frm, args.to, folder / "logs.png")
+            lines = traces.write_logs(folder / "logs.txt", api, trace_id, args.frm, args.to)
+            print(f"traces/{folder.name}  {trace_id}  로그 {lines} 줄")
         if args.baseline:
             for kind, metric in PROFILES.items():
-                path = out / f"diag-{args.run}-diff-{kind}.png"
+                path = out / "diff" / f"{kind}.png"
+                path.parent.mkdir(parents=True, exist_ok=True)
                 capture_diff(page, args.grafana, args.baseline, args.baseline_from, args.baseline_to,
                              args.run, args.frm, args.to, metric, args.expand, args.fixed, path)
-                print(f"{path.name}  {args.baseline} -> {args.run}")
+                print(f"diff/{path.name}  {args.baseline} -> {args.run}")
         browser.close()
 
 

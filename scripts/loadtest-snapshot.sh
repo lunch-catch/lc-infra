@@ -13,16 +13,26 @@
 #
 #   --lt               부하 시험 환경이다. 접두사가 lunchcatch-lt 이고 운영 계정 가드 대신 AWS_PROFILE 을 요구한다
 #   --local            로컬 구성이다. 터널 없이 localhost 의 그라파나(GRAFANA_PORT, 기본 13000)를 admin 으로 찍는다
-#   --label <이름>     저장 폴더에 붙인다
+#   --label <이름>     회차 이름이다. 측정 회차의 회차 폴더 이름이 된다(lc-infra #191)
 #   --minutes <분>     지금부터 거꾸로 몇 분 (기본 5)
 #   --from / --to      유닉스 밀리초로 구간을 직접 준다
 #   --dash <uid>       그 대시보드만. 여러 번 줄 수 있다
 #   --domain <이름>    도메인 시험이다. 도메인 폴더에서는 그 도메인(lc-<이름>)만 찍고 나머지 계층은 모두 찍는다. 여러 번 줄 수 있다(lc-infra #169)
-#   --out <경로>       저장 위치 (기본 loadtest-runs/)
+#   --out <경로>       회차 폴더를 둘 곳이다. 주면 <경로>/<회차 이름>/ 에 둔다. 결과 문서 옆의 버전 폴더를 주어 측정 3회를 v1-run1/, v1-run2/, v1-run3/ 으로 모은다.
+#                      주지 않으면 loadtest-runs/<시각>_<회차 이름>/ 에 둔다. 회차 이름이 없으면 loadtest-runs/<시각>/ 이다
+#
+#   회차 폴더의 모양(lc-infra #191). 대시보드는 그라파나의 폴더와 제목을 그대로 쓰고 공백만 _ 로 바꾼다
+#     구간.txt
+#     traces.txt                      고른 트레이스 목록. 번호가 traces/ 의 폴더 번호다
+#     dashboards/2._서비스/2._API.png
+#     traces/01-api-v1-feed/          trace.png, logs.png, logs.txt
+#     calltree/wall.png, cpu.png      진단 회차만
+#     diff/wall.png, cpu.png          진단 회차에 --baseline 을 주었을 때만
+#     redis.txt                       진단 회차만
 #   --diag <회차>      진단 회차(트레이싱이나 프로파일링을 켠 회차)를 찍는다. 회차 이름은 프로파일의 run 라벨이다.
 #                      API 와 백그라운드 작업 대시보드를 렌더러로, Call Tree(wall, cpu)와 트레이스 화면을 브라우저 자동화(scripts/diag-capture)로 찍는다.
-#                      그림은 --out 폴더에 바로 diag-{회차}-*.png 로 둔다. 결과 문서 옆에 두려는 것이다(lc-infra #106)
-#                      회차 구간의 Redis 명령별 호출 수, 서버 평균, 서버 p99 와 느린 명령 건수를 diag-{회차}-redis.txt 로 남긴다(lc-infra #116)
+#                      회차 이름이 진단 회차 폴더 이름이 된다(lc-infra #106, #191)
+#                      회차 구간의 Redis 명령별 호출 수, 서버 평균, 서버 p99 와 느린 명령 건수를 redis.txt 로 남긴다(lc-infra #116)
 #   --trace <ID>       --diag 와 함께 찍을 트레이스 ID. 여러 번 줄 수 있다. 주면 고르지 않고 이것만 찍는다
 #   --trace-top <수>   측정 회차와 --trace 없는 진단 회차에서 기준을 넘은 줄마다 고를 트레이스 수 (기본 3, 작성자가 2026-11-21 대화에서 정했다).
 #                      API 와 백그라운드 작업 대시보드의 "기준을 넘은" 패널이 구간에 한 번이라도 낸 줄(API, 릴레이, 워커, 작업)마다
@@ -32,7 +42,7 @@
 #   --no-traces        트레이스를 고르지도 찍지도 않는다. Tempo 가 없는 환경은 주지 않아도 건너뛴다
 #   --baseline <회차> --baseline-from <ms> --baseline-to <ms>
 #                      --diag 와 함께 준다. 고치기 전 진단 회차를 기준으로 이 회차를 견준 Diff flame graph(wall, cpu)를
-#                      diag-{회차}-diff-{wall|cpu}.png 로 찍는다. 두 회차의 조건(부하, 데이터 규모, 구간 길이)이 같아야 견줄 수 있다(lc-infra #115).
+#                      diff/{wall|cpu}.png 로 찍는다. 두 회차의 조건(부하, 데이터 규모, 구간 길이)이 같아야 견줄 수 있다(lc-infra #115).
 #                      --expand 도 주면 나눈 보기 대신 Diff 의 Call Tree 를 전체 폭으로 그 함수부터 몫이 많이 변한 갈래만 펼쳐 찍는다.
 #                      같은 코드로 잰 두 회차도 표본이 적으면 wall 의 몫이 10%p 넘게 흔들린다. Diff 하나로 판정하지 않고 측정 회차의 수치와 함께 본다
 #   --fixed <함수>     --baseline, --expand 와 함께 준다. 그 버전에서 고친 함수다. 여러 번 줄 수 있다. Diff 의 Call Tree 에서 몫이 거의
@@ -68,7 +78,7 @@ WIDTH="${WIDTH:-1600}"
 # 비워 두면 대시보드마다 패널 배치에서 높이를 잰다. 주면 모든 장을 그 높이로 자른다
 HEIGHT="${HEIGHT:-}"
 
-TRACE_TOP=3; NO_TRACES=""; LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); DOMAINS=(); LT=""; LOCAL=""; DIAG=""; TRACES=(); EXPANDS=(); BASELINE=""; BASE_FROM=""; BASE_TO=""; FIXED=()
+TRACE_TOP=3; NO_TRACES=""; OUT_GIVEN=""; LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); DOMAINS=(); LT=""; LOCAL=""; DIAG=""; TRACES=(); EXPANDS=(); BASELINE=""; BASE_FROM=""; BASE_TO=""; FIXED=()
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -84,7 +94,7 @@ while [ $# -gt 0 ]; do
     --to)      TO="${2:-}"; shift 2 ;;
     --dash)    DASH+=("${2:-}"); shift 2 ;;
     --domain)  case "${2:-}" in ""|-*) die "--domain 에는 도메인 이름을 준다(예: --domain adserving)" ;; esac; DOMAINS+=("$2"); shift 2 ;;
-    --out)     OUT_ROOT="${2:-}"; shift 2 ;;
+    --out)     OUT_ROOT="${2:-}"; OUT_GIVEN=1; shift 2 ;;
     --diag)    DIAG="${2:-}"; shift 2 ;;
     --trace)   TRACES+=("${2:-}"); shift 2 ;;
     --trace-top) case "${2:-}" in ""|*[!0-9]*) die "--trace-top 에는 0 이상의 정수를 준다" ;; esac; TRACE_TOP="$2"; shift 2 ;;
@@ -196,6 +206,17 @@ fi
 # 순서는 그라파나의 폴더와 제목에 붙은 순번(1. 개요 ~ 7. 테스트)을 따른다. 목록을 여기 적지 않아 대시보드를 더해도 고치지 않는다.
 # 도메인 시험(--domain)이면 도메인 폴더에서는 그 도메인만 찍는다. 원인은 다른 계층에서 찾으므로 나머지는 그대로 찍는다.
 #
+#
+# 대시보드마다 회차 폴더 안의 자리를 정한다(lc-infra #191). 그라파나의 폴더 이름과 제목을 그대로 쓰고 공백만 _ 로 바꾼다.
+# 그라파나가 폴더와 제목 앞에 순번(1. 개요, 2. API)을 붙여 두어 폴더에서도 계층 순서로 보인다.
+#
+names=$(curl -sf -u "admin:$PW" "http://localhost:$LOCAL_PORT/api/search?tag=lunchcatch&type=dash-db" | python3 -c '
+import json, sys
+for r in json.load(sys.stdin):
+    print(r["uid"] + "\t" + (r.get("folderTitle") or "General").replace(" ", "_").replace("/", "_") + "/" + r["title"].replace(" ", "_").replace("/", "_"))
+') || die "대시보드 이름을 읽지 못했다"
+dash_path() { awk -F'\t' -v u="$1" '$1 == u { print $2; found = 1 } END { exit !found }' <<< "$names"; }
+
 if [ ${#DASH[@]} -eq 0 ]; then
   list=$(curl -sf -u "admin:$PW" "http://localhost:$LOCAL_PORT/api/search?tag=lunchcatch&type=dash-db" \
     | python3 -c '
@@ -216,13 +237,16 @@ for r in sorted(rows, key=lambda r: (r.get("folderTitle", ""), r["title"])):
   [ ${#DASH[@]} -gt 0 ] || die "lunchcatch 태그가 붙은 대시보드가 없다"
 fi
 
+#
+# 회차마다 폴더 하나를 둔다(#191). 측정 3회를 한 버전 폴더에 모아도 회차 폴더로 갈려 겹치지 않는다.
+# 진단 회차는 그 회차 이름(--diag), 측정 회차는 --label 이 폴더 이름이다.
+#
 stamp=$(date -u +%Y-%m-%dT%H-%M-%SZ)
-if [ -n "$DIAG" ]; then
-  dir="$OUT_ROOT"
-  prefix="diag-$DIAG-"
+run="${DIAG:-$LABEL}"
+if [ -n "$OUT_GIVEN" ]; then
+  dir="$OUT_ROOT/${run:-$stamp}"
 else
-  dir="$OUT_ROOT/${stamp}${LABEL:+_$LABEL}/grafana"
-  prefix=""
+  dir="$OUT_ROOT/${stamp}${run:+_$run}"
 fi
 mkdir -p "$dir"
 
@@ -232,7 +256,7 @@ mkdir -p "$dir"
   printf 'from    %s  (%s)\n' "$FROM" "$(date -u -r $((FROM/1000)) +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '-')"
   printf 'to      %s  (%s)\n' "$TO" "$(date -u -r $((TO/1000)) +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '-')"
   printf 'size    %sx%s\n' "$WIDTH" "${HEIGHT:-대시보드 높이}"
-} > "$dir/${prefix}구간.txt"
+} > "$dir/구간.txt"
 
 #
 # 대시보드 전체가 들어가는 높이를 잰다 (#60).
@@ -246,12 +270,10 @@ dash_height() {
 }
 
 log "2. 렌더 $FROM ~ $TO (${#DASH[@]} 장)"
-ok=0; fail=0; n=0
+ok=0; fail=0
 for uid in "${DASH[@]}"; do
-  # 파일 이름 앞에 찍는 순서를 붙여 폴더에서도 계층 순서로 보이게 한다
-  n=$((n+1))
-  out="$dir/${prefix}$(printf '%02d' "$n")-$uid.png"
-  [ -n "$DIAG" ] && out="$dir/${prefix}${uid#lc-}.png"
+  out="$dir/dashboards/$(dash_path "$uid" || echo "$uid").png"
+  mkdir -p "$(dirname "$out")"
   h="${HEIGHT:-$(dash_height "$uid" || echo 900)}"
   code=$(curl -s -o "$out" -w '%{http_code}' --max-time 180 -u "admin:$PW" \
     "http://localhost:$LOCAL_PORT/render/d/$uid/x?orgId=1&from=$FROM&to=$TO&width=$WIDTH&height=$h&kiosk&tz=Asia%2FSeoul&timeout=120" \
@@ -321,7 +343,7 @@ if [ -n "$DIAG" ]; then
   log "2-2. Redis 명령별 서버 처리 시간 ($DIAG)"
   w=$(( (TO - FROM) / 1000 ))s
   at=$(( TO / 1000 ))
-  out="$dir/${prefix}redis.txt"
+  out="$dir/redis.txt"
   if calls=$(redis_query "sum by (cmd) (increase(redis_commands_total[$w]))" "$at") \
       && spent=$(redis_query "sum by (cmd) (increase(redis_commands_duration_seconds_total[$w]))" "$at") \
       && p99=$(redis_query "histogram_quantile(0.99, sum by (cmd, le) (increase(redis_commands_latencies_usec_bucket[$w])))" "$at") \
