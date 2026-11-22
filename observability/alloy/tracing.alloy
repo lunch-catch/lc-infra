@@ -196,12 +196,15 @@ otelcol.processor.tail_sampling "app" {
 			}
 		}
 	}
-	// 나머지는 10% 만 남긴다. 앞단 10% 를 지나와 최종 1% 다
+	/*
+	 * 나머지는 10% 만 남긴다. 앞단 10% 를 지나와 최종 1% 다.
+	 * 비율은 TRACE_REST_PERCENT 로 바꾼다. 장애 주입 실험 직전에 100 으로 올린다(INF-9-05). 주지 않으면 10 이다.
+	 */
 	policy {
 		name = "the-rest"
 		type = "probabilistic"
 		probabilistic {
-			sampling_percentage = 10
+			sampling_percentage = encoding.from_json(coalesce(sys.env("TRACE_REST_PERCENT"), "10"))
 		}
 	}
 	output {

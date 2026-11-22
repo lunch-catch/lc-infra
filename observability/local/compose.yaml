@@ -130,6 +130,8 @@ services:
       GIT_SHA: local
       LOKI_ENDPOINT: loki
       TEMPO_ENDPOINT: tempo
+      # 테일 샘플링이 나머지 트레이스를 남기는 비율(%)이다. 운영과 같은 기본값이다(lc-infra #195)
+      TRACE_REST_PERCENT: "${TRACE_REST_PERCENT:-10}"
     command: [run, --server.http.listen-addr=0.0.0.0:12345, /etc/alloy]
 
   # 호스트, RDB, 인메모리 DB 의 패널을 채운다. 운영은 각 서버와 모니터링 서버에서 돈다
