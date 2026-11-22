@@ -72,11 +72,11 @@ x-app: &app
     OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
     OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
     #
-    # 요청의 1% 만 기록한다. 앞 서비스가 traceparent 로 넘긴 결정은 그대로 따른다(lc-infra #195).
-    # 부하 시험은 lc-backend 의 run.sh switch --tracing 이 always_on 을 넣어 모두 기록한다
+    # 요청의 10% 만 기록하고, 앞 서비스가 traceparent 로 넘긴 결정은 그대로 따른다(lc-infra #195).
+    # 한 프로세스가 API 와 cron 을 함께 돌려 cron 도 10% 만 기록된다. 운영처럼 배치를 따로 두지 않아 나눌 수 없다.
     #
     OTEL_TRACES_SAMPLER: parentbased_traceidratio
-    OTEL_TRACES_SAMPLER_ARG: "0.01"
+    OTEL_TRACES_SAMPLER_ARG: "0.1"
     OTEL_METRICS_EXPORTER: none
     OTEL_LOGS_EXPORTER: none
     OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: "false"
