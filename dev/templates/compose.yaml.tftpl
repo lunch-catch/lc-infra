@@ -71,7 +71,12 @@ x-app: &app
     OTEL_SERVICE_NAME: "lunchcatch"
     OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
     OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-    OTEL_TRACES_SAMPLER: always_on
+    #
+    # 요청의 1% 만 기록한다. 앞 서비스가 traceparent 로 넘긴 결정은 그대로 따른다(lc-infra #195).
+    # 부하 시험은 lc-backend 의 run.sh switch --tracing 이 always_on 을 넣어 모두 기록한다
+    #
+    OTEL_TRACES_SAMPLER: parentbased_traceidratio
+    OTEL_TRACES_SAMPLER_ARG: "0.01"
     OTEL_METRICS_EXPORTER: none
     OTEL_LOGS_EXPORTER: none
     OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: "false"
