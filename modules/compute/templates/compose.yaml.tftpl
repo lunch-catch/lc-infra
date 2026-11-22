@@ -94,12 +94,9 @@ services:
       OTEL_SERVICE_NAME: "${role == "batch" ? "lunchcatch-batch" : "lunchcatch"}"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-      #
-      # 앱 서버는 요청의 10% 만 기록하고, 앞 서비스가 traceparent 로 넘긴 결정은 그대로 따른다(lc-infra #195).
-      # 배치 서버는 모두 기록한다. 하루 몇 번 도는 cron 을 빠짐없이 남기려는 것이고, 1초 주기 작업은 Alloy 가 10% 로 줄인다.
-      #
-      OTEL_TRACES_SAMPLER: "${role == "batch" ? "always_on" : "parentbased_traceidratio"}"
-      OTEL_TRACES_SAMPLER_ARG: "${role == "batch" ? "1.0" : "0.1"}"
+      # 요청과 작업 실행의 10% 만 기록하고, 앞 서비스가 traceparent 로 넘긴 결정은 그대로 따른다(lc-infra #195)
+      OTEL_TRACES_SAMPLER: parentbased_traceidratio
+      OTEL_TRACES_SAMPLER_ARG: "0.1"
       OTEL_METRICS_EXPORTER: none
       OTEL_LOGS_EXPORTER: none
       OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: "false"

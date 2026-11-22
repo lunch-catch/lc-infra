@@ -27,9 +27,8 @@ otelcol.processor.tail_sampling "app" {
 		}
 	}
 	/*
-	 * 앞단(에이전트)이 앱 서버는 요청의 10% 만, 배치 서버는 모두 넘긴다(lc-infra #195). 여기서 넘어온 것 가운데
+	 * 앞단(에이전트)이 앱 서버와 배치 서버 모두 요청과 작업 실행의 10% 만 넘긴다(lc-infra #195). 여기서 넘어온 것 가운데
 	 * 오류, 기준을 넘은 HTTP 요청, 백그라운드 작업은 모두 남기고 나머지는 10% 만 남겨, 최종으로 앞의 셋은 10%, 나머지는 1% 가 된다.
-	 * 배치 서버의 cron 은 앞단에서 줄이지 않아 모두 남는다.
 	 */
 	/*
 	 * HTTP 요청의 기준은 API 마다 다르다. 원본은 lc-backend 의 application.yml 의 lunchcatch.observability.targets(api, api-default)다.
@@ -124,7 +123,7 @@ otelcol.processor.tail_sampling "app" {
 	/*
 	 * 앱 서버의 백그라운드 작업(노출 저장, 서빙 로그 같은 워커)은 모두 남긴다. HTTP 요청이 아니고 기동 때의 main 스레드도 아닌 트레이스다.
 	 * 워커의 기준은 대기열에서 기다린 시간이라 트레이스의 길이로 가를 수 없다. 앞단이 10% 로 줄여 양이 작다.
-	 * 개발 서버는 한 프로세스가 API 와 cron 을 함께 돌려 cron 도 여기서 남는다.
+	 * 개발 서버는 한 프로세스가 API 와 cron 을 함께 돌려 cron 도 여기서 남는다. 배치 서버의 작업은 아래 batch-background 가 맡는다.
 	 */
 	policy {
 		name = "app-background"
@@ -160,15 +159,12 @@ otelcol.processor.tail_sampling "app" {
 		}
 	}
 	/*
-	 * 배치 서버의 트레이스다(lc-backend#1199). 서비스 이름은 run.sh switch --tracing 이 배치 서버에만 준다.
-	 * cron 은 드물고 마감을 넘긴 실행을 빠짐없이 보려고 모두 남긴다. 루트 스팬이 판정 대기 안에 오지 않아도 남도록
-	 * "잦은 작업의 루트가 보이지 않으면" 으로 고른다. 헬스체크와 지표 수집 같은 HTTP 요청은 뺀다.
-	 * 배치가 뜰 때 Flyway 와 MySQL 드라이버가 main 스레드에서 내는 쿼리도 루트가 없어 뺀다(#147). 작업은 scheduling 스레드에서 돈다.
-	 * 잦은 작업은 1초마다 도는 폴링이라 모두 남기면 저장량 대부분을 차지해 아래 the-rest 가 10% 만 남긴다(lc-infra #195).
-	 * 이름은 루트 스팬의 code.function 이다(OTel 에이전트의 spring-scheduling 계측). 잦은 작업이 늘면 아래 목록에 더한다.
+	 * 배치 서버의 백그라운드 작업(cron 과 1초 주기 작업)은 모두 남긴다(lc-backend#1199, lc-infra #195). 서비스 이름은 lc-backend 의 run.sh switch --tracing 과
+	 * 운영 compose 가 배치 서버에만 준다. 헬스체크와 지표 수집 같은 HTTP 요청과, 배치가 뜰 때 Flyway 와 MySQL 드라이버가 main 스레드에서 내는 쿼리는 뺀다(#147).
+	 * 작업의 기준은 실행 시간 하나가 아니라 종류마다의 지표라 트레이스의 길이로 가르지 않는다.
 	 */
 	policy {
-		name = "batch-cron"
+		name = "batch-background"
 		type = "and"
 		and {
 			and_sub_policy {
@@ -177,15 +173,6 @@ otelcol.processor.tail_sampling "app" {
 				string_attribute {
 					key    = "service.name"
 					values = ["lunchcatch-batch"]
-				}
-			}
-			and_sub_policy {
-				name = "not-frequent-job"
-				type = "string_attribute"
-				string_attribute {
-					key          = "code.function"
-					values       = ["dispatchPending", "recheckUnknownPayments", "reserveCharged", "sendHeartbeat", "takeOverStale"]
-					invert_match = true
 				}
 			}
 			and_sub_policy {
@@ -209,7 +196,7 @@ otelcol.processor.tail_sampling "app" {
 			}
 		}
 	}
-	// 나머지는 10% 만 남긴다. 앱 서버는 앞단 10% 를 지나와 최종 1%, 배치 서버의 잦은 작업은 앞단이 모두 넘겨 최종 10% 다
+	// 나머지는 10% 만 남긴다. 앞단 10% 를 지나와 최종 1% 다
 	policy {
 		name = "the-rest"
 		type = "probabilistic"

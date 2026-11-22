@@ -71,10 +71,7 @@ x-app: &app
     OTEL_SERVICE_NAME: "lunchcatch"
     OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
     OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-    #
-    # 요청의 10% 만 기록하고, 앞 서비스가 traceparent 로 넘긴 결정은 그대로 따른다(lc-infra #195).
-    # 한 프로세스가 API 와 cron 을 함께 돌려 cron 도 10% 만 기록된다. 운영처럼 배치를 따로 두지 않아 나눌 수 없다.
-    #
+    # 요청과 작업 실행의 10% 만 기록하고, 앞 서비스가 traceparent 로 넘긴 결정은 그대로 따른다(lc-infra #195)
     OTEL_TRACES_SAMPLER: parentbased_traceidratio
     OTEL_TRACES_SAMPLER_ARG: "0.1"
     OTEL_METRICS_EXPORTER: none
