@@ -71,7 +71,12 @@ x-app: &app
     OTEL_SERVICE_NAME: "lunchcatch"
     OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
     OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-    OTEL_TRACES_SAMPLER: always_on
+    #
+    # 요청과 작업 실행의 10% 만 기록하고, 앞 서비스가 traceparent 로 넘긴 결정은 그대로 따른다(lc-infra #195).
+    # 비율은 .env 의 TRACE_SAMPLE_RATIO 로 바꾼다. 장애 주입 실험 직전에 1.0 으로 올린다(INF-9-05). Alloy 의 TRACE_REST_PERCENT 와 함께 올린다.
+    #
+    OTEL_TRACES_SAMPLER: parentbased_traceidratio
+    OTEL_TRACES_SAMPLER_ARG: "$${TRACE_SAMPLE_RATIO:-0.1}"
     OTEL_METRICS_EXPORTER: none
     OTEL_LOGS_EXPORTER: none
     OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: "false"
@@ -260,6 +265,8 @@ services:
       GIT_SHA: "$${GIT_SHA:-none}"
       LOKI_ENDPOINT: loki
       TEMPO_ENDPOINT: tempo
+      # 테일 샘플링이 나머지 트레이스를 남기는 비율(%)이다. 장애 주입 실험 직전에 100 으로 올린다(INF-9-05)
+      TRACE_REST_PERCENT: "$${TRACE_REST_PERCENT:-10}"
     command: [run, --server.http.listen-addr=0.0.0.0:12345, /etc/alloy]
     mem_limit: 256m
 
