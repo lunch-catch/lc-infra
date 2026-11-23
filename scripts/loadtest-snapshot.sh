@@ -8,8 +8,8 @@
 #   ./loadtest-snapshot.sh --dash lc-loadtest     한 장만
 #   AWS_PROFILE=me ./loadtest-snapshot.sh --lt --label r1   팀원 부하 시험 환경(member-env.sh)에서
 #   ./loadtest-snapshot.sh --local --label l1              로컬 구성(observability/local)에서
-#   ./loadtest-snapshot.sh --lt --diag v3-run1-profile --from <ms> --to <ms> --trace <ID> --out <결과 문서 폴더>
-#                                                  진단 회차의 Call Tree, 트레이스 화면, API 와 백그라운드 작업 대시보드를 찍는다
+#   ./loadtest-snapshot.sh --lt --diag v3-run1-profile --domain adserving --from <ms> --to <ms> --out <결과 문서 폴더>
+#                                                  진단 회차의 대시보드(측정 회차와 같은 목록), Call Tree, 트레이스 화면을 찍는다
 #
 #   --lt               부하 시험 환경이다. 접두사가 lunchcatch-lt 이고 운영 계정 가드 대신 AWS_PROFILE 을 요구한다
 #   --local            로컬 구성이다. 터널 없이 localhost 의 그라파나(GRAFANA_PORT, 기본 13000)를 admin 으로 찍는다
@@ -32,7 +32,8 @@
 #     diag-v1-run1-profile.tar.gz     진단 회차에 프로파일이 있을 때만. cpu 와 wall 의 10초 묶음(folded)과 manifest.json(lc-infra #199).
 #                                     --diag 의 이름에서 끝의 -profile 을 떼고 diag- 와 -profile.tar.gz 를 붙인다
 #   --diag <회차>      진단 회차(트레이싱이나 프로파일링을 켠 회차)를 찍는다. 회차 이름은 프로파일의 run 라벨이다.
-#                      API 와 백그라운드 작업 대시보드를 렌더러로, Call Tree(wall, cpu)와 트레이스 화면을 브라우저 자동화(scripts/diag-capture)로 찍는다.
+#                      대시보드는 측정 회차와 같은 목록(모든 계층, --domain 을 주면 도메인 폴더에서 그 도메인만)을 렌더러로 찍는다(lc-infra #201).
+#                      화면에는 프로파일링 비용이 섞여 측정 회차와 견주지 않는다. Call Tree(wall, cpu)와 트레이스 화면은 브라우저 자동화(scripts/diag-capture)로 찍는다.
 #                      회차 이름이 진단 회차 폴더 이름이 된다(lc-infra #106, #191)
 #                      회차 구간의 Redis 명령별 호출 수, 서버 평균, 서버 p99 와 느린 명령 건수를 redis.txt 로 남긴다(lc-infra #116)
 #                      회차의 프로파일을 Pyroscope 에서 10초 묶음 그대로 꺼내 파일 하나로 남긴다(lc-infra #199).
@@ -156,13 +157,9 @@ fi
 [ -z "$BASELINE" ] || { [ -n "$DIAG" ] && [ -n "$BASE_FROM" ] && [ -n "$BASE_TO" ]; } || die "--baseline 은 --diag, --baseline-from, --baseline-to 와 함께 준다"
 [ ${#FIXED[@]} -eq 0 ] || { [ -n "$BASELINE" ] && [ ${#EXPANDS[@]} -gt 0 ]; } || die "--fixed 는 --baseline 과 --expand 와 함께 준다"
 
-# 진단 회차는 기준을 넘은 것을 그리는 API 와 백그라운드 작업만 찍는다(lc-infra #94, #169).
+# 진단 회차도 측정 회차와 같은 대시보드를 찍는다(lc-infra #201). 원인을 볼 때 같은 회차의 서버 자원, RDB, 캐시를 견준다.
 # 기본 목록은 그라파나에 붙은 뒤 정한다(아래 "찍을 대시보드").
 [ ${#DOMAINS[@]} -eq 0 ] || [ ${#DASH[@]} -eq 0 ] || die "--domain 과 --dash 는 함께 주지 않는다"
-[ ${#DOMAINS[@]} -eq 0 ] || [ -z "$DIAG" ] || die "--domain 과 --diag 는 함께 주지 않는다. 진단 회차는 API 와 백그라운드 작업만 찍는다"
-if [ -n "$DIAG" ]; then
-  DASH=(lc-api lc-background)
-fi
 
 # 접두사로 고른다. 같은 계정에 운영과 부하 시험 환경이 함께 있으면 Role 만으로는 어느 쪽인지 모른다
 mon_id() {
