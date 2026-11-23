@@ -6,6 +6,11 @@
 .vscode/
 *.iml
 
+### 파이썬이 만드는 것 ###
+# 캡처 스크립트(scripts/diag-capture)를 이 기계의 python3 로 돌리면 생긴다
+__pycache__/
+*.pyc
+
 ### Editor ###
 *.swp
 *.swo
