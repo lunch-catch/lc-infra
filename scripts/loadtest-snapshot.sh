@@ -29,6 +29,8 @@
 #     calltree/wall.png, cpu.png      진단 회차만
 #     diff/wall.png, cpu.png          진단 회차에 --baseline 을 주었을 때만
 #     redis.txt                       진단 회차만
+#     metrics.json.gz, logs.jsonl.gz  진단 회차만. 회차 구간의 지표와 경고, 오류 로그 원본(lc-infra #203)
+#     traces/*/trace.json             진단 회차만. 고른 트레이스의 Tempo 원본
 #     diag-v1-run1-profile.tar.gz     진단 회차에 프로파일이 있을 때만. cpu 와 wall 의 10초 묶음(folded)과 manifest.json(lc-infra #199).
 #                                     --diag 의 이름에서 끝의 -profile 을 떼고 diag- 와 -profile.tar.gz 를 붙인다
 #   --diag <회차>      진단 회차(트레이싱이나 프로파일링을 켠 회차)를 찍는다. 회차 이름은 프로파일의 run 라벨이다.
@@ -36,7 +38,7 @@
 #                      회차 이름이 진단 회차 폴더 이름이 된다(lc-infra #106, #191)
 #                      회차 구간의 Redis 명령별 호출 수, 서버 평균, 서버 p99 와 느린 명령 건수를 redis.txt 로 남긴다(lc-infra #116)
 #                      회차의 프로파일을 Pyroscope 에서 10초 묶음 그대로 꺼내 파일 하나로 남긴다(lc-infra #199).
-#                      환경을 내린 뒤 견줄 때 scripts/diag-capture/profiles.py restore 로 그 환경의 Pyroscope 에 다시 올린다
+#                      지표, 로그, 트레이스 원본도 남긴다(lc-infra #203). 환경을 내린 뒤 scripts/loadtest-replay.sh <회차 폴더> 로 로컬 그라파나에서 원래 시각으로 다시 본다
 #   --trace <ID>       --diag 와 함께 찍을 트레이스 ID. 여러 번 줄 수 있다. 주면 고르지 않고 이것만 찍는다
 #   --trace-top <수>   측정 회차와 --trace 없는 진단 회차에서 기준을 넘은 줄마다 고를 트레이스 수 (기본 3, 작성자가 2026-11-21 대화에서 정했다).
 #                      API 와 백그라운드 작업 대시보드의 "기준을 넘은" 패널이 구간에 한 번이라도 낸 줄(API, 릴레이, 워커, 작업)마다
@@ -413,6 +415,22 @@ if [ -n "$DIAG" ]; then
     2) log "   이 회차의 프로파일이 없어 남기지 않았다" ;;
     *) log "   프로파일 보관 실패. Pyroscope 가 떠 있는지 보라"; fail=$((fail+1)) ;;
   esac
+fi
+
+#
+# 진단 회차의 지표, 로그, 트레이스 원본을 회차 폴더에 남긴다 (#203). 환경을 내린 뒤 scripts/loadtest-replay.sh 로 로컬 그라파나에서 다시 본다.
+# 트레이스는 고른 것(traces.txt)만, 지표는 우리 대시보드의 식이 쓰는 이름만, 로그는 앱과 배치의 경고와 오류만이다
+#
+if [ -n "$DIAG" ]; then
+  log "2-4. 지표, 로그, 트레이스 원본 ($DIAG)"
+  if GRAFANA_PASSWORD="$PW" python3 -I "$ROOT/scripts/diag-capture/telemetry.py" export --grafana "http://localhost:$LOCAL_PORT" \
+      --dir "$dir" --from "$FROM" --to "$TO" --dashboards "$ROOT/observability/grafana/dashboards" >&2; then
+    log "   metrics.json.gz, logs.jsonl.gz, traces/*/trace.json"
+    ok=$((ok+1))
+  else
+    log "   원본 보관 실패. Prometheus, Loki, Tempo 가 떠 있는지 보라"
+    fail=$((fail+1))
+  fi
 fi
 
 log "3. $dir"

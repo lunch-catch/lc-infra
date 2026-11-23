@@ -1,0 +1,12 @@
+# 남긴 진단 회차를 다시 볼 때만 쓰는 Pyroscope 설정이다 (lc-infra #203). compose.replay.yaml 이 붙인다.
+# 나머지는 이미지의 기본값 그대로다
+
+# 예전 저장 구조만 쓴다. 까닭은 compose.replay.yaml 의 pyroscope 에 적었다
+architecture_storage: v1
+limits:
+  # 기본은 지금보다 1시간 이전 시각의 프로파일을 받지 않는다(ingestion window)
+  reject_older_than: 0
+  # 기본은 1주보다 이전 구간을 물으면 그 뒤만 돌려준다
+  max_query_lookback: 0
+  # 기본 31일이 지나면 지운다(v2 의 보관). v1 의 보관(compactor_blocks_retention_period)은 기본이 지우지 않는다
+  retention_period: 0

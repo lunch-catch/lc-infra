@@ -7,7 +7,7 @@
 #   profiles.py restore --pyroscope <주소> --archive <파일.tar.gz>
 #
 # 주소는 Pyroscope 의 HTTP 주소다. 캡처는 그라파나의 데이터 소스 프록시(.../api/datasources/proxy/uid/pyroscope)를 준다.
-# 다시 올릴 때도 같은 프록시를 준다. 부하 시험 환경은 Pyroscope 포트를 열지 않고 그라파나 터널만 연다.
+# 다시 올릴 때도 같은 프록시를 준다. 1시간이 지난 회차는 기본 설정의 Pyroscope 가 거절해, scripts/loadtest-replay.sh 가 띄운 다시 보기용 구성에 올린다(#203).
 # 그라파나 비밀번호는 환경변수 GRAFANA_PASSWORD 로 받는다. 없으면 인증 없이 묻는다.
 #
 # 앱은 10초씩 떠서 그 묶음을 시작 시각(초) 한 점으로 보낸다(lunch-catch/lc-backend 의 loadtest/lib/common.sh, PROFILE_SH).

@@ -1,0 +1,25 @@
+# 남긴 진단 회차를 다시 볼 때만 덮어쓴다 (lc-infra #203). scripts/loadtest-replay.sh 가 쓰고 평소의 로컬 시험은 쓰지 않는다.
+# 지난 시각의 지표, 로그, 프로파일을 넣으면 기본 설정은 받자마자 지우거나 거절하거나 질의에서 뺀다. 그것만 푼다
+services:
+  prometheus:
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-remote-write-receiver
+      # 기본 보관 기간(15일)보다 오래된 블록은 넣자마자 지운다. 오래 전 회차도 보이게 사실상 두지 않는다
+      - --storage.tsdb.retention.time=100y
+
+  loki:
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+      # 기본은 1주보다 오래된 시각의 로그를 받지 않는다
+      - -validation.reject-old-samples=false
+      # 보관 기간(운영과 같은 720h)이 지난 로그를 지우지 않는다
+      - -compactor.retention-enabled=false
+
+  pyroscope:
+    # 예전 저장 구조(v1)로 돈다. v1 은 인제스터가 프로파일의 시각으로 블록을 만든다.
+    # 기본(v2)은 색인을 6시간 구간으로 나누는데, 지난 시각으로 넣은 프로파일을 그 시각의 구간에서 찾지 못해 하루 넘게 지난 회차가 비어 보였다.
+    # v1 은 인제스터로 써야(-write-path=ingester) 뜬다
+    command: [-config.file=/etc/pyroscope/replay.yaml, -write-path=ingester]
+    volumes:
+      - ./pyroscope.replay.yaml:/etc/pyroscope/replay.yaml:ro
