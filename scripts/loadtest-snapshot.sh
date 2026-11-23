@@ -26,8 +26,9 @@
 #     traces.txt                      고른 트레이스 목록. 번호가 traces/ 의 폴더 번호다
 #     dashboards/2._서비스/2._API.png
 #     traces/01-api-v1-feed/          trace.png, logs.png, logs.txt
-#     calltree/wall.png, cpu.png      진단 회차만
-#     diff/wall.png, cpu.png          진단 회차에 --baseline 을 주었을 때만
+#     calltree/wall.png, cpu.png      진단 회차만. 앱 서버(서비스 lunchcatch)
+#     calltree/batch-wall.png, ...  진단 회차에 배치 프로파일(lunchcatch-batch)이 있을 때만(lc-infra #204)
+#     diff/wall.png, cpu.png          진단 회차에 --baseline 을 주었을 때만. 배치는 diff/batch-*.png, 기준 회차에도 배치가 있을 때만
 #     redis.txt                       진단 회차만
 #     metrics.json.gz, logs.jsonl.gz  진단 회차만. 회차 구간의 지표와 경고, 오류 로그 원본(lc-infra #203)
 #     traces/*/trace.json             진단 회차만. 고른 트레이스의 Tempo 원본
