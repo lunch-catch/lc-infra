@@ -29,10 +29,13 @@
 #     calltree/wall.png, cpu.png      진단 회차만
 #     diff/wall.png, cpu.png          진단 회차에 --baseline 을 주었을 때만
 #     redis.txt                       진단 회차만
+#     diag-<회차>-profile.tar.gz      진단 회차에 프로파일이 있을 때만. cpu 와 wall 의 10초 묶음(folded)과 manifest.json(lc-infra #199)
 #   --diag <회차>      진단 회차(트레이싱이나 프로파일링을 켠 회차)를 찍는다. 회차 이름은 프로파일의 run 라벨이다.
 #                      API 와 백그라운드 작업 대시보드를 렌더러로, Call Tree(wall, cpu)와 트레이스 화면을 브라우저 자동화(scripts/diag-capture)로 찍는다.
 #                      회차 이름이 진단 회차 폴더 이름이 된다(lc-infra #106, #191)
 #                      회차 구간의 Redis 명령별 호출 수, 서버 평균, 서버 p99 와 느린 명령 건수를 redis.txt 로 남긴다(lc-infra #116)
+#                      회차의 프로파일을 Pyroscope 에서 10초 묶음 그대로 꺼내 diag-<회차>-profile.tar.gz 로 남긴다(lc-infra #199).
+#                      환경을 내린 뒤 견줄 때 scripts/diag-capture/profiles.py restore 로 그 환경의 Pyroscope 에 다시 올린다
 #   --trace <ID>       --diag 와 함께 찍을 트레이스 ID. 여러 번 줄 수 있다. 주면 고르지 않고 이것만 찍는다
 #   --trace-top <수>   측정 회차와 --trace 없는 진단 회차에서 기준을 넘은 줄마다 고를 트레이스 수 (기본 3, 작성자가 2026-11-21 대화에서 정했다).
 #                      API 와 백그라운드 작업 대시보드의 "기준을 넘은" 패널이 구간에 한 번이라도 낸 줄(API, 릴레이, 워커, 작업)마다
@@ -389,6 +392,26 @@ PY
     log "   Redis 지표 실패. redis-exporter 가 떠 있는지 보라"
     fail=$((fail+1))
   fi
+fi
+
+#
+# 진단 회차의 프로파일을 Pyroscope 에서 꺼내 회차 폴더에 남긴다 (#199).
+# 환경을 내리면 Pyroscope 와 함께 사라져, 다른 날 다음 버전과 Diff 로 견줄 때 이 파일을 그 환경의 Pyroscope 에 다시 올린다.
+# 프로파일이 없는 회차(트레이싱만 켠 진단 회차)는 건너뛴다
+#
+if [ -n "$DIAG" ]; then
+  log "2-3. 프로파일 보관 ($DIAG)"
+  # 진단 회차의 이름은 -profile 로 끝나 그 꼬리를 떼고 붙인다. v1-run1-profile 이면 diag-v1-run1-profile.tar.gz 다
+  archive="diag-${DIAG%-profile}-profile.tar.gz"
+  prc=0
+  GRAFANA_PASSWORD="$PW" python3 -I "$ROOT/scripts/diag-capture/profiles.py" export \
+    --pyroscope "http://localhost:$LOCAL_PORT/api/datasources/proxy/uid/pyroscope" \
+    --run "$DIAG" --from "$FROM" --to "$TO" --out "$dir/$archive" >&2 || prc=$?
+  case "$prc" in
+    0) log "   $archive"; ok=$((ok+1)) ;;
+    2) log "   이 회차의 프로파일이 없어 남기지 않았다" ;;
+    *) log "   프로파일 보관 실패. Pyroscope 가 떠 있는지 보라"; fail=$((fail+1)) ;;
+  esac
 fi
 
 log "3. $dir"
