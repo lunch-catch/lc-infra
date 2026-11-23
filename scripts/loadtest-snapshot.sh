@@ -29,12 +29,13 @@
 #     calltree/wall.png, cpu.png      진단 회차만
 #     diff/wall.png, cpu.png          진단 회차에 --baseline 을 주었을 때만
 #     redis.txt                       진단 회차만
-#     diag-<회차>-profile.tar.gz      진단 회차에 프로파일이 있을 때만. cpu 와 wall 의 10초 묶음(folded)과 manifest.json(lc-infra #199)
+#     diag-v1-run1-profile.tar.gz     진단 회차에 프로파일이 있을 때만. cpu 와 wall 의 10초 묶음(folded)과 manifest.json(lc-infra #199).
+#                                     --diag 의 이름에서 끝의 -profile 을 떼고 diag- 와 -profile.tar.gz 를 붙인다
 #   --diag <회차>      진단 회차(트레이싱이나 프로파일링을 켠 회차)를 찍는다. 회차 이름은 프로파일의 run 라벨이다.
 #                      API 와 백그라운드 작업 대시보드를 렌더러로, Call Tree(wall, cpu)와 트레이스 화면을 브라우저 자동화(scripts/diag-capture)로 찍는다.
 #                      회차 이름이 진단 회차 폴더 이름이 된다(lc-infra #106, #191)
 #                      회차 구간의 Redis 명령별 호출 수, 서버 평균, 서버 p99 와 느린 명령 건수를 redis.txt 로 남긴다(lc-infra #116)
-#                      회차의 프로파일을 Pyroscope 에서 10초 묶음 그대로 꺼내 diag-<회차>-profile.tar.gz 로 남긴다(lc-infra #199).
+#                      회차의 프로파일을 Pyroscope 에서 10초 묶음 그대로 꺼내 파일 하나로 남긴다(lc-infra #199).
 #                      환경을 내린 뒤 견줄 때 scripts/diag-capture/profiles.py restore 로 그 환경의 Pyroscope 에 다시 올린다
 #   --trace <ID>       --diag 와 함께 찍을 트레이스 ID. 여러 번 줄 수 있다. 주면 고르지 않고 이것만 찍는다
 #   --trace-top <수>   측정 회차와 --trace 없는 진단 회차에서 기준을 넘은 줄마다 고를 트레이스 수 (기본 3, 작성자가 2026-11-21 대화에서 정했다).
