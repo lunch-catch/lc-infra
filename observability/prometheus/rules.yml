@@ -328,6 +328,34 @@ groups:
           runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#targetdown"
           description: "수집 대상 {{ $labels.job }} {{ $labels.instance }} 가 5분 넘게 응답하지 않는다. 그 대상의 지표를 보는 경보가 멈춰 있다. Prometheus 의 Targets 화면에서 오류를 보고 그 컨테이너가 떠 있는지 확인하라"
 
+      # 트레이스가 조용히 빠지는 세 곳이다(lc-infra #197). 셋 다 정상이면 0 이어야 하는 값이라 5분 안에 하나라도 늘면 울린다.
+      # 판정 버퍼(num_traces)와 Tempo 의 한도는 기본값으로 두었다. 기본값이 부하에 맞지 않는 것을 여기서 안다
+      - alert: TraceDroppedBeforeDecision
+        expr: sum by (instance) (increase(otelcol_processor_tail_sampling_sampling_trace_dropped_too_early_total[5m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#tracedroppedbeforedecision"
+          description: "{{ $labels.instance }} 의 Alloy 가 테일 샘플링 판정 전에 트레이스를 버렸다. 판정 버퍼가 들어오는 트레이스에 비해 작다. 모니터링 상태 대시보드에서 버린 수와 그 서버의 요청 수를 확인하라"
+
+      # memory_limiter 가 앱 서버의 메모리를 지키려고 스팬을 거절했다(lc-infra #197)
+      - alert: TraceSpansRefused
+        expr: sum by (instance) (increase(otelcol_receiver_refused_spans_total{job="alloy"}[5m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#tracespansrefused"
+          description: "{{ $labels.instance }} 의 Alloy 가 메모리 한도에 닿아 스팬을 거절했다. Tempo 가 거절하고 있는지, 트래픽이 몰렸는지 확인하라"
+
+      # Tempo 가 기본 한도에 닿아 거절했다(lc-infra #197). 처음 거절할 때 생기는 지표라 첫 거절은 increase 가 세지 못하고 이어지는 거절부터 센다
+      - alert: TempoSpansDiscarded
+        expr: sum by (reason) (increase(tempo_discarded_spans_total[5m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#tempospansdiscarded"
+          description: "Tempo 가 {{ $labels.reason }} 로 스팬을 거절했다. 앱 서버의 Alloy 가 다시 보내려고 쌓는다. 모니터링 서버의 Tempo 메모리와 받는 양을 확인하라"
+
       # Alertmanager 가 Slack 으로 알림을 보내지 못했다(lc-infra #171). 웹훅이 틀려 모든 경보를 버린 적이 있다.
       # 같은 Slack 으로 가는 이 경보도 닿지 않을 수 있지만, 다른 채널로 가는 경보와 Prometheus 화면에는 남는다
       # 규칙을 평가하다 오류가 났다(lc-infra #171). 실패한 규칙의 경보는 그동안 울리지 않는다
