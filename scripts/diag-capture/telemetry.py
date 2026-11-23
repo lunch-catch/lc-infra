@@ -26,7 +26,8 @@ import urllib.parse
 import urllib.request
 
 LOG_QUERY = '{container=~"lunchcatch.*"} |~ "\\"level\\":\\"(WARN|ERROR)\\""'
-LOG_PAGE = 5000
+# 한 번에 받는 줄 수다. 경고 줄마다 스택이 붙으면 5,000줄은 Loki 안의 gRPC 메시지 한도를 넘어 502 가 났다
+LOG_PAGE = 500
 
 
 def request(base, path, body=None, content_type=None, accept=None):
@@ -125,13 +126,23 @@ def export_logs(grafana, run_dir, frm, to):
 
 
 def export(args):
-    traces = export_traces(args.grafana, args.dir)
-    print(f"telemetry traces {traces} 개")
-    names, series, samples, skipped = export_metrics(args.grafana, args.dir, args.from_ms, args.to_ms, args.dashboards)
-    print(f"telemetry metrics 지표 {names} 개, 시계열 {series} 개, 표본 {samples} 개 (네이티브 히스토그램 {skipped} 개는 건너뜀)")
-    streams, lines = export_logs(args.grafana, args.dir, args.from_ms, args.to_ms)
-    print(f"telemetry logs 흐름 {streams} 개, 줄 {lines} 개")
-    return 0
+    # 한 가지가 실패해도 나머지는 남긴다. 실패가 하나라도 있으면 1 로 끝나 캡처가 실패로 센다
+    failed = 0
+    try:
+        print(f"telemetry traces {export_traces(args.grafana, args.dir)} 개")
+    except Exception as e:
+        print(f"telemetry traces 실패: {e}", file=sys.stderr); failed += 1
+    try:
+        names, series, samples, skipped = export_metrics(args.grafana, args.dir, args.from_ms, args.to_ms, args.dashboards)
+        print(f"telemetry metrics 지표 {names} 개, 시계열 {series} 개, 표본 {samples} 개 (네이티브 히스토그램 {skipped} 개는 건너뜀)")
+    except Exception as e:
+        print(f"telemetry metrics 실패: {e}", file=sys.stderr); failed += 1
+    try:
+        streams, lines = export_logs(args.grafana, args.dir, args.from_ms, args.to_ms)
+        print(f"telemetry logs 흐름 {streams} 개, 줄 {lines} 개")
+    except Exception as e:
+        print(f"telemetry logs 실패: {e}", file=sys.stderr); failed += 1
+    return 1 if failed else 0
 
 
 def escape(v):
