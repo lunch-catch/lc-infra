@@ -6,6 +6,21 @@ otelcol.receiver.otlp "app" {
 		endpoint = "0.0.0.0:4318"
 	}
 	output {
+		traces = [otelcol.processor.memory_limiter.app.input]
+	}
+}
+
+/*
+ * 테일 샘플링은 판정까지 스팬을 메모리에 쌓는다. 트래픽이 몰리거나 Tempo 가 거절해 다시 보내기가 쌓여도
+ * 앱과 같은 서버의 메모리를 넘기지 않게 한다(lunch-catch/lc-infra#197). Alloy 문서대로 receiver 바로 뒤에 둔다.
+ * 소프트 한도(하드 - 스파이크)를 넘으면 받기를 거절해 앱의 에이전트가 다시 보내고, 하드 한도를 넘으면 GC 를 강제한다.
+ * 비율은 컨테이너 메모리 한도 기준이다. 스파이크는 Alloy 문서의 권장대로 하드 한도의 20% 다
+ */
+otelcol.processor.memory_limiter "app" {
+	check_interval         = "1s"
+	limit_percentage       = 80
+	spike_limit_percentage = 16
+	output {
 		traces = [otelcol.processor.tail_sampling.app.input]
 	}
 }

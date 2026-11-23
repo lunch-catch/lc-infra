@@ -708,6 +708,48 @@ tests:
           - exp_labels: {severity: warning, integration: slack}
             exp_annotations: {description: "Alertmanager 가 slack 로 알림을 보내지 못했다. 웹훅과 Alertmanager 로그를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#alertmanagernotificationsfailing"}
 
+  # 트레이스가 빠지는 세 곳(lc-infra #197). 10분부터 셋 다 늘기 시작한다.
+  # Tempo 의 지표는 처음 거절할 때 생겨 10분의 첫 값은 세지 못하고 11분부터 센다
+  - interval: 1m
+    input_series:
+      - series: 'otelcol_processor_tail_sampling_sampling_trace_dropped_too_early_total{job="alloy", instance="app-1"}'
+        values: '0x10 5+5x10'
+      - series: 'otelcol_receiver_refused_spans_total{job="alloy", instance="app-1", receiver="otlp"}'
+        values: '0x10 100+100x10'
+      - series: 'otelcol_receiver_refused_spans_total{job="node", instance="n1"}'
+        values: '0+100x20'
+      - series: 'tempo_discarded_spans_total{job="tempo", instance="tempo:3200", reason="rate_limited"}'
+        values: '_x10 50+50x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: TraceDroppedBeforeDecision
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: TraceSpansRefused
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: TempoSpansDiscarded
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: TraceDroppedBeforeDecision
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: app-1}
+            exp_annotations: {description: "app-1 의 Alloy 가 테일 샘플링 판정 전에 트레이스를 버렸다. 판정 버퍼가 들어오는 트레이스에 비해 작다. 모니터링 상태 대시보드에서 버린 수와 그 서버의 요청 수를 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#tracedroppedbeforedecision"}
+      - eval_time: 12m
+        alertname: TraceSpansRefused
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: app-1}
+            exp_annotations: {description: "app-1 의 Alloy 가 메모리 한도에 닿아 스팬을 거절했다. Tempo 가 거절하고 있는지, 트래픽이 몰렸는지 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#tracespansrefused"}
+      - eval_time: 12m
+        alertname: TempoSpansDiscarded
+        exp_alerts:
+          - exp_labels: {severity: warning, reason: rate_limited}
+            exp_annotations: {description: "Tempo 가 rate_limited 로 스팬을 거절했다. 앱 서버의 Alloy 가 다시 보내려고 쌓는다. 모니터링 서버의 Tempo 메모리와 받는 양을 확인하라", runbook_url: "https://github.com/lunch-catch/lc-infra/blob/main/docs/runbook/%EA%B2%BD%EB%B3%B4_%EB%8C%80%EC%9D%91.md#tempospansdiscarded"}
+      # 20분에 멈춘다. 5분 뒤 해소된다
+      - eval_time: 26m
+        alertname: TraceDroppedBeforeDecision
+        exp_alerts: []
+
   # 용량 경보(lc-infra #171). 모두 10분에 기준을 넘는다.
   #   메모리는 15분, 저장 공간과 MySQL 연결은 5분, RDS 여유 메모리는 15분을 기다린다
   - interval: 1m
