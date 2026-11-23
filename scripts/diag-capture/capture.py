@@ -18,6 +18,7 @@ import json
 import os
 import re
 import urllib.parse
+import urllib.request
 from pathlib import Path
 
 from PIL import Image
@@ -41,6 +42,9 @@ STOP_SELF_SHARE = 0.50
 # 진입점 몫의 이 비율 이상이면 펼친다. 진입점을 그만큼 움직이지 못한 변화는 회차 사이의 흔들림과 가르기 어렵다(작성자가 2026-11-10 대화에서 정했다)
 DIFF_FLOOR_SHARE = 0.05
 
+# 프로파일의 서비스와 그 그림 이름 앞에 붙는 말이다(#204). 앱은 지금처럼 calltree/wall.png, 배치는 calltree/batch-wall.png 다.
+# 배치 서버의 프로파일링은 lunch-catch/lc-backend#1318 부터 붙는다. 그 회차에 그 서비스가 없으면 건너뛴다
+SERVICES = {"": "lunchcatch", "batch-": "lunchcatch-batch"}
 PROFILES = {
     "wall": "wall:wall:nanoseconds:cpu:nanoseconds",
     "cpu": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
@@ -71,12 +75,15 @@ def main():
         page = browser.new_page(viewport=dict(VIEWPORT), locale="ko-KR", timezone_id="Asia/Seoul",
                                 extra_http_headers={"Authorization": auth})
         # 회차 폴더 안을 종류별로 나눈다(lc-infra #191). 트레이스는 하나마다 폴더를 두어 화면과 로그를 함께 둔다
+        api_base = args.grafana.replace("//localhost", "//host.docker.internal")
+        services = present_services(api_base, auth, args.run, args.frm, args.to) if args.run else {}
         if args.run:
-            for kind, metric in PROFILES.items():
-                path = out / "calltree" / f"{kind}.png"
-                path.parent.mkdir(parents=True, exist_ok=True)
-                capture_call_tree(page, args.grafana, args.run, args.frm, args.to, metric, args.expand, path)
-                print(f"calltree/{path.name}")
+            for prefix, service in services.items():
+                for kind, metric in PROFILES.items():
+                    path = out / "calltree" / f"{prefix}{kind}.png"
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    capture_call_tree(page, args.grafana, service, args.run, args.frm, args.to, metric, args.expand, path)
+                    print(f"calltree/{path.name}")
         # 데이터 소스 프록시는 브라우저가 아니라 이 프로세스가 부른다. 컨테이너 안의 localhost 는 호스트가 아니라 호스트로 돌린다
         api = traces.Grafana(args.grafana.replace("//localhost", "//host.docker.internal"), auth)
         # 받은 트레이스는 대상을 모르므로 ID 앞 8자로 폴더 이름을 짓는다
@@ -94,12 +101,18 @@ def main():
             lines = traces.write_logs(folder / "logs.txt", api, trace_id, args.frm, args.to)
             print(f"traces/{folder.name}  {trace_id}  로그 {lines} 줄")
         if args.baseline:
-            for kind, metric in PROFILES.items():
-                path = out / "diff" / f"{kind}.png"
-                path.parent.mkdir(parents=True, exist_ok=True)
-                capture_diff(page, args.grafana, args.baseline, args.baseline_from, args.baseline_to,
-                             args.run, args.frm, args.to, metric, args.expand, args.fixed, path)
-                print(f"diff/{path.name}  {args.baseline} -> {args.run}")
+            # 기준 회차에도 그 서비스가 있어야 견준다. 배치 프로파일링 전에 잰 기준이면 앱만 견준다
+            base_services = present_services(api_base, auth, args.baseline, args.baseline_from, args.baseline_to)
+            for prefix, service in services.items():
+                if prefix not in base_services:
+                    print(f"diff {service}: 기준 회차 {args.baseline} 에 없어 건너뛴다")
+                    continue
+                for kind, metric in PROFILES.items():
+                    path = out / "diff" / f"{prefix}{kind}.png"
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    capture_diff(page, args.grafana, service, args.baseline, args.baseline_from, args.baseline_to,
+                                 args.run, args.frm, args.to, metric, args.expand, args.fixed, path)
+                    print(f"diff/{path.name}  {args.baseline} -> {args.run}")
         browser.close()
 
 
@@ -131,9 +144,19 @@ def parse_args():
     return args
 
 
-def capture_call_tree(page, grafana, run, frm, to, metric, expand, path):
+def present_services(api_base, auth, run, frm, to):
+    # 그 회차(run 꼬리표)에 프로파일이 있는 서비스만 고른다. 앱이 없으면 지금처럼 앱을 찍다 실패하게 앱은 늘 남긴다
+    body = json.dumps({"name": "service_name", "matchers": ['{run="%s"}' % run], "start": int(frm), "end": int(to)}).encode()
+    req = urllib.request.Request(api_base.rstrip("/") + "/api/datasources/proxy/uid/pyroscope/querier.v1.QuerierService/LabelValues",
+                                 data=body, headers={"Authorization": auth, "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=60) as res:
+        names = set(json.load(res).get("names", []))
+    return {prefix: service for prefix, service in SERVICES.items() if prefix == "" or service in names}
+
+
+def capture_call_tree(page, grafana, service, run, frm, to, metric, expand, path):
     page.set_viewport_size(dict(VIEWPORT))
-    query = {"explorationType": "flame-graph", "var-dataSource": "pyroscope", "var-serviceName": "lunchcatch",
+    query = {"explorationType": "flame-graph", "var-dataSource": "pyroscope", "var-serviceName": service,
              "var-profileMetricId": metric, "from": frm, "to": to, "var-filters": f"run|=|{run}"}
     page.goto(f"{grafana}/a/grafana-pyroscope-app/explore?{urllib.parse.urlencode(query)}",
               wait_until="networkidle", timeout=60000)
@@ -378,7 +401,7 @@ def iso(ms):
     return datetime.datetime.fromtimestamp(int(ms) / 1000, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
-def capture_diff(page, grafana, base_run, base_from, base_to, run, frm, to, metric, expand, fixed, path):
+def capture_diff(page, grafana, service, base_run, base_from, base_to, run, frm, to, metric, expand, fixed, path):
     """
     고치기 전 회차(기준)와 고친 뒤 회차(비교)의 Diff flame graph 를 찍는다. 늘어난 함수는 빨강, 줄어든 함수는 초록이다.
     두 쪽의 회차와 구간은 URL 로 주고, 견줄 구간은 화면의 Auto-select 로 고른다. 두 쪽의 시계열이 다 그려진 뒤에야 그 단추가 구간을 잡는다.
@@ -389,7 +412,7 @@ def capture_diff(page, grafana, base_run, base_from, base_to, run, frm, to, metr
     fixed 의 함수는 몫이 거의 변하지 않았어도 그 함수까지 가는 경로를 펼쳐 남긴다. 고쳤는데 몫이 그대로인 것도 보이게 하려는 것이다.
     """
     page.set_viewport_size(dict(VIEWPORT))
-    query = {"explorationType": "diff-flame-graph", "var-dataSource": "pyroscope", "var-serviceName": "lunchcatch",
+    query = {"explorationType": "diff-flame-graph", "var-dataSource": "pyroscope", "var-serviceName": service,
              "var-profileMetricId": metric,
              "from": iso(base_from), "to": iso(base_to), "var-filtersBaseline": f"run|=|{base_run}",
              "comparisonFrom": iso(frm), "comparisonTo": iso(to), "var-filtersComparison": f"run|=|{run}"}

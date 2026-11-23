@@ -28,7 +28,8 @@ import time
 import urllib.parse
 import urllib.request
 
-SERVICE = "lunchcatch"
+# 프로파일의 서비스다. 앱은 lunchcatch, 배치는 lunchcatch-batch 다(#204). 배치 서버의 프로파일링은 lunch-catch/lc-backend#1318 부터 붙는다
+SERVICES = ("lunchcatch", "lunchcatch-batch")
 # 종류마다 Pyroscope 의 프로파일 종류와 보낼 때의 초당 표본 수다. 표본 수는 PROFILE_SH 의 send 와 같아야 한다
 KINDS = {
     "cpu": ("process_cpu:cpu:nanoseconds:cpu:nanoseconds", 100),
@@ -47,23 +48,24 @@ def request(base, path, body=None, content_type=None):
         return r.read()
 
 
-def selector(run):
-    return '{service_name="%s",run="%s"}' % (SERVICE, run)
+def selector(service, run):
+    return '{service_name="%s",run="%s"}' % (service, run)
 
 
-def query(base, kind, run, start_ms, end_ms, path, **extra):
-    body = dict({"profileTypeID": KINDS[kind][0], "labelSelector": selector(run), "start": start_ms, "end": end_ms}, **extra)
+def query(base, service, kind, run, start_ms, end_ms, path, **extra):
+    body = dict({"profileTypeID": KINDS[kind][0], "labelSelector": selector(service, run), "start": start_ms, "end": end_ms}, **extra)
     return json.loads(request(base, "/querier.v1.QuerierService/" + path, json.dumps(body).encode(), "application/json"))
 
 
-def candidate_seconds(base, kind, run, start_ms, end_ms):
-    data = query(base, kind, run, start_ms, end_ms, "SelectSeries", step=1)
+def candidate_seconds(base, service, kind, run, start_ms, end_ms):
+    data = query(base, service, kind, run, start_ms, end_ms, "SelectSeries", step=1)
     seen = {int(p["timestamp"]) // 1000 for s in data.get("series", []) for p in s.get("points", []) if float(p.get("value", 0)) > 0}
-    return sorted({t + d for t in seen for d in (-1, 0, 1)})
+    # 앞뒤 한 초를 더하면 회차 구간 밖의 묶음도 들어와 회차 전체의 합과 어긋난다. 구간 안의 초만 남긴다
+    return sorted(t for t in {t + d for t in seen for d in (-1, 0, 1)} if start_ms <= t * 1000 <= end_ms)
 
 
-def stacks(base, kind, run, start_ms, end_ms):
-    graph = query(base, kind, run, start_ms, end_ms, "SelectMergeStacktraces").get("flamegraph")
+def stacks(base, service, kind, run, start_ms, end_ms):
+    graph = query(base, service, kind, run, start_ms, end_ms, "SelectMergeStacktraces").get("flamegraph")
     if not graph:
         return {}
     return folded({"names": graph["names"], "levels": [[int(v) for v in lv.get("values", [])] for lv in graph["levels"]]})
@@ -96,11 +98,11 @@ def to_samples(stacks, rate):
     return {k: round(v / period) for k, v in stacks.items() if round(v / period) > 0}
 
 
-def settled_total(base, kind, run, start_ms, end_ms, rate, wait=15, tries=8):
+def settled_total(base, service, kind, run, start_ms, end_ms, rate, wait=15, tries=8):
     # 회차가 막 끝나면 마지막 묶음이 아직 보이지 않을 수 있다. 회차 전체의 합이 두 번 연달아 같아질 때까지 기다린다
     last = None
     for _ in range(tries):
-        now = sum(to_samples(stacks(base, kind, run, start_ms, end_ms), rate).values())
+        now = sum(to_samples(stacks(base, service, kind, run, start_ms, end_ms), rate).values())
         if now == last:
             return now
         last = now
@@ -109,21 +111,29 @@ def settled_total(base, kind, run, start_ms, end_ms, rate, wait=15, tries=8):
 
 
 def export(args):
-    files, manifest = {}, {"run": args.run, "from": args.from_ms, "to": args.to_ms, "kinds": {}}
-    for kind, (_, rate) in KINDS.items():
-        whole = settled_total(args.pyroscope, kind, args.run, args.from_ms, args.to_ms, rate)
-        batches, total = [], 0
-        for t in candidate_seconds(args.pyroscope, kind, args.run, args.from_ms, args.to_ms):
-            batch = to_samples(stacks(args.pyroscope, kind, args.run, t * 1000 - 1, t * 1000 + 1), rate)
-            if not batch:
+    # 서비스마다 <서비스>/<종류>/<초>.folded 로 나눠 둔다(#204). 프로파일이 없는 서비스(배치를 뜨지 않은 회차)는 넣지 않는다
+    files, manifest = {}, {"run": args.run, "from": args.from_ms, "to": args.to_ms, "services": {}}
+    for service in SERVICES:
+        kinds = {}
+        for kind, (_, rate) in KINDS.items():
+            seconds = candidate_seconds(args.pyroscope, service, kind, args.run, args.from_ms, args.to_ms)
+            if not seconds:
                 continue
-            files[f"{kind}/{t}.folded"] = "".join(f"{k} {v}\n" for k, v in sorted(batch.items())).encode()
-            n = sum(batch.values())
-            batches.append({"at": t, "samples": n})
-            total += n
-        # 묶음의 합이 회차 전체를 한 번에 물은 합과 같아야 빠진 묶음이 없다. 반올림 탓의 작은 차이는 남는다
-        manifest["kinds"][kind] = {"sample_rate": rate, "batches": batches, "samples": total, "whole_samples": whole}
-        print(f"profile {kind} {len(batches)} 묶음 {total} 표본 (회차 전체 {whole})")
+            whole = settled_total(args.pyroscope, service, kind, args.run, args.from_ms, args.to_ms, rate)
+            batches, total = [], 0
+            for t in seconds:
+                batch = to_samples(stacks(args.pyroscope, service, kind, args.run, t * 1000 - 1, t * 1000 + 1), rate)
+                if not batch:
+                    continue
+                files[f"{service}/{kind}/{t}.folded"] = "".join(f"{k} {v}\n" for k, v in sorted(batch.items())).encode()
+                n = sum(batch.values())
+                batches.append({"at": t, "samples": n})
+                total += n
+            # 묶음의 합이 회차 전체를 한 번에 물은 합과 같아야 빠진 묶음이 없다. 반올림 탓의 작은 차이는 남는다
+            kinds[kind] = {"sample_rate": rate, "batches": batches, "samples": total, "whole_samples": whole}
+            print(f"profile {service} {kind} {len(batches)} 묶음 {total} 표본 (회차 전체 {whole})")
+        if kinds:
+            manifest["services"][service] = {"kinds": kinds}
     if not files:
         print("profile 이 회차의 프로파일이 없다. 프로파일링을 붙이지 않은 회차면 그대로 둔다")
         return 2
@@ -146,14 +156,20 @@ def restore(args):
     with tarfile.open(args.archive) as tar:
         manifest = json.load(tar.extractfile("manifest.json"))
         run = manifest["run"]
-        for kind, meta in manifest["kinds"].items():
-            for b in meta["batches"]:
-                data = tar.extractfile(f"{kind}/{b['at']}.folded").read()
-                q = urllib.parse.urlencode({"name": f"{SERVICE}.{kind}{{run={run}}}", "from": b["at"], "until": b["at"] + 10,
-                                            "format": "folded", "sampleRate": meta["sample_rate"], "spyName": "javaspy",
-                                            "units": "samples", "aggregationType": "sum"})
-                request(args.pyroscope, "/ingest?" + q, data)
-            print(f"restore {run} {kind} {len(meta['batches'])} 묶음 {meta['samples']} 표본")
+        # 서비스가 나뉘기 전(#204 전)의 파일은 앱(lunchcatch) 하나이고 <종류>/<초>.folded 로 놓였다
+        if "services" in manifest:
+            layout = {service: (meta["kinds"], f"{service}/") for service, meta in manifest["services"].items()}
+        else:
+            layout = {"lunchcatch": (manifest["kinds"], "")}
+        for service, (kinds, prefix) in layout.items():
+            for kind, meta in kinds.items():
+                for b in meta["batches"]:
+                    data = tar.extractfile(f"{prefix}{kind}/{b['at']}.folded").read()
+                    q = urllib.parse.urlencode({"name": f"{service}.{kind}{{run={run}}}", "from": b["at"], "until": b["at"] + 10,
+                                                "format": "folded", "sampleRate": meta["sample_rate"], "spyName": "javaspy",
+                                                "units": "samples", "aggregationType": "sum"})
+                    request(args.pyroscope, "/ingest?" + q, data)
+                print(f"restore {run} {service} {kind} {len(meta['batches'])} 묶음 {meta['samples']} 표본")
     return 0
 
 

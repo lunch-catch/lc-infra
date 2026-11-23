@@ -35,6 +35,11 @@ to=$(awk '$1 == "to" {print $2}' "$run_dir/구간.txt")
 [ -n "$from" ] && [ -n "$to" ] || die "구간.txt 에서 from 과 to 를 읽지 못했다"
 
 log "1. 관측 도구를 다시 보기용으로 띄운다"
+# compose 는 띄울 서비스를 고르기 전에 파일 전체의 변수를 푼다. 앱의 JWT_SECRET 은 없으면 멈추게 되어 있어(compose.yaml),
+# .env 가 없는 기계에서도 뜨게 자리값을 준다. 다시 보기는 앱을 띄우지 않아 이 값을 쓰지 않는다
+if [ -z "${JWT_SECRET:-}" ] && ! grep -qs '^JWT_SECRET=.' "$LOCAL/.env"; then
+  export JWT_SECRET=replay-not-used
+fi
 (cd "$LOCAL" && docker compose -f compose.yaml -f compose.replay.yaml up -d grafana prometheus loki tempo pyroscope > /dev/null)
 for i in $(seq 1 60); do
   curl -sf "$GRAFANA/api/health" > /dev/null 2>&1 \
