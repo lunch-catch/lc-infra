@@ -61,10 +61,10 @@ export GRAFANA_PASSWORD=admin
 pyro="$GRAFANA/api/datasources/proxy/uid/pyroscope"
 # 다시 보기용 설정으로 막 다시 띄운 Pyroscope 는 준비되기 전에 올리면 empty ring 으로 거절한다(500). 준비될 때까지 기다린다
 for i in $(seq 1 60); do
-  curl -sf -u admin:admin "$pyro/ready" > /dev/null 2>&1 && break
+  curl -sf -u "admin:$GRAFANA_PASSWORD" "$pyro/ready" > /dev/null 2>&1 && break
   sleep 3
 done
-curl -sf -u admin:admin "$pyro/ready" > /dev/null || die "Pyroscope 가 준비되지 않았다"
+curl -sf -u "admin:$GRAFANA_PASSWORD" "$pyro/ready" > /dev/null || die "Pyroscope 가 준비되지 않았다"
 
 log "2. 두 회차의 프로파일을 올린다"
 for d in "$base_dir" "$run_dir"; do
@@ -74,12 +74,12 @@ done
 visible() {
   local r="$1" from="$2" to="$3" id
   for id in wall:wall:nanoseconds:cpu:nanoseconds process_cpu:cpu:nanoseconds:cpu:nanoseconds; do
-    curl -sf -u admin:admin -X POST "$pyro/querier.v1.QuerierService/SelectMergeStacktraces" -H 'Content-Type: application/json' \
+    curl -sf -u "admin:$GRAFANA_PASSWORD" -X POST "$pyro/querier.v1.QuerierService/SelectMergeStacktraces" -H 'Content-Type: application/json' \
       -d "{\"profileTypeID\":\"$id\",\"labelSelector\":\"{service_name=\\\"lunchcatch\\\",run=\\\"$r\\\"}\",\"start\":$from,\"end\":$to}" \
       | python3 -I -c 'import json,sys; sys.exit(0 if int((json.load(sys.stdin).get("flamegraph") or {}).get("total") or 0) > 0 else 1)' || return 1
   done
   # Diff 화면은 그 구간의 프로파일 종류 목록으로 종류를 고른다. 목록은 데이터보다 늦게 잡혀, 목록에 wall 과 cpu 가 다 나올 때까지 기다린다
-  curl -sf -u admin:admin -X POST "$pyro/querier.v1.QuerierService/LabelValues" -H 'Content-Type: application/json' \
+  curl -sf -u "admin:$GRAFANA_PASSWORD" -X POST "$pyro/querier.v1.QuerierService/LabelValues" -H 'Content-Type: application/json' \
     -d "{\"name\":\"__profile_type__\",\"matchers\":[\"{service_name=\\\"lunchcatch\\\",run=\\\"$r\\\"}\"],\"start\":$from,\"end\":$to}" \
     | python3 -I -c 'import json,sys; n=set(json.load(sys.stdin).get("names",[])); sys.exit(0 if {"wall:wall:nanoseconds:cpu:nanoseconds","process_cpu:cpu:nanoseconds:cpu:nanoseconds"} <= n else 1)'
 }
