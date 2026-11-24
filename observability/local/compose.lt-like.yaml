@@ -14,6 +14,9 @@ services:
   app:
     cpus: 2
     mem_limit: 2g
+    # 부하 시험 환경(modules/compute 의 compose 템플릿)과 같다. 뜨다 Valkey 연결이 늦어 꺼져도 다시 뜬다(lc-infra #211).
+    # docker compose stop 이나 docker stop 으로 멈춘 것은 다시 띄우지 않는다
+    restart: unless-stopped
     environment:
       # 부하 시험 환경처럼 스케줄 작업은 배치만 돈다
       LUNCHCATCH_SCHEDULER_ENABLED: "false"
@@ -33,6 +36,7 @@ services:
     ports: !reset []
     cpus: 2
     mem_limit: 2g
+    restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod,loadtest,batch
       LUNCHCATCH_SCHEDULER_ENABLED: "true"
