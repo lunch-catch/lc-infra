@@ -413,7 +413,7 @@
       "id": 1,
       "type": "timeseries",
       "title": "기준을 넘은 API",
-      "description": "목표를 넘은 순간의 API p99 를 그린다. 목표는 기본 500ms 이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 API 에서 300ms 를 넘은 요청의 트레이스 목록이 보고 있는 구간으로 열린다\n트레이스 화면에서 노란색으로 표시된 스팬은 임계 경로다(필터의 Critical path 를 누르면 표시된다)\n- 요청이 끝나는 시각을 실제로 늦춘 스팬의 사슬이다. 하나가 빨라지면 요청 전체가 그만큼 빨라진다\n- 막대 안의 가는 선이 그 스팬 가운데 임계 경로에 든 구간이다\n- 스팬이 없는 빈 구간은 계측하지 않은 우리 코드와 Valkey 명령의 시간이다. 진단 회차의 프로파일링(Pyroscope)이 남긴 Call Tree 로 본다",
+      "description": "목표를 넘은 순간의 API p99 를 그린다. 목표는 기본 500ms 이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 API 에서 300ms 를 넘은 요청의 트레이스 목록이 보고 있는 구간으로 열린다\n\n트레이스 화면에서 노란색으로 표시된 스팬은 임계 경로다(필터의 Critical path 를 누르면 표시된다)\n- 요청이 끝나는 시각을 실제로 늦춘 스팬의 사슬이다. 하나가 빨라지면 요청 전체가 그만큼 빨라진다\n- 막대 안의 가는 선이 그 스팬 가운데 임계 경로에 든 구간이다\n- 스팬이 없는 빈 구간은 계측하지 않은 우리 코드와 Valkey 명령의 시간이다. 진단 회차의 프로파일링(Pyroscope)이 남긴 Call Tree 로 본다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
