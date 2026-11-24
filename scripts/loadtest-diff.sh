@@ -59,6 +59,12 @@ done
 curl -sf "$GRAFANA/api/health" > /dev/null || die "그라파나가 뜨지 않았다"
 export GRAFANA_PASSWORD=admin
 pyro="$GRAFANA/api/datasources/proxy/uid/pyroscope"
+# 다시 보기용 설정으로 막 다시 띄운 Pyroscope 는 준비되기 전에 올리면 empty ring 으로 거절한다(500). 준비될 때까지 기다린다
+for i in $(seq 1 60); do
+  curl -sf -u admin:admin "$pyro/ready" > /dev/null 2>&1 && break
+  sleep 3
+done
+curl -sf -u admin:admin "$pyro/ready" > /dev/null || die "Pyroscope 가 준비되지 않았다"
 
 log "2. 두 회차의 프로파일을 올린다"
 for d in "$base_dir" "$run_dir"; do
