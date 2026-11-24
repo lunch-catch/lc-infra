@@ -77,7 +77,7 @@ def main():
         # 회차 폴더 안을 종류별로 나눈다(lc-infra #191). 트레이스는 하나마다 폴더를 두어 화면과 로그를 함께 둔다
         api_base = args.grafana.replace("//localhost", "//host.docker.internal")
         services = present_services(api_base, auth, args.run, args.frm, args.to) if args.run else {}
-        if args.run:
+        if args.run and not args.diff_only:
             for prefix, service in services.items():
                 for kind, metric in PROFILES.items():
                     path = out / "calltree" / f"{prefix}{kind}.png"
@@ -88,7 +88,7 @@ def main():
         api = traces.Grafana(args.grafana.replace("//localhost", "//host.docker.internal"), auth)
         # 받은 트레이스는 대상을 모르므로 ID 앞 8자로 폴더 이름을 짓는다
         targets = [(trace_id, trace_id[:8]) for trace_id in args.trace]
-        if not targets and args.trace_top > 0:
+        if not targets and args.trace_top > 0 and not args.diff_only:
             chosen, note = traces.select(api, args.frm, args.to, args.trace_top)
             traces.write_list(out / "traces.txt", chosen, note)
             print(f"traces.txt  {len(chosen)} 개" + (f"  {note}" if note else ""))
@@ -107,11 +107,13 @@ def main():
                 if prefix not in base_services:
                     print(f"diff {service}: 기준 회차 {args.baseline} 에 없어 건너뛴다")
                     continue
+                # 고친 함수를 주고 펼칠 함수를 주지 않았으면 그 서비스의 맨 위 진입점에서 wall 이 큰 것을 고른다(#209)
+                expand = args.expand or (top_entries(api_base, auth, service, args.run, args.frm, args.to) if args.fixed else [])
                 for kind, metric in PROFILES.items():
                     path = out / "diff" / f"{prefix}{kind}.png"
                     path.parent.mkdir(parents=True, exist_ok=True)
                     capture_diff(page, args.grafana, service, args.baseline, args.baseline_from, args.baseline_to,
-                                 args.run, args.frm, args.to, metric, args.expand, args.fixed, path)
+                                 args.run, args.frm, args.to, metric, expand, args.fixed, path)
                     print(f"diff/{path.name}  {args.baseline} -> {args.run}")
         browser.close()
 
@@ -134,13 +136,17 @@ def parse_args():
     parser.add_argument("--baseline-to", help="유닉스 밀리초")
     # 그 버전에서 고친 함수다. Diff 의 Call Tree 에서 몫이 거의 변하지 않았어도 그 함수까지 가는 경로를 남긴다. 결과 문서(lc-backend #1128)가 넘긴다
     parser.add_argument("--fixed", action="append", default=[])
+    # Diff 만 찍는다. 남긴 두 회차를 다시 올려 찍는 loadtest-diff.sh 가 쓴다(#209). Call Tree 와 트레이스는 찍지 않는다
+    parser.add_argument("--diff-only", action="store_true")
     args = parser.parse_args()
     if args.baseline and not (args.baseline_from and args.baseline_to):
         parser.error("--baseline 은 --baseline-from 과 --baseline-to 와 함께 준다")
     if args.baseline and not args.run:
         parser.error("--baseline 은 --run 과 함께 준다")
-    if args.fixed and not (args.baseline and args.expand):
-        parser.error("--fixed 는 --baseline 과 --expand 와 함께 준다")
+    if args.fixed and not args.baseline:
+        parser.error("--fixed 는 --baseline 과 함께 준다. --expand 를 주지 않으면 진입점을 고른다")
+    if args.diff_only and not args.baseline:
+        parser.error("--diff-only 는 --baseline 과 함께 준다")
     return args
 
 
@@ -152,6 +158,26 @@ def present_services(api_base, auth, run, frm, to):
     with urllib.request.urlopen(req, timeout=60) as res:
         names = set(json.load(res).get("names", []))
     return {prefix: service for prefix, service in SERVICES.items() if prefix == "" or service in names}
+
+
+# 고친 함수를 펼칠 진입점의 수다. Call Tree 맨 위(진입점)에서 wall 이 큰 순으로 고른다(#209)
+TOP_ENTRIES = 3
+
+
+def top_entries(api_base, auth, service, run, frm, to, n=TOP_ENTRIES):
+    # 그 회차 wall 의 맨 위 줄(전체 바로 아래)이 진입점이다. TRIM_PY 가 우리 코드가 일을 시작한 자리부터 남긴다
+    body = json.dumps({"profileTypeID": PROFILES["wall"], "labelSelector": '{service_name="%s",run="%s"}' % (service, run),
+                       "start": int(frm), "end": int(to)}).encode()
+    req = urllib.request.Request(api_base.rstrip("/") + "/api/datasources/proxy/uid/pyroscope/querier.v1.QuerierService/SelectMergeStacktraces",
+                                 data=body, headers={"Authorization": auth, "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=60) as res:
+        graph = json.load(res).get("flamegraph") or {}
+    levels = graph.get("levels") or []
+    if len(levels) < 2:
+        return []
+    values = [int(v) for v in levels[1].get("values", [])]
+    nodes = [(graph["names"][values[i + 3]], values[i + 1]) for i in range(0, len(values), 4)]
+    return [name for name, _ in sorted(nodes, key=lambda kv: -kv[1])[:n]]
 
 
 def capture_call_tree(page, grafana, service, run, frm, to, metric, expand, path):

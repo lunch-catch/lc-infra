@@ -20,6 +20,9 @@ services:
     # 예전 저장 구조(v1)로 돈다. v1 은 인제스터가 프로파일의 시각으로 블록을 만든다.
     # 기본(v2)은 색인을 6시간 구간으로 나누는데, 지난 시각으로 넣은 프로파일을 그 시각의 구간에서 찾지 못해 하루 넘게 지난 회차가 비어 보였다.
     # v1 은 인제스터로 써야(-write-path=ingester) 뜬다
-    command: [-config.file=/etc/pyroscope/replay.yaml, -write-path=ingester]
+    # 기본은 4시간보다 오래된 구간을 저장소에만 묻고 인제스터(아직 저장소로 내려가지 않은 것)는 묻지 않는다(query-store-after).
+    # 방금 지난 시각으로 넣은 회차는 인제스터에만 있어, 데이터 질의는 되는데 프로파일 종류와 꼬리표 목록이 비었다.
+    # 그라파나의 Diff 화면은 그 목록으로 프로파일 종류를 고르다 wall 을 cpu 로 바꿨다(#209). 늘 인제스터에 묻게 사실상 끝없이 둔다
+    command: [-config.file=/etc/pyroscope/replay.yaml, -write-path=ingester, -querier.query-store-after=87600h]
     volumes:
       - ./pyroscope.replay.yaml:/etc/pyroscope/replay.yaml:ro
