@@ -110,9 +110,28 @@ def settled_total(base, service, kind, run, start_ms, end_ms, rate, wait=15, tri
     return last
 
 
+def read_batches(path):
+    # 앱이 Pyroscope 로 묶음을 보낼 때 남긴 줄이다(lunch-catch/lc-backend#1343). "batch <서비스> <종류> <from> <until>" 이다.
+    # Pyroscope 는 묶음을 from 한 점에 찍고 until 은 돌려주지 않아, 원래 until 은 이 파일에서만 안다.
+    # 앱 서버 여럿이 같은 초에 보낸 묶음은 Pyroscope 안에서 합쳐져 그 가운데 가장 늦은 until 을 쓴다
+    until = {}
+    try:
+        lines = open(path, encoding="utf-8").read().splitlines()
+    except OSError:
+        return until
+    for line in lines:
+        parts = line.split()
+        if len(parts) == 5 and parts[0] == "batch" and parts[3].isdigit() and parts[4].isdigit():
+            key = (parts[1], parts[2], int(parts[3]))
+            until[key] = max(until.get(key, 0), int(parts[4]))
+    return until
+
+
 def export(args):
     # 서비스마다 <서비스>/<종류>/<초>.folded 로 나눠 둔다(#204). 프로파일이 없는 서비스(배치를 뜨지 않은 회차)는 넣지 않는다
     files, manifest = {}, {"run": args.run, "from": args.from_ms, "to": args.to_ms, "services": {}}
+    # 회차 폴더(--out 의 폴더)에 앱이 남긴 묶음 목록이 있으면 묶음마다 원래 until 을 적는다
+    until = read_batches(os.path.join(os.path.dirname(os.path.abspath(args.out)), "profile-batches.txt"))
     for service in SERVICES:
         kinds = {}
         for kind, (_, rate) in KINDS.items():
@@ -127,7 +146,10 @@ def export(args):
                     continue
                 files[f"{service}/{kind}/{t}.folded"] = "".join(f"{k} {v}\n" for k, v in sorted(batch.items())).encode()
                 n = sum(batch.values())
-                batches.append({"at": t, "samples": n})
+                batch_meta = {"at": t, "samples": n}
+                if (service, kind, t) in until:
+                    batch_meta["until"] = until[(service, kind, t)]
+                batches.append(batch_meta)
                 total += n
             # 묶음의 합이 회차 전체를 한 번에 물은 합과 같아야 빠진 묶음이 없다. 반올림 탓의 작은 차이는 남는다
             kinds[kind] = {"sample_rate": rate, "batches": batches, "samples": total, "whole_samples": whole}
@@ -165,7 +187,7 @@ def restore(args):
             for kind, meta in kinds.items():
                 for b in meta["batches"]:
                     data = tar.extractfile(f"{prefix}{kind}/{b['at']}.folded").read()
-                    q = urllib.parse.urlencode({"name": f"{service}.{kind}{{run={run}}}", "from": b["at"], "until": b["at"] + 10,
+                    q = urllib.parse.urlencode({"name": f"{service}.{kind}{{run={run}}}", "from": b["at"], "until": b.get("until", b["at"] + 10),
                                                 "format": "folded", "sampleRate": meta["sample_rate"], "spyName": "javaspy",
                                                 "units": "samples", "aggregationType": "sum"})
                     request(args.pyroscope, "/ingest?" + q, data)

@@ -53,7 +53,7 @@
 #                      diff/{wall|cpu}.png 로 찍는다. 두 회차의 조건(부하, 데이터 규모, 구간 길이)이 같아야 견줄 수 있다(lc-infra #115).
 #                      --expand 도 주면 나눈 보기 대신 Diff 의 Call Tree 를 전체 폭으로 그 함수부터 몫이 많이 변한 갈래만 펼쳐 찍는다.
 #                      같은 코드로 잰 두 회차도 표본이 적으면 wall 의 몫이 10%p 넘게 흔들린다. Diff 하나로 판정하지 않고 측정 회차의 수치와 함께 본다
-#   --fixed <함수>     --baseline, --expand 와 함께 준다. 그 버전에서 고친 함수다. 여러 번 줄 수 있다. Diff 의 Call Tree 에서 몫이 거의
+#   --fixed <함수>     --baseline 과 함께 준다. --expand 를 주지 않으면 Call Tree 맨 위 진입점에서 wall 이 큰 3개를 펼친다(lc-infra #209). 그 버전에서 고친 함수다. 여러 번 줄 수 있다. Diff 의 Call Tree 에서 몫이 거의
 #                      변하지 않았어도 그 함수까지 가는 경로를 남겨, 고쳤는데 몫이 그대로인 것도 보이게 한다
 #   --expand <함수>    --diag 의 Call Tree 에서 펼칠 함수. 여러 번 줄 수 있다. 기준을 넘은 API 의 컨트롤러 메서드와 작업 메서드다.
 #                      그 줄에서 큰 갈래를 펼치고 Self 가 큰 줄에서 멈춘다. 기준은 scripts/diag-capture/capture.py 가 갖는다.
@@ -158,7 +158,7 @@ fi
 [ $(( ${#TRACES[@]} + ${#EXPANDS[@]} )) -eq 0 ] || [ -n "$DIAG" ] || die "--trace 와 --expand 는 --diag 와 함께 준다"
 [ ${#TRACES[@]} -eq 0 ] || [ -z "$NO_TRACES" ] || die "--trace 와 --no-traces 는 함께 주지 않는다"
 [ -z "$BASELINE" ] || { [ -n "$DIAG" ] && [ -n "$BASE_FROM" ] && [ -n "$BASE_TO" ]; } || die "--baseline 은 --diag, --baseline-from, --baseline-to 와 함께 준다"
-[ ${#FIXED[@]} -eq 0 ] || { [ -n "$BASELINE" ] && [ ${#EXPANDS[@]} -gt 0 ]; } || die "--fixed 는 --baseline 과 --expand 와 함께 준다"
+[ ${#FIXED[@]} -eq 0 ] || [ -n "$BASELINE" ] || die "--fixed 는 --baseline 과 함께 준다. --expand 를 주지 않으면 진입점을 고른다(#209)"
 
 # 진단 회차도 측정 회차와 같은 대시보드를 찍는다(lc-infra #201). 원인을 볼 때 같은 회차의 서버 자원, RDB, 캐시를 견준다.
 # 기본 목록은 그라파나에 붙은 뒤 정한다(아래 "찍을 대시보드").
