@@ -442,7 +442,7 @@
     {
       "type": "timeseries",
       "title": "엔진 CPU 사용률",
-      "description": "Valkey 가 명령을 처리하는 스레드의 CPU 사용률이다(CloudWatch EngineCPUUtilization). 명령을 한 스레드로 돌려 노드 CPU 보다 먼저 찬다. 붉은 선 90% 를 5분 넘게 넘으면 경보 CacheEngineCpuHigh 가 울린다",
+      "description": "Valkey 가 명령을 처리하는 스레드의 CPU 사용률이다(CloudWatch EngineCPUUtilization). 명령을 한 스레드로 돌려 노드 CPU 보다 먼저 찬다. 붉은 선 90% 를 5분 넘게 넘으면 경보 CacheEngineCpuHigh 가 울린다 ElastiCache 의 CloudWatch 지표라 로컬 구성(Valkey 컨테이너)에는 없어 비어 있다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
