@@ -35,6 +35,16 @@ scrape_configs:
         regex: adserving_impression_dispatch.*|batch_job_.*
         action: keep
 
+  # 테일 샘플링의 판정 전에 버린 트레이스와 거절한 스팬, Tempo 의 거절을 로컬에서도 본다(lc-infra #207). 운영은 앱 서버의 Alloy 와 모니터링 서버의 Tempo 를 긁는다
+  - job_name: alloy
+    static_configs:
+      - targets: ["alloy:12345"]
+        labels: {instance: local-app}
+
+  - job_name: tempo
+    static_configs:
+      - targets: ["tempo:3200"]
+
   - job_name: node
     static_configs:
       - targets: ["node-exporter:9100"]
