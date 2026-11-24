@@ -102,8 +102,11 @@ def main():
             print(f"traces/{folder.name}  {trace_id}  로그 {lines} 줄")
         if args.baseline:
             # 기준 회차에도 그 서비스가 있어야 견준다. 배치 프로파일링 전에 잰 기준이면 앱만 견준다
-            base_services = present_services(api_base, auth, args.baseline, args.baseline_from, args.baseline_to)
-            for prefix, service in services.items():
+            base_services = present_services(api_base, auth, args.baseline, args.baseline_from, args.baseline_to, keep_app=False)
+            if not base_services:
+                # 환경을 다시 띄웠거나 다른 날 잰 기준이다. 실패로 세지 않고 남긴 파일로 찍게 한다(loadtest-diff.sh)
+                print(f"diff 기준 회차 {args.baseline} 의 프로파일이 이 Pyroscope 에 없어 건너뛴다. 두 회차의 보관 파일로 scripts/loadtest-diff.sh 가 찍는다")
+            for prefix, service in (services.items() if base_services else []):
                 if prefix not in base_services:
                     print(f"diff {service}: 기준 회차 {args.baseline} 에 없어 건너뛴다")
                     continue
@@ -150,14 +153,15 @@ def parse_args():
     return args
 
 
-def present_services(api_base, auth, run, frm, to):
-    # 그 회차(run 꼬리표)에 프로파일이 있는 서비스만 고른다. 앱이 없으면 지금처럼 앱을 찍다 실패하게 앱은 늘 남긴다
+def present_services(api_base, auth, run, frm, to, keep_app=True):
+    # 그 회차(run 꼬리표)에 프로파일이 있는 서비스만 고른다. 앱이 없으면 지금처럼 앱을 찍다 실패하게 앱은 늘 남긴다.
+    # 기준 회차는 keep_app=False 로 묻는다. 다른 날 잰 기준은 이 Pyroscope 에 없어, 앱까지 빠지면 Diff 를 건너뛴다
     body = json.dumps({"name": "service_name", "matchers": ['{run="%s"}' % run], "start": int(frm), "end": int(to)}).encode()
     req = urllib.request.Request(api_base.rstrip("/") + "/api/datasources/proxy/uid/pyroscope/querier.v1.QuerierService/LabelValues",
                                  data=body, headers={"Authorization": auth, "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=60) as res:
         names = set(json.load(res).get("names", []))
-    return {prefix: service for prefix, service in SERVICES.items() if prefix == "" or service in names}
+    return {prefix: service for prefix, service in SERVICES.items() if (keep_app and prefix == "") or service in names}
 
 
 # 고친 함수를 펼칠 진입점의 수다. Call Tree 맨 위(진입점)에서 wall 이 큰 순으로 고른다(#209)
