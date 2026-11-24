@@ -41,7 +41,10 @@ for d in "$base_dir" "$run_dir"; do
   [ -f "$d/구간.txt" ] || die "$d 에 구간.txt 가 없다. 캡처가 만든 진단 회차 폴더를 준다"
   [ -n "$(archive "$d")" ] || die "$d 에 프로파일 파일(diag-*-profile.tar.gz)이 없다"
 done
-base=$(basename "$base_dir"); run=$(basename "$run_dir")
+# 프로파일의 run 꼬리표는 보관 파일의 manifest.json 이 갖는다. 폴더 이름은 캡처의 기본 폴더(<시각>_<회차>)처럼 다를 수 있다
+run_of() { tar -xzOf "$(archive "$1")" manifest.json | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["run"])'; }
+base=$(run_of "$base_dir") || die "$base_dir 의 보관 파일에서 회차 이름을 읽지 못했다"
+run=$(run_of "$run_dir") || die "$run_dir 의 보관 파일에서 회차 이름을 읽지 못했다"
 
 log "1. 그라파나와 Pyroscope 를 다시 보기용으로 띄운다"
 # 앱을 띄우지 않아 JWT_SECRET 을 쓰지 않는다. compose 가 파일 전체의 변수를 먼저 풀어 .env 가 없으면 자리값을 준다(loadtest-replay.sh 와 같다)
