@@ -303,7 +303,7 @@ jdbc:mysql://{endpoint}:3306/{db}?connectTimeout=3000&socketTimeout=10000
 spring:
   datasource:
     hikari:
-      connection-timeout: 3000       # 풀에서 커넥션을 못 얻으면 3초 만에 포기
+      connection-timeout: 5000       # 풀에서 커넥션을 못 얻으면 5초 만에 포기
       validation-timeout: 1000
       keepalive-time: 120000
       max-lifetime: 1500000          # 25분
@@ -318,7 +318,7 @@ spring:
 | `keepalive-time` | 유휴 커넥션이 조용히 끊긴 것을 미리 발견 |
 | `max-lifetime` | 커넥션을 주기적으로 교체해 오래된 연결 누적 방지 |
 
-`connection-timeout` 3초가 3.1절의 전파 경로를 끊는다. 요청이 3초 만에 실패하고 스레드를 반환하므로, 200개 스레드가 잠기는 대신 200개가 계속 순환하며 빠르게 실패한다. 서비스의 증상이 "무한정 느려짐"에서 "명확한 오류"로 바뀐다.
+`connection-timeout` 5초가 3.1절의 전파 경로를 끊는다. 요청이 5초 만에 실패하고 스레드를 반환하므로, 200개 스레드가 잠기는 대신 200개가 계속 순환하며 빠르게 실패한다. 서비스의 증상이 "무한정 느려짐"에서 "명확한 오류"로 바뀐다.
 
 `maximum-pool-size`와 `minimum-idle`을 같게 두면 풀 크기가 고정되어, 부하 급증 시 커넥션 생성 지연이 생기지 않는다. 현재 1대 기준 10개이며, 배포 중에는 신구 인스턴스가 함께 존재해 20개가 된다.
 
@@ -715,7 +715,7 @@ spring:
   datasource:
     url: jdbc:mysql://${DB_ENDPOINT}:3306/${DB_NAME}?connectTimeout=3000&socketTimeout=10000
     hikari:
-      connection-timeout: 3000
+      connection-timeout: 5000
       validation-timeout: 1000
       keepalive-time: 120000
       max-lifetime: 1500000

@@ -572,7 +572,7 @@
     {
       "type": "timeseries",
       "title": "DB 커넥션 얻기 시간",
-      "description": "DB 커넥션을 얻기까지 기다린 시간이다. DB 커넥션 풀 패널의 기다리는 스레드는 몇 개가 기다리는지를, 이 패널은 얼마나 오래 기다렸는지를 본다. 3초(`connection-timeout`)를 넘기면 기다리다 실패하므로 이 그래프는 3초를 넘지 않는다. 실패한 횟수는 커넥션을 얻지 못하고 시간 제한에 걸린 횟수 (분당) 패널이 센다.",
+      "description": "DB 커넥션을 얻기까지 기다린 시간이다. DB 커넥션 풀 패널의 기다리는 스레드는 몇 개가 기다리는지를, 이 패널은 얼마나 오래 기다렸는지를 본다. 5초(`connection-timeout`)를 넘기면 기다리다 실패하므로 이 그래프는 5초를 넘지 않는다. 실패한 횟수는 커넥션을 얻지 못하고 시간 제한에 걸린 횟수 (분당) 패널이 센다.",
       "gridPos": {
         "x": 12,
         "y": 30,
@@ -630,7 +630,7 @@
     {
       "type": "timeseries",
       "title": "커넥션을 얻지 못하고 시간 제한에 걸린 횟수 (분당)",
-      "description": "풀에서 커넥션을 시간 제한(`connection-timeout`, 3초) 안에 얻지 못해 실패한 횟수다. 0 이 정상이다. 한 건이라도 생기면 `HikariConnectionTimeout` 경보가 울린다.",
+      "description": "풀에서 커넥션을 시간 제한(`connection-timeout`, 5초) 안에 얻지 못해 실패한 횟수다. 0 이 정상이다. 한 건이라도 생기면 `HikariConnectionTimeout` 경보가 울린다.",
       "gridPos": {
         "x": 0,
         "y": 38,

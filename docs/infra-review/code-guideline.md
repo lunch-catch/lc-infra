@@ -65,7 +65,7 @@ DB가 죽었을 때 가장 흔한 실패 양상은 DB 자체가 아니라 **앱�
 | `networkaddress.cache.ttl` | 5 | 옛 주소 고착으로 페일오버 후 복구 실패 |
 | JDBC `connectTimeout` | 3000 | TCP 연결 수립 무한 대기 |
 | JDBC `socketTimeout` | 10000 | 이미 맺은 커넥션의 무한 대기 |
-| Hikari `connection-timeout` | 3000 | **톰캣 스레드 고갈** |
+| Hikari `connection-timeout` | 5000 | **톰캣 스레드 고갈** |
 | `@Transactional(timeout)` | 5 | 쿼리 도중 정지 |
 
 점검 항목
