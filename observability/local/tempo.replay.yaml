@@ -1,0 +1,28 @@
+# 남긴 진단 회차를 다시 볼 때만 쓰는 Tempo 설정이다(#219). compose.replay.yaml 이 붙인다.
+# 남긴 트레이스는 지난 시각의 스팬이다. 기본 설정은 그 시각으로 블록을 찾지 못하거나 지운다. 그것만 푼다
+stream_over_http_enabled: true
+server:
+  http_listen_port: 3200
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+query_frontend:
+  search:
+    # 기본은 30분보다 이전 구간을 저장소에만 묻는다. 방금 넣은 트레이스는 아직 인제스터에 있어 늘 인제스터에도 묻는다
+    query_ingesters_until: 87600h
+compactor:
+  compaction:
+    # 기본 보관 기간이 지난 시각의 블록은 넣자마자 지운다
+    block_retention: 87600h
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+      # 기본은 지금과 2분 넘게 다른 스팬의 시각 대신 넣은 시각으로 블록의 구간을 잡아, 원래 구간으로 검색하면 나오지 않는다
+      ingestion_time_range_slack: 87600h
+    local:
+      path: /var/tempo/blocks

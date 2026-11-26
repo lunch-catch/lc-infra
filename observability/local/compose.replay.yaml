@@ -26,3 +26,17 @@ services:
     command: [-config.file=/etc/pyroscope/replay.yaml, -write-path=ingester, -querier.query-store-after=87600h]
     volumes:
       - ./pyroscope.replay.yaml:/etc/pyroscope/replay.yaml:ro
+
+  # 지난 시각의 트레이스를 그 구간으로 찾게 한다. 까닭은 tempo.replay.yaml 에 적었다(#219)
+  tempo:
+    command: [-config.file=/etc/tempo/replay.yaml]
+    volumes:
+      - ./tempo.replay.yaml:/etc/tempo/replay.yaml:ro
+
+  # 남긴 트레이스를 다시 넣는 입구를 호스트에 연다(#219). Tempo 는 OTLP 를 gRPC 로만 받아, HTTP 로 받는 Alloy 를 거친다.
+  # 남긴 트레이스는 처음에 테일 샘플링을 통과한 것이다. 다시 보낼 때 무작위 규칙에 걸려 버려지지 않게 모두 남긴다
+  alloy:
+    ports:
+      - "${REPLAY_OTLP_PORT:-14318}:4318"
+    environment:
+      TRACE_REST_PERCENT: "100"
