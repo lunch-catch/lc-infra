@@ -42,9 +42,10 @@ STOP_SELF_SHARE = 0.50
 # 진입점 몫의 이 비율 이상이면 펼친다. 진입점을 그만큼 움직이지 못한 변화는 회차 사이의 흔들림과 가르기 어렵다(작성자가 2026-11-10 대화에서 정했다)
 DIFF_FLOOR_SHARE = 0.05
 
-# 프로파일의 서비스와 그 그림 이름 앞에 붙는 말이다(#204). 앱은 지금처럼 calltree/wall.png, 배치는 calltree/batch-wall.png 다.
+# 프로파일의 서비스와 그 그림 이름 앞에 붙는 말이다(#204). API 서버는 calltree/api-wall.png, 배치는 calltree/batch-wall.png 다.
+# API 서버의 앞말은 #217 부터 붙는다. 그 전의 회차 폴더는 calltree/wall.png 라 lunch-catch/lc-backend 의 진단 절이 두 이름을 다 찾는다
 # 배치 서버의 프로파일링은 lunch-catch/lc-backend#1318 부터 붙는다. 그 회차에 그 서비스가 없으면 건너뛴다
-SERVICES = {"": "lunchcatch", "batch-": "lunchcatch-batch"}
+SERVICES = {"api-": "lunchcatch", "batch-": "lunchcatch-batch"}
 PROFILES = {
     "wall": "wall:wall:nanoseconds:cpu:nanoseconds",
     "cpu": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
@@ -161,7 +162,7 @@ def present_services(api_base, auth, run, frm, to, keep_app=True):
                                  data=body, headers={"Authorization": auth, "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=60) as res:
         names = set(json.load(res).get("names", []))
-    return {prefix: service for prefix, service in SERVICES.items() if (keep_app and prefix == "") or service in names}
+    return {prefix: service for prefix, service in SERVICES.items() if (keep_app and prefix == "api-") or service in names}
 
 
 # 고친 함수를 펼칠 진입점의 수다. Call Tree 맨 위(진입점)에서 wall 이 큰 순으로 고른다(#209)

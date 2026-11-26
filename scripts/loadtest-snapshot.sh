@@ -26,9 +26,9 @@
 #     traces.txt                      고른 트레이스 목록. 번호가 traces/ 의 폴더 번호다
 #     dashboards/2._서비스/2._API.png
 #     traces/01-api-v1-feed/          trace.png, logs.png, logs.txt
-#     calltree/wall.png, cpu.png      진단 회차만. 앱 서버(서비스 lunchcatch)
+#     calltree/api-wall.png, ...    진단 회차만. API 서버(서비스 lunchcatch). #217 전에 찍은 회차는 앞말이 없다(calltree/wall.png)
 #     calltree/batch-wall.png, ...  진단 회차에 배치 프로파일(lunchcatch-batch)이 있을 때만(lc-infra #204)
-#     diff/wall.png, cpu.png          진단 회차에 --baseline 을 주었을 때만. 배치는 diff/batch-*.png, 기준 회차에도 배치가 있을 때만
+#     diff/api-wall.png, ...        진단 회차에 --baseline 을 주었을 때만. 배치는 diff/batch-*.png, 기준 회차에도 배치가 있을 때만
 #     redis.txt                       진단 회차만
 #     metrics.json.gz, logs.jsonl.gz  진단 회차만. 회차 구간의 지표와 경고, 오류 로그 원본(lc-infra #203)
 #     traces/*/trace.json             진단 회차만. 고른 트레이스의 Tempo 원본
@@ -50,7 +50,7 @@
 #   --no-traces        트레이스를 고르지도 찍지도 않는다. Tempo 가 없는 환경은 주지 않아도 건너뛴다
 #   --baseline <회차> --baseline-from <ms> --baseline-to <ms>
 #                      --diag 와 함께 준다. 고치기 전 진단 회차를 기준으로 이 회차를 견준 Diff flame graph(wall, cpu)를
-#                      diff/{wall|cpu}.png 로 찍는다. 두 회차의 조건(부하, 데이터 규모, 구간 길이)이 같아야 견줄 수 있다(lc-infra #115).
+#                      diff/{api|batch}-{wall|cpu}.png 로 찍는다. 두 회차의 조건(부하, 데이터 규모, 구간 길이)이 같아야 견줄 수 있다(lc-infra #115).
 #                      --expand 도 주면 나눈 보기 대신 Diff 의 Call Tree 를 전체 폭으로 그 함수부터 몫이 많이 변한 갈래만 펼쳐 찍는다.
 #                      같은 코드로 잰 두 회차도 표본이 적으면 wall 의 몫이 10%p 넘게 흔들린다. Diff 하나로 판정하지 않고 측정 회차의 수치와 함께 본다
 #   --fixed <함수>     --baseline 과 함께 준다. --expand 를 주지 않으면 Call Tree 맨 위 진입점에서 wall 이 큰 3개를 펼친다(lc-infra #209). 그 버전에서 고친 함수다. 여러 번 줄 수 있다. Diff 의 Call Tree 에서 몫이 거의
