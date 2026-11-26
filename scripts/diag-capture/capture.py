@@ -377,9 +377,13 @@ def crop_rows(page, table, box, scoped):
         if scrolled + visible >= total:
             return rows
         # 화면 끝에 걸쳐 잘린 줄을 다음 화면에서 온전히 찍도록 한 줄 높이만큼 덜 내린다
+        before = scrolled
         scrolled += max(visible - 40, 20)
         # 표 끝에서는 브라우저가 내릴 수 있는 만큼만 내린다. 실제로 내린 위치를 읽어 줄의 자리를 잰다
         scrolled = table.evaluate("(e, y) => { e.scrollTop = y; return e.scrollTop; }", scrolled)
+        # 더 내려가지 않았으면 끝이다. 높이를 반올림해 위의 판정이 1px 모자라면 같은 자리를 끝없이 찍었다(#221)
+        if scrolled <= before:
+            return rows
         page.wait_for_timeout(300)
 
 
