@@ -78,12 +78,18 @@ def main():
         api_base = args.grafana.replace("//localhost", "//host.docker.internal")
         services = present_services(api_base, auth, args.run, args.frm, args.to) if args.run else {}
         if args.run and not args.diff_only:
+            found = set()
             for prefix, service in services.items():
+                # 받은 함수가 그 서비스의 진입점에 없으면 wall 이 큰 진입점을 펼친다(#221)
+                fallback = top_entries(api_base, auth, service, args.run, args.frm, args.to)
                 for kind, metric in PROFILES.items():
                     path = out / "calltree" / f"{prefix}{kind}.png"
                     path.parent.mkdir(parents=True, exist_ok=True)
-                    capture_call_tree(page, args.grafana, service, args.run, args.frm, args.to, metric, args.expand, path)
+                    found |= capture_call_tree(page, args.grafana, service, args.run, args.frm, args.to, metric, args.expand, fallback, path)
                     print(f"calltree/{path.name}")
+            missing = [name for name in args.expand if name not in found]
+            if missing:
+                print(f"calltree --expand 의 {', '.join(missing)} 는 어느 서비스의 진입점에도 없다. 함수 이름을 본다", flush=True)
         # 데이터 소스 프록시는 브라우저가 아니라 이 프로세스가 부른다. 컨테이너 안의 localhost 는 호스트가 아니라 호스트로 돌린다
         api = traces.Grafana(args.grafana.replace("//localhost", "//host.docker.internal"), auth)
         # 받은 트레이스는 대상을 모르므로 ID 앞 8자로 폴더 이름을 짓는다
@@ -164,7 +170,7 @@ def present_services(api_base, auth, run, frm, to, keep_app=True):
     return {prefix: service for prefix, service in SERVICES.items() if (keep_app and prefix == "") or service in names}
 
 
-# 고친 함수를 펼칠 진입점의 수다. Call Tree 맨 위(진입점)에서 wall 이 큰 순으로 고른다(#209)
+# 펼칠 진입점의 수다. Call Tree 맨 위(진입점)에서 wall 이 큰 순으로 고른다. Diff 는 고친 함수를 찾을 때(#209), Call Tree 는 펼칠 함수를 받지 못했을 때(#221) 쓴다
 TOP_ENTRIES = 3
 
 
@@ -184,7 +190,8 @@ def top_entries(api_base, auth, service, run, frm, to, n=TOP_ENTRIES):
     return [name for name, _ in sorted(nodes, key=lambda kv: -kv[1])[:n]]
 
 
-def capture_call_tree(page, grafana, service, run, frm, to, metric, expand, path):
+# 펼친 진입점의 이름을 돌려준다. 받은 함수 가운데 이 Call Tree 의 진입점에 있는 것을 펼치고, 하나도 없으면 fallback 을 펼친다
+def capture_call_tree(page, grafana, service, run, frm, to, metric, expand, fallback, path):
     page.set_viewport_size(dict(VIEWPORT))
     query = {"explorationType": "flame-graph", "var-dataSource": "pyroscope", "var-serviceName": service,
              "var-profileMetricId": metric, "from": frm, "to": to, "var-filters": f"run|=|{run}"}
@@ -195,13 +202,19 @@ def capture_call_tree(page, grafana, service, run, frm, to, metric, expand, path
     page.locator("input[id^=option-callTree]").first.click(force=True)
     page.wait_for_load_state("networkidle")
     hide_menu(page)
-    for name in expand:
+    _, texts = read_rows(page)
+    entries = {function_name(text) for text in texts}
+    given = [name for name in expand if name in entries]
+    names = given or [name for name in fallback if name in entries]
+    print(f"  {service} 펼친 진입점: {', '.join(names) or '없음'}" + ("" if given else " (wall 이 큰 순)"), flush=True)
+    for name in names:
         expand_hot_branches(page, name)
     page.evaluate("window.scrollTo(0, 0)")
-    if expand:
-        stitch_rows(page, path, expand)
+    if names:
+        stitch_rows(page, path, names)
     else:
         stitch_table(page, path)
+    return set(given)
 
 
 def expand_hot_branches(page, name):
