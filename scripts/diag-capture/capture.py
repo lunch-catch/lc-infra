@@ -65,6 +65,8 @@ PERCENTS = re.compile(r"(\d+(?:\.\d+)?)%")
 
 def main():
     args = parse_args()
+    if args.ours:
+        OURS.update(line.strip() for line in open(args.ours, encoding="utf-8") if line.strip())
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     # 비밀번호는 인자로 받지 않는다. 인자는 도는 동안 호스트의 프로세스 목록에 보인다
@@ -79,12 +81,18 @@ def main():
         api_base = args.grafana.replace("//localhost", "//host.docker.internal")
         services = present_services(api_base, auth, args.run, args.frm, args.to) if args.run else {}
         if args.run and not args.diff_only:
+            found = set()
             for prefix, service in services.items():
+                # 받은 함수가 그 서비스의 진입점에 없으면 wall 이 큰 진입점을 펼친다(#221)
+                fallback = top_entries(api_base, auth, service, args.run, args.frm, args.to)
                 for kind, metric in PROFILES.items():
                     path = out / "calltree" / f"{prefix}{kind}.png"
                     path.parent.mkdir(parents=True, exist_ok=True)
-                    capture_call_tree(page, args.grafana, service, args.run, args.frm, args.to, metric, args.expand, path)
+                    found |= capture_call_tree(page, args.grafana, service, args.run, args.frm, args.to, metric, args.expand, fallback, path)
                     print(f"calltree/{path.name}")
+            missing = [name for name in args.expand if name not in found]
+            if missing:
+                print(f"calltree --expand 의 {', '.join(missing)} 는 어느 서비스의 진입점에도 없다. 함수 이름을 본다", flush=True)
         # 데이터 소스 프록시는 브라우저가 아니라 이 프로세스가 부른다. 컨테이너 안의 localhost 는 호스트가 아니라 호스트로 돌린다
         api = traces.Grafana(args.grafana.replace("//localhost", "//host.docker.internal"), auth)
         # 받은 트레이스는 대상을 모르므로 ID 앞 8자로 폴더 이름을 짓는다
@@ -132,8 +140,11 @@ def parse_args():
     parser.add_argument("--trace", action="append", default=[])
     # --trace 를 주지 않았을 때 기준을 넘은 줄(API, 릴레이, 워커, 작업)마다 고를 트레이스 수다. 0 이면 고르지 않는다. 기본 3 은 작성자가 2026-11-21 대화에서 정했다
     parser.add_argument("--trace-top", type=int, default=3)
-    # 기준을 넘은 API 의 컨트롤러 메서드와 작업 메서드다. 판정(lc-backend #1128)이 넘긴다. 주지 않으면 맨 위 줄만 보인다
+    # 기준을 넘은 API 의 컨트롤러 메서드와 작업 메서드다. 판정(lc-backend #1365)이 넘긴다. 주지 않으면 wall 이 큰 진입점을 펼친다(#221)
     parser.add_argument("--expand", action="append", default=[])
+    # 우리 코드의 클래스 이름이 한 줄에 하나씩 든 파일이다. 주면 그림에 우리 코드의 줄과 그 바로 아래의 첫 라이브러리 줄만 남긴다(#221).
+    # 프로파일의 함수 이름은 패키지를 뗀 Class.method 라 이름만으로는 우리 코드인지 알 수 없다(lc-backend 의 TRIM_PY)
+    parser.add_argument("--ours")
     # 고치기 전 진단 회차다. 주면 그 회차를 기준으로 이 회차를 견준 Diff flame graph 를 찍는다(lc-infra #115)
     parser.add_argument("--baseline", help="기준 회차의 run 라벨")
     parser.add_argument("--baseline-from", help="유닉스 밀리초")
@@ -165,7 +176,7 @@ def present_services(api_base, auth, run, frm, to, keep_app=True):
     return {prefix: service for prefix, service in SERVICES.items() if (keep_app and prefix == "api-") or service in names}
 
 
-# 고친 함수를 펼칠 진입점의 수다. Call Tree 맨 위(진입점)에서 wall 이 큰 순으로 고른다(#209)
+# 펼칠 진입점의 수다. Call Tree 맨 위(진입점)에서 wall 이 큰 순으로 고른다. Diff 는 고친 함수를 찾을 때(#209), Call Tree 는 펼칠 함수를 받지 못했을 때(#221) 쓴다
 TOP_ENTRIES = 3
 
 
@@ -185,7 +196,8 @@ def top_entries(api_base, auth, service, run, frm, to, n=TOP_ENTRIES):
     return [name for name, _ in sorted(nodes, key=lambda kv: -kv[1])[:n]]
 
 
-def capture_call_tree(page, grafana, service, run, frm, to, metric, expand, path):
+# 펼친 진입점의 이름을 돌려준다. 받은 함수 가운데 이 Call Tree 의 진입점에 있는 것을 펼치고, 하나도 없으면 fallback 을 펼친다
+def capture_call_tree(page, grafana, service, run, frm, to, metric, expand, fallback, path):
     page.set_viewport_size(dict(VIEWPORT))
     query = {"explorationType": "flame-graph", "var-dataSource": "pyroscope", "var-serviceName": service,
              "var-profileMetricId": metric, "from": frm, "to": to, "var-filters": f"run|=|{run}"}
@@ -196,13 +208,19 @@ def capture_call_tree(page, grafana, service, run, frm, to, metric, expand, path
     page.locator("input[id^=option-callTree]").first.click(force=True)
     page.wait_for_load_state("networkidle")
     hide_menu(page)
-    for name in expand:
+    _, texts = read_rows(page)
+    entries = {function_name(text) for text in texts}
+    given = [name for name in expand if name in entries]
+    names = given or [name for name in fallback if name in entries]
+    print(f"  {service} 펼친 진입점: {', '.join(names) or '없음'}" + ("" if given else " (wall 이 큰 순)"), flush=True)
+    for name in names:
         expand_hot_branches(page, name)
     page.evaluate("window.scrollTo(0, 0)")
-    if expand:
-        stitch_rows(page, path, expand)
+    if names:
+        stitch_rows(page, path, names)
     else:
         stitch_table(page, path)
+    return set(given)
 
 
 def expand_hot_branches(page, name):
@@ -219,6 +237,15 @@ def expand_hot_branches(page, name):
         print(f"  {name} 줄이 없다. 그 회차에 그 함수의 표본이 없다", flush=True)
         return
     expand_node(page, start, shares(texts[start])[1] * ENTRY_FLOOR_SHARE)
+
+
+# 우리 코드의 클래스 이름이다. main 이 --ours 로 채운다. 비어 있으면 어디까지 우리 코드인지 가리지 않는다
+OURS = set()
+
+
+# 함수 이름(Class.method, Outer$Inner.method)의 바깥 클래스가 우리 코드인가
+def is_ours(name):
+    return not OURS or name.rsplit(".", 1)[0].split("$", 1)[0] in OURS
 
 
 # 한 줄을 펼치고 큰 갈래의 자식을 차례로 펼친다. 앞의 줄은 펼쳐도 뒤로만 줄이 늘어 그 줄의 자리는 그대로다
@@ -333,6 +360,9 @@ def stitch_rows(page, path, expand):
     page.wait_for_timeout(500)
     table = page.locator("[data-capture=table]")
     box = table.bounding_box()
+    # 펼치며 누른 줄로 표가 내려가 있으면 첫 화면에 표 머리 대신 중간 줄이 찍힌다. 맨 위로 올리고 찍는다
+    table.evaluate("e => { e.scrollTop = 0; }")
+    page.wait_for_timeout(300)
     first = Image.open(io.BytesIO(page.screenshot(full_page=True)))
     rows = crop_rows(page, table, box, False)
     ordered = [rows[top] for top in sorted(rows)]
@@ -365,13 +395,19 @@ def crop_rows(page, table, box, scoped):
         if scrolled + visible >= total:
             return rows
         # 화면 끝에 걸쳐 잘린 줄을 다음 화면에서 온전히 찍도록 한 줄 높이만큼 덜 내린다
+        before = scrolled
         scrolled += max(visible - 40, 20)
         # 표 끝에서는 브라우저가 내릴 수 있는 만큼만 내린다. 실제로 내린 위치를 읽어 줄의 자리를 잰다
         scrolled = table.evaluate("(e, y) => { e.scrollTop = y; return e.scrollTop; }", scrolled)
+        # 더 내려가지 않았으면 끝이다. 높이를 반올림해 위의 판정이 1px 모자라면 같은 자리를 끝없이 찍었다(#221)
+        if scrolled <= before:
+            return rows
         page.wait_for_timeout(300)
 
 
-# 맨 위 total 줄과, 펼친 진입점마다 그 진입점 안에서 진입점 Total 의 ENTRY_FLOOR_SHARE 이상인 줄의 순번이다
+# 맨 위 total 줄과, 펼친 진입점마다 그 진입점 안에서 진입점 Total 의 ENTRY_FLOOR_SHARE 이상인 줄의 순번이다.
+# 우리 코드의 클래스(OURS)를 알면 우리 코드의 줄과 그 바로 아래의 첫 라이브러리 줄만 남긴다. 라이브러리 안쪽은 고칠 수 없어서다.
+# 라이브러리를 지나 다시 나온 우리 코드(스프링 프록시 아래의 구현 등)는 남긴다(작성자가 2026-11-26 대화에서 정했다)
 def kept_rows(texts, expand):
     kept = {0}
     for start, text in enumerate(texts):
@@ -379,11 +415,18 @@ def kept_rows(texts, expand):
             continue
         floor = shares(text)[1] * ENTRY_FLOOR_SHARE
         kept.add(start)
+        # 부모 줄을 깊이로 쌓는다. 줄마다 그 줄이 우리 코드인지 함께 둔다
+        parents = [(depth(text), True)]
         for i in range(start + 1, len(texts)):
-            if depth(texts[i]) <= depth(text):
+            level = depth(texts[i])
+            if level <= depth(text):
                 break
-            if shares(texts[i])[1] >= floor:
+            while parents and parents[-1][0] >= level:
+                parents.pop()
+            ours = is_ours(function_name(texts[i]))
+            if shares(texts[i])[1] >= floor and (ours or parents[-1][1]):
                 kept.add(i)
+            parents.append((level, ours))
     return sorted(kept)
 
 

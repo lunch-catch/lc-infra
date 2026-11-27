@@ -57,7 +57,8 @@
 #                      변하지 않았어도 그 함수까지 가는 경로를 남겨, 고쳤는데 몫이 그대로인 것도 보이게 한다
 #   --expand <함수>    --diag 의 Call Tree 에서 펼칠 함수. 여러 번 줄 수 있다. 기준을 넘은 API 의 컨트롤러 메서드와 작업 메서드다.
 #                      그 줄에서 큰 갈래를 펼치고 Self 가 큰 줄에서 멈춘다. 기준은 scripts/diag-capture/capture.py 가 갖는다.
-#                      주지 않으면 맨 위 줄만 보인다
+#                      주지 않았거나 그 서비스의 진입점에 하나도 없으면 wall 이 큰 진입점 3개를 펼친다(#221)
+#   --ours <파일>      --diag 와 함께 준다. 우리 코드의 클래스 이름이 한 줄에 하나씩 든 파일이다. Call Tree 그림에 우리 코드의 줄과 그 바로 아래의 첫 라이브러리 줄만 남긴다(#221)
 #
 # 왜 이 스크립트가 필요한가.
 #
@@ -86,7 +87,7 @@ WIDTH="${WIDTH:-1600}"
 # 비워 두면 대시보드마다 패널 배치에서 높이를 잰다. 주면 모든 장을 그 높이로 자른다
 HEIGHT="${HEIGHT:-}"
 
-TRACE_TOP=3; NO_TRACES=""; OUT_GIVEN=""; LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); DOMAINS=(); LT=""; LOCAL=""; DIAG=""; TRACES=(); EXPANDS=(); BASELINE=""; BASE_FROM=""; BASE_TO=""; FIXED=()
+TRACE_TOP=3; NO_TRACES=""; OUT_GIVEN=""; LABEL=""; MINUTES=5; FROM=""; TO=""; DASH=(); DOMAINS=(); LT=""; LOCAL=""; DIAG=""; TRACES=(); EXPANDS=(); OURS=""; BASELINE=""; BASE_FROM=""; BASE_TO=""; FIXED=()
 
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -108,6 +109,7 @@ while [ $# -gt 0 ]; do
     --trace-top) case "${2:-}" in ""|*[!0-9]*) die "--trace-top 에는 0 이상의 정수를 준다" ;; esac; TRACE_TOP="$2"; shift 2 ;;
     --no-traces) NO_TRACES=1; shift ;;
     --expand)  EXPANDS+=("${2:-}"); shift 2 ;;
+    --ours)    OURS="${2:-}"; shift 2 ;;
     --baseline) BASELINE="${2:-}"; shift 2 ;;
     --baseline-from) BASE_FROM="${2:-}"; shift 2 ;;
     --baseline-to) BASE_TO="${2:-}"; shift 2 ;;
@@ -156,6 +158,7 @@ if [ "$TO" -gt "$now_ms" ]; then
 fi
 
 [ $(( ${#TRACES[@]} + ${#EXPANDS[@]} )) -eq 0 ] || [ -n "$DIAG" ] || die "--trace 와 --expand 는 --diag 와 함께 준다"
+[ -z "$OURS" ] || [ -f "$OURS" ] || die "--ours 의 파일이 없다: $OURS"
 [ ${#TRACES[@]} -eq 0 ] || [ -z "$NO_TRACES" ] || die "--trace 와 --no-traces 는 함께 주지 않는다"
 [ -z "$BASELINE" ] || { [ -n "$DIAG" ] && [ -n "$BASE_FROM" ] && [ -n "$BASE_TO" ]; } || die "--baseline 은 --diag, --baseline-from, --baseline-to 와 함께 준다"
 [ ${#FIXED[@]} -eq 0 ] || [ -n "$BASELINE" ] || die "--fixed 는 --baseline 과 함께 준다. --expand 를 주지 않으면 진입점을 고른다(#209)"
@@ -321,7 +324,11 @@ if [ -n "$DIAG" ] || [ -n "$want_traces" ]; then
   [ -z "$BASELINE" ] || trace_args+=(--baseline "$BASELINE" --baseline-from "$BASE_FROM" --baseline-to "$BASE_TO")
   for f in ${FIXED[@]+"${FIXED[@]}"}; do trace_args+=(--fixed "$f"); done
   # 비밀번호는 값을 명령행에 두지 않고 환경변수 이름만 넘긴다. 명령행은 도는 동안 프로세스 목록에 보인다
-  if GRAFANA_PASSWORD="$PW" docker run --rm -e GRAFANA_PASSWORD -v "$(cd "$dir" && pwd):/out" lunchcatch-diag-capture \
+  ours_mount=()
+  if [ -n "$OURS" ]; then
+    ours_mount=(-v "$(cd "$(dirname "$OURS")" && pwd)/$(basename "$OURS"):/ours.txt:ro"); trace_args+=(--ours /ours.txt)
+  fi
+  if GRAFANA_PASSWORD="$PW" docker run --rm -e GRAFANA_PASSWORD -v "$(cd "$dir" && pwd):/out" ${ours_mount[@]+"${ours_mount[@]}"} lunchcatch-diag-capture \
       --grafana "http://localhost:$LOCAL_PORT" --from "$FROM" --to "$TO" --out /out \
       ${trace_args[@]+"${trace_args[@]}"} >&2; then
     ok=$((ok + 1))
