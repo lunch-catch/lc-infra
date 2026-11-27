@@ -5,12 +5,13 @@
 #
 #   telemetry.py export  --grafana <주소> --dir <회차 폴더> --from <ms> --to <ms> --dashboards <대시보드 폴더>
 #   telemetry.py logs    --grafana <주소> --dir <회차 폴더>        남긴 로그를 Loki 에 넣는다
+#   telemetry.py traces  --otlp <주소> --dir <회차 폴더>           남긴 트레이스를 OTLP HTTP 로 보낸다(#219)
 #   telemetry.py om      --dir <회차 폴더> --out <파일>             남긴 지표를 promtool 이 읽는 OpenMetrics 글로 푼다
 #
 # 그라파나 주소의 데이터 소스 프록시(/api/datasources/proxy/uid/<uid>)로 묻는다. 부하 시험 환경은 캡처가 연 터널이다.
 # 그라파나 비밀번호는 환경변수 GRAFANA_PASSWORD 로 받는다.
 #
-#   트레이스  traces/<번호>-<대상>/trace.json  traces.txt 에 고른 트레이스의 Tempo 원본이다. 그라파나 Explore 의 Tempo 에서 Import trace 로 연다
+#   트레이스  traces/<번호>-<대상>/trace.json  traces.txt 에 고른 트레이스의 Tempo 원본이다. 다시 볼 때 traces 명령이 OTLP 로 다시 넣는다(#219)
 #   지표      metrics.json.gz                  우리 대시보드의 식이 쓰는 지표 이름만, 회차 구간의 표본 그대로다
 #   로그      logs.jsonl.gz                    앱과 배치의 경고와 오류 로그다. 한 줄이 흐름 하나(꼬리표와 값들)다
 #
@@ -186,6 +187,50 @@ def logs(args):
     return 0
 
 
+# Tempo 가 준 JSON 은 ID 를 base64 로, 종류와 상태를 이름으로 적는다. OTLP HTTP 의 JSON 은 ID 를 16진수로, 둘을 숫자로 받는다
+SPAN_KINDS = {"SPAN_KIND_UNSPECIFIED": 0, "SPAN_KIND_INTERNAL": 1, "SPAN_KIND_SERVER": 2, "SPAN_KIND_CLIENT": 3,
+              "SPAN_KIND_PRODUCER": 4, "SPAN_KIND_CONSUMER": 5}
+STATUS_CODES = {"STATUS_CODE_UNSET": 0, "STATUS_CODE_OK": 1, "STATUS_CODE_ERROR": 2}
+
+
+def hex_id(value):
+    return base64.b64decode(value).hex() if value else value
+
+
+def to_otlp(trace):
+    resource_spans = trace.get("batches") or trace.get("resourceSpans") or []
+    for rs in resource_spans:
+        for ss in rs.get("scopeSpans", []):
+            for span in ss.get("spans", []):
+                for key in ("traceId", "spanId", "parentSpanId"):
+                    if key in span:
+                        span[key] = hex_id(span[key])
+                for link in span.get("links", []):
+                    for key in ("traceId", "spanId"):
+                        if key in link:
+                            link[key] = hex_id(link[key])
+                if isinstance(span.get("kind"), str):
+                    span["kind"] = SPAN_KINDS.get(span["kind"], 0)
+                status = span.get("status", {})
+                if isinstance(status.get("code"), str):
+                    status["code"] = STATUS_CODES.get(status["code"], 0)
+    return {"resourceSpans": resource_spans}
+
+
+def traces(args):
+    files = sorted(glob.glob(os.path.join(args.dir, "traces", "*", "trace.json")))
+    if not files:
+        print("telemetry traces 남긴 트레이스가 없다")
+        return 0
+    for f in files:
+        body = json.dumps(to_otlp(json.load(open(f, encoding="utf-8")))).encode()
+        req = urllib.request.Request(args.otlp.rstrip("/") + "/v1/traces", data=body, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            r.read()
+    print(f"telemetry traces {len(files)} 개를 보냈다")
+    return 0
+
+
 def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -201,8 +246,11 @@ def main():
     lg = sub.add_parser("logs")
     lg.add_argument("--grafana", required=True)
     lg.add_argument("--dir", required=True)
+    t = sub.add_parser("traces")
+    t.add_argument("--otlp", required=True)
+    t.add_argument("--dir", required=True)
     args = p.parse_args()
-    sys.exit({"export": export, "om": om, "logs": logs}[args.cmd](args))
+    sys.exit({"export": export, "om": om, "logs": logs, "traces": traces}[args.cmd](args))
 
 
 if __name__ == "__main__":
