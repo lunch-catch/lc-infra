@@ -15,7 +15,7 @@
 | 앱 | API 서버, 배치 서버 t3.small 을 AZ 마다 1대씩 각각 Auto Scaling Group 으로 둔다. 이미지는 GitHub Actions 가 ECR 에 올리고 서버가 NAT 를 거쳐 받는다 |
 | 데이터 | RDS MySQL 8.4 db.t4g.small Multi-AZ (2026-10-26 06:00 에 micro 에서 올렸다. Primary, Standby 는 장애 조치 때 서로 바뀐다), ElastiCache Valkey 9.0 Primary 2a, Replica 2c |
 | 외부 서비스 | Bedrock (ap-northeast-1) 로 템플릿을 만들고 Rekognition 으로 포스터 이미지 문자를 검수한다 |
-| 관측 | 모니터링 EC2 (t4g.small) 에서 Grafana, Prometheus, Loki, Tempo, Alertmanager 가 돈다. API 서버와 배치 서버마다 Alloy 가 돌아 컨테이너 로그를 Loki 로 밀고, 앱의 OpenTelemetry 에이전트가 낸 스팬을 테일 샘플링해 Tempo 로 보낸다. Alertmanager -> Slack. CloudWatch 알람 -> SNS 메일 |
+| 관측 | 모니터링 EC2 (t4g.small) 에서 Grafana, Prometheus, Loki, Tempo, Alertmanager 가 돈다. OpenTelemetry 에이전트는 앱 컨테이너 안의 JVM 에 붙는다. API 서버와 배치 서버마다 Alloy 가 별도 컨테이너로 돌아 컨테이너 로그를 Loki 로 밀고, 에이전트가 낸 스팬을 테일 샘플링해 Tempo 로 보낸다. Alertmanager -> Slack. CloudWatch 알람 -> SNS 메일 |
 
 ## 개발
 
