@@ -413,7 +413,7 @@
       "id": 1,
       "type": "timeseries",
       "title": "기준을 넘은 API",
-      "description": "목표를 넘은 순간의 API p99 를 그린다. 목표는 기본 500ms 이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 API 에서 300ms 를 넘은 요청의 트레이스 목록이 보고 있는 구간으로 열린다\n\n트레이스 화면에서 노란색으로 표시된 스팬은 임계 경로다(필터의 Critical path 를 누르면 표시된다)\n- 요청이 끝나는 시각을 실제로 늦춘 스팬의 사슬이다. 하나가 빨라지면 요청 전체가 그만큼 빨라진다\n- 막대 안의 가는 선이 그 스팬 가운데 임계 경로에 든 구간이다\n- 스팬이 없는 빈 구간은 계측하지 않은 우리 코드와 Valkey 명령의 시간이다. 진단 회차의 프로파일링(Pyroscope)이 남긴 Call Tree 로 본다",
+      "description": "목표를 넘은 순간의 API p99 를 그린다. 목표는 기본 500ms 이고 이름별 값은 lc-backend 앱 설정의 lunchcatch.observability.targets 에 있다. 선의 점을 누르면 그 API 에서 그 점의 p99 보다 느린 요청의 트레이스 목록이 보고 있는 구간으로 열린다. 그 순간 기준을 넘게 만든 요청들이다\n\n트레이스 화면에서 노란색으로 표시된 스팬은 임계 경로다(필터의 Critical path 를 누르면 표시된다)\n- 요청이 끝나는 시각을 실제로 늦춘 스팬의 사슬이다. 하나가 빨라지면 요청 전체가 그만큼 빨라진다\n- 막대 안의 가는 선이 그 스팬 가운데 임계 경로에 든 구간이다\n- 스팬이 없는 빈 구간은 계측하지 않은 우리 코드와 Valkey 명령의 시간이다. 진단 회차의 프로파일링(Pyroscope)이 남긴 Call Tree 로 본다",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -457,8 +457,8 @@
           },
           "links": [
             {
-              "title": "이 API 의 300ms 넘은 요청 트레이스 (보고 있는 구간)",
-              "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%20%7B%22datasource%22%3A%20%22tempo%22%2C%20%22queries%22%3A%20%5B%7B%22refId%22%3A%20%22A%22%2C%20%22datasource%22%3A%20%7B%22type%22%3A%20%22tempo%22%2C%20%22uid%22%3A%20%22tempo%22%7D%2C%20%22queryType%22%3A%20%22traceql%22%2C%20%22query%22%3A%20%22%7B%20nestedSetParent%20%3D%20-1%20%26%26%20span.http.route%20%3D%20%5C%22${__field.labels.uri:percentencode}%5C%22%20%26%26%20duration%20%3E%20300ms%20%7D%22%2C%20%22limit%22%3A%20100%2C%20%22tableType%22%3A%20%22traces%22%7D%5D%2C%20%22range%22%3A%20%7B%22from%22%3A%20%22${__from}%22%2C%20%22to%22%3A%20%22${__to}%22%7D%7D%7D",
+              "title": "이 API 에서 누른 점의 p99 보다 느린 요청 트레이스 (보고 있는 구간)",
+              "url": "/explore?schemaVersion=1&orgId=1&panes=%7B%22a%22%3A%20%7B%22datasource%22%3A%20%22tempo%22%2C%20%22queries%22%3A%20%5B%7B%22refId%22%3A%20%22A%22%2C%20%22datasource%22%3A%20%7B%22type%22%3A%20%22tempo%22%2C%20%22uid%22%3A%20%22tempo%22%7D%2C%20%22queryType%22%3A%20%22traceql%22%2C%20%22query%22%3A%20%22%7B%20nestedSetParent%20%3D%20-1%20%26%26%20span.http.route%20%3D%20%5C%22${__field.labels.uri:percentencode}%5C%22%20%26%26%20duration%20%3E%20${__value.raw}s%20%7D%22%2C%20%22limit%22%3A%20100%2C%20%22tableType%22%3A%20%22traces%22%7D%5D%2C%20%22range%22%3A%20%7B%22from%22%3A%20%22${__from}%22%2C%20%22to%22%3A%20%22${__to}%22%7D%7D%7D",
               "targetBlank": true
             }
           ]
